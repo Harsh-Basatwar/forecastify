@@ -53,26 +53,7 @@ cd forecastify
 npm install
 ```
 
-### 3. Configure Environment Variables
-
-Create a `.env.local` file in the root directory and populate it with your keys:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-GOOGLE_MAPS_API_KEY=your_google_maps_key
-GROQ_API_KEY=your_groq_api_key
-GROQ_API_KEY_2=your_groq_api_key_2
-GROQ_API_KEY_3=your_groq_api_key_3
-SERPER_API_KEY=your_serper_api_key
-OPENWEATHER_API_KEY=your_openweather_key
-SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
-GEMINI_API_KEY=your_gemini_api_key
-```
-
-> **Note**: Never commit `.env.local` to version control. `.env*` files are ignored via `.gitignore`.
-
-### 4. Run Development Server
+### 3. Run Development Server
 
 ```bash
 npm run dev
