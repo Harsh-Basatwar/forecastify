@@ -1,0 +1,88 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-network-policy
+  namespace: forecastify-prod
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: forecastify-frontend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-network-policy
+  namespace: forecastify-prod
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: forecastify-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: forecastify-frontend
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  - ports:
+    - protocol: TCP
+      port: 443
+    - protocol: UDP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jarvis-network-policy
+  namespace: forecastify-prod
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: forecastify-jarvis
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: forecastify-frontend
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  - ports:
+    - protocol: TCP
+      port: 443
+    - protocol: UDP
+      port: 53

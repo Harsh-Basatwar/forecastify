@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: forecastify-dev
+
+resources:
+  - "../../base"
+
+namePrefix: dev-
+
+patches:
+  - target:
+      kind: Deployment
+      name: forecastify-api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: forecastify-frontend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: forecastify-jarvis
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1

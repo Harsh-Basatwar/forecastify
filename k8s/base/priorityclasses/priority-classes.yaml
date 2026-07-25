@@ -1,0 +1,15 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: forecastify-critical-priority
+value: 1000000
+globalDefault: false
+description: "High-priority scheduling class for mission-critical Forecastify API and AI services."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: forecastify-standard-priority
+value: 500000
+globalDefault: true
+description: "Standard priority scheduling class for general web frontend workloads."

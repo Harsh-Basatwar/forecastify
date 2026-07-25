@@ -1,0 +1,9 @@
+apiVersion: v2
+name: forecastify
+description: Production Helm Chart for Forecastify Enterprise AI Retail Platform
+type: application
+version: 1.0.0
+appVersion: "1.2.4"
+maintainers:
+  - name: Forecastify Platform Team
+    email: devops@forecastify.app

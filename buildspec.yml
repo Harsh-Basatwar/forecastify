@@ -1,0 +1,68 @@
+version: 0.2
+
+env:
+  parameter-store:
+    NEXT_PUBLIC_SUPABASE_URL: "/forecastify/dev/NEXT_PUBLIC_SUPABASE_URL"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "/forecastify/dev/NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    OPENWEATHER_API_KEY: "/forecastify/dev/OPENWEATHER_API_KEY"
+    GROQ_API_KEY: "/forecastify/dev/GROQ_API_KEY"
+    GROQ_API_KEY_2: "/forecastify/dev/GROQ_API_KEY_2"
+    GROQ_API_KEY_3: "/forecastify/dev/GROQ_API_KEY_3"
+    SERPER_API_KEY: "/forecastify/dev/SERPER_API_KEY"
+    GOOGLE_MAPS_API_KEY: "/forecastify/dev/GOOGLE_MAPS_API_KEY"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo Installing dependencies...
+      - npm install
+
+  pre_build:
+    commands:
+      - echo Getting account ID...
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+      - echo Logging into ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+      - REPO_NAME=forecastify-dev-repo
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+
+  build:
+    commands:
+      - echo Creating .env file...
+      - echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env
+      - echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
+      - echo "OPENWEATHER_API_KEY=$OPENWEATHER_API_KEY" >> .env
+      - echo "GROQ_API_KEY=$GROQ_API_KEY" >> .env
+      - echo "GROQ_API_KEY_2=$GROQ_API_KEY_2" >> .env
+      - echo "GROQ_API_KEY_3=$GROQ_API_KEY_3" >> .env
+      - echo "SERPER_API_KEY=$SERPER_API_KEY" >> .env
+      - echo "GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY" >> .env
+
+      # - echo Building Next.js app...
+      # - npm run build
+
+      - echo Building Docker image...
+      - docker build -t forecastify:$IMAGE_TAG .
+
+      - echo Tagging Docker image...
+      - docker tag forecastify:$IMAGE_TAG $ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$REPO_NAME:$IMAGE_TAG
+      - docker tag forecastify:$IMAGE_TAG $ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$REPO_NAME:latest
+
+  post_build:
+    commands:
+      - echo Pushing Docker image...
+      - docker push $ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$REPO_NAME:$IMAGE_TAG
+      - docker push $ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$REPO_NAME:latest
+
+      - echo Setting script permissions...
+      - chmod +x scripts/*.sh
+
+artifacts:
+  files:
+    - docker-compose.yml
+    - appspec.yml
+    - scripts/**

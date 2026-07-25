@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forecastify-config
+  namespace: forecastify-prod
+  labels:
+    app.kubernetes.io/name: forecastify
+    app.kubernetes.io/part-of: forecastify-platform
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  LOG_LEVEL: "info"
+  ENABLE_METRICS: "true"
+  NEXT_TELEMETRY_DISABLED: "1"

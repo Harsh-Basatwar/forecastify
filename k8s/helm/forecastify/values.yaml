@@ -1,0 +1,44 @@
+global:
+  environment: production
+  domain: forecastify.app
+
+image:
+  repository: darshan11111/forecastify
+  tag: "v1.2.4"
+  pullPolicy: IfNotPresent
+
+frontend:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+api:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+jarvis:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  tls: true
+  certManagerIssuer: letsencrypt-production

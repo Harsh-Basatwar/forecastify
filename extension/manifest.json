@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Arjuna Sarthi AI",
+  "description": "AI-powered procurement assistant that bridges inventory forecasting with product purchasing on supplier platforms.",
+  "version": "1.0.0",
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Forecastify Procurement"
+  },
+  "icons": {
+    "16": "icons/extension.png",
+    "48": "icons/extension.png",
+    "128": "icons/extension.png"
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.tsx"],
+      "css": ["src/content/content.css"]
+    }
+  ],
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

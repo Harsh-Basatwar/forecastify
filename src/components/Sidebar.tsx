@@ -1,0 +1,231 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LayoutDashboard, Package, AlertTriangle, ChevronLeft, ChevronRight, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { useLang } from "@/lib/lang-context";
+import { supabase } from "@/lib/supabase";
+
+const navItems = [
+  { href: "/dashboard", labelKey: "nav.overview", icon: LayoutDashboard },
+  { href: "/dashboard/jarvis", labelKey: "nav.jarvis", icon: Bot },
+  { href: "/dashboard/demand-analysis", labelKey: "nav.demandSpikes", icon: Zap },
+  { href: "/dashboard/product-analysis", labelKey: "nav.productAnalysis", icon: Box },
+  { href: "/dashboard/category-analysis", labelKey: "nav.categoryAnalysis", icon: Tag },
+  { href: "/dashboard/purchase-list", labelKey: "nav.purchaseList", icon: ShoppingCart },
+  { href: "/dashboard/news", labelKey: "nav.news", icon: Newspaper },
+  { href: "/dashboard/promotions", labelKey: "nav.promotions", icon: BadgePercent },
+  { href: "/dashboard/market-insights", labelKey: "nav.marketInsights", icon: Megaphone },
+  { href: "/dashboard/what-if", labelKey: "nav.whatIf", icon: FlaskConical },
+  { href: "/dashboard/inventory", labelKey: "nav.inventory", icon: Package },
+  { href: "/dashboard/expiry-risk", labelKey: "nav.expiryRisk", icon: Clock },
+  { href: "/dashboard/alerts", labelKey: "nav.alerts", icon: AlertTriangle },
+  { href: "/dashboard/extension", labelKey: "nav.extension", icon: Puzzle },
+];
+
+interface SidebarProps {
+  mobileOpen: boolean;
+  onMobileClose: () => void;
+}
+
+export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
+  const pathname = usePathname();
+  const { user, signOut } = useAuth();
+  const { t } = useLang();
+  const [isHovered, setIsHovered] = useState(false);
+  const [profileStoreName, setProfileStoreName] = useState("");
+
+  const storeName = profileStoreName || user?.user_metadata?.store_name || "Store";
+  const userName = user?.user_metadata?.full_name || user?.email || "User";
+
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const emptyForm = { product: "", category: "Groceries", current_stock: "", unit: "pcs", price: "", brand: "", sku: "", expiryDate: "" };
+  const [form, setForm] = useState(emptyForm);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    supabase
+      .from("profiles")
+      .select("store_name")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active && data?.store_name) setProfileStoreName(data.store_name);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
+  async function handleAddProduct(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    const { error } = await supabase.from("inventory").insert({
+      store_id: user?.id,
+      product_name: form.product,
+      category: form.category,
+      current_stock: Number(form.current_stock),
+      unit: form.unit,
+      price: Number(form.price),
+      brand: form.brand || null,
+      sku: form.sku || null,
+      expiry_date: form.expiryDate || null,
+    });
+    setSaving(false);
+    if (error) { setError(error.message); return; }
+    window.dispatchEvent(new Event("products_updated"));
+    setForm(emptyForm);
+    setShowAddProduct(false);
+  }
+
+  const renderSidebarContent = (isCollapsed: boolean) => (
+    <div className="flex flex-col h-full overflow-x-hidden select-none">
+      <div className="flex items-center justify-between px-4 h-16 border-b border-border shrink-0">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-linear-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/20">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 20V14L7 10L11 13L17 6L21 10V20H3Z" fill="rgba(255,255,255,0.3)" />
+              <path d="M3 20L7 10L11 13L17 6L21 10" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="17" cy="6" r="2.5" fill="white" opacity="0.9" />
+            </svg>
+          </div>
+          <span className={`text-lg font-bold whitespace-nowrap bg-linear-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent transition-opacity duration-300 ${isCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
+            Forecastify
+          </span>
+        </Link>
+        <button onClick={onMobileClose} className="lg:hidden text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+      </div>
+
+      <div className="px-3 pt-3 shrink-0">
+        <button onClick={() => setShowAddProduct(true)}
+          className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-all">
+          <Plus className="w-4 h-4 shrink-0" />
+          <span className={`transition-opacity duration-300 whitespace-nowrap ${isCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
+            {t("nav.addProduct")}
+          </span>
+        </button>
+      </div>
+
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          return (
+            <Link key={item.href} href={item.href} onClick={onMobileClose}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+                isActive ? "bg-primary/10 text-primary" : "text-sidebar-foreground hover:bg-secondary"
+              }`}>
+              <item.icon className={`w-5 h-5 shrink-0 ${isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`} />
+              <span className={`transition-opacity duration-300 whitespace-nowrap ${isCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
+                {t(item.labelKey)}
+              </span>
+              {isActive && item.href === "/dashboard/alerts" && !isCollapsed && (
+                <span className="ml-auto bg-danger text-white text-xs font-bold px-2 py-0.5 rounded-full">3</span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="border-t border-border px-3 py-4 shrink-0 space-y-2">
+        {!isCollapsed && (
+          <div className="px-3 mb-2 transition-opacity duration-300">
+            <p className="text-sm font-semibold text-foreground truncate">{userName}</p>
+            <p className="text-xs text-muted-foreground truncate">{storeName}</p>
+          </div>
+        )}
+        <button onClick={signOut}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-danger hover:bg-danger/10 w-full transition-all">
+          <LogOut className="w-5 h-5 shrink-0" />
+          <span className={`transition-opacity duration-300 whitespace-nowrap ${isCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
+            {t("nav.signOut")}
+          </span>
+        </button>
+      </div>
+    </div>
+  );
+
+  const inputCls = "w-full px-3 py-2 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
+
+  return (
+    <>
+      {showAddProduct && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={() => setShowAddProduct(false)}>
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-foreground">Add Product</h2>
+              <button onClick={() => setShowAddProduct(false)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleAddProduct} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Product Name *</label>
+                <input required placeholder="e.g. Tata Salt 1kg" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Brand</label>
+                <input placeholder="e.g. Tata" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Category *</label>
+                <select required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={inputCls}>
+                  {["Groceries", "Dairy", "Beverages", "Snacks", "Personal Care", "Household"].map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Quantity *</label>
+                  <input required type="number" min="0" placeholder="e.g. 100" value={form.current_stock} onChange={(e) => setForm({ ...form, current_stock: e.target.value })} className={inputCls} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Unit *</label>
+                  <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className={inputCls}>
+                    {["pcs", "kg", "g", "L", "ml", "box", "pack", "dozen"].map((u) => <option key={u}>{u}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Price (₹) *</label>
+                <input required type="number" min="0" step="0.01" placeholder="e.g. 25.00" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">SKU <span className="text-muted-foreground/60">(unique product code)</span></label>
+                <input placeholder="e.g. TS-001" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Expiry Date</label>
+                <input type="date" value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} className={inputCls} />
+              </div>
+              {error && <p className="text-xs text-danger">{error}</p>}
+              <button type="submit" disabled={saving} className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-50">
+                {saving ? "Adding..." : "Add Product"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {mobileOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onMobileClose} />}
+      
+      {/* Mobile Drawer Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-border transform transition-transform duration-300 lg:hidden ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        {renderSidebarContent(false)}
+      </aside>
+
+      {/* Desktop Hover Expand / Leave Collapse Sidebar */}
+      <aside
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`hidden lg:flex flex-col sticky top-0 h-screen bg-sidebar border-r border-border shrink-0 transition-all duration-300 ease-in-out overflow-x-hidden ${
+          isHovered ? "w-64" : "w-[72px]"
+        }`}
+      >
+        {renderSidebarContent(!isHovered)}
+      </aside>
+    </>
+  );
+}

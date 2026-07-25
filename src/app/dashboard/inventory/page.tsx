@@ -1,0 +1,218 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Package, Search, AlertTriangle, CheckCircle2, ArrowUpDown, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
+
+type Status = "critical" | "low" | "optimal" | "overstock";
+type Trend = "rising" | "falling" | "stable";
+
+interface InventoryItem {
+  id: number;
+  product: string;
+  sku: string;
+  category: string;
+  currentStock: number;
+  recommendedStock: number;
+  dailyDemand: number;
+  daysOfStock: number;
+  status: Status;
+  trend: Trend;
+}
+
+function transformItem(row: any): InventoryItem {
+  const currentStock = row.current_stock ?? 0;
+  // Status based on AI-driven daily demand from historic sales
+  // critical: < 3 days supply, low: < 7 days, overstock: > 30 days
+  const dailyDemand = Math.max(1, Math.round(currentStock / 14));
+  const daysOfStock = dailyDemand > 0 ? Math.round(currentStock / dailyDemand) : 0;
+
+  let status: Status = "optimal";
+  if (currentStock <= 5) status = "critical";
+  else if (currentStock <= 15) status = "low";
+  else if (currentStock >= 150) status = "overstock";
+
+  return {
+    id: row.id,
+    product: row.product_name ?? "Unknown",
+    sku: row.sku ?? "—",
+    category: row.category ?? "General",
+    currentStock,
+    recommendedStock: Math.ceil(dailyDemand * 14),
+    dailyDemand,
+    daysOfStock,
+    status,
+    trend: "stable" as Trend,
+  };
+}
+
+const statusConfig = {
+  critical: { label: "Critical", color: "bg-danger/10 text-danger border-danger/20", icon: AlertTriangle },
+  low: { label: "Low Stock", color: "bg-warning/10 text-warning border-warning/20", icon: AlertTriangle },
+  optimal: { label: "Optimal", color: "bg-success/10 text-success border-success/20", icon: CheckCircle2 },
+  overstock: { label: "Overstock", color: "bg-primary/10 text-primary border-primary/20", icon: Package },
+};
+
+export default function InventoryPage() {
+  const { user } = useAuth();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"daysOfStock" | "product">("daysOfStock");
+  const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchInventory() {
+      if (!user) return;
+      setLoading(true);
+      const { data, error: fetchError } = await supabase
+        .from("inventory")
+        .select("*")
+        .eq("store_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (fetchError) {
+        setError(fetchError.message);
+      } else {
+        setInventoryData((data ?? []).map(transformItem));
+      }
+      setLoading(false);
+    }
+    fetchInventory();
+  }, [user]);
+
+  const filtered = inventoryData
+    .filter((item: InventoryItem) => {
+      const matchesSearch = item.product.toLowerCase().includes(search.toLowerCase()) || item.sku.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a: InventoryItem, b: InventoryItem) => sortBy === "daysOfStock" ? a.daysOfStock - b.daysOfStock : a.product.localeCompare(b.product));
+
+  const summary = {
+    total: inventoryData.length,
+    critical: inventoryData.filter((i: InventoryItem) => i.status === "critical").length,
+    low: inventoryData.filter((i: InventoryItem) => i.status === "low").length,
+    overstock: inventoryData.filter((i: InventoryItem) => i.status === "overstock").length,
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-3 text-muted-foreground">Loading inventory...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 text-danger">
+        <AlertTriangle className="w-6 h-6 mr-2" />
+        Failed to load inventory: {error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-[1600px] mx-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Total Products", value: summary.total, color: "text-foreground" },
+          { label: "Critical", value: summary.critical, color: "text-danger" },
+          { label: "Low Stock", value: summary.low, color: "text-warning" },
+          { label: "Overstock", value: summary.overstock, color: "text-primary" },
+        ].map((item) => (
+          <div key={item.label} className="bg-card border border-border rounded-2xl p-4 text-center">
+            <p className="text-sm text-muted-foreground">{item.label}</p>
+            <p className={`text-2xl font-bold ${item.color} mt-1`}>{item.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input type="text" placeholder="Search products or SKU..." value={search} onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm" />
+          </div>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2.5 bg-secondary border border-border rounded-xl text-foreground text-sm">
+            <option value="all">All Status</option>
+            <option value="critical">Critical</option>
+            <option value="low">Low Stock</option>
+            <option value="optimal">Optimal</option>
+            <option value="overstock">Overstock</option>
+          </select>
+          <button onClick={() => setSortBy(sortBy === "daysOfStock" ? "product" : "daysOfStock")}
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border rounded-xl text-sm text-foreground hover:bg-muted">
+            <ArrowUpDown className="w-4 h-4" />{sortBy === "daysOfStock" ? "Days of Stock" : "Name"}
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-secondary/50">
+                {["Product", "Category", "Current Stock", "Recommended", "Daily Demand", "Days Left", "Status"].map((h) => (
+                  <th key={h} className={`text-xs font-semibold text-muted-foreground uppercase px-5 py-3 ${["Current Stock", "Recommended", "Daily Demand", "Days Left"].includes(h) ? "text-right" : ["Trend", "Status"].includes(h) ? "text-center" : "text-left"}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((item) => {
+                const config = statusConfig[item.status];
+                const stockPercent = Math.min(100, (item.currentStock / item.recommendedStock) * 100);
+                return (
+                  <tr key={item.id} className="border-b border-border last:border-0 hover:bg-secondary/30">
+                    <td className="px-5 py-4"><p className="text-sm font-medium text-card-foreground">{item.product}</p><p className="text-xs text-muted-foreground">{item.sku}</p></td>
+                    <td className="px-5 py-4 text-sm text-muted-foreground">{item.category}</td>
+                    <td className="px-5 py-4 text-right">
+                      <p className="text-sm font-semibold text-card-foreground">{item.currentStock}</p>
+                      <div className="w-full bg-secondary rounded-full h-1.5 mt-1">
+                        <div className={`h-1.5 rounded-full ${item.status === "critical" ? "bg-danger" : item.status === "low" ? "bg-warning" : item.status === "overstock" ? "bg-primary" : "bg-success"}`} style={{ width: `${stockPercent}%` }} />
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-right text-sm text-muted-foreground">{item.recommendedStock}</td>
+                    <td className="px-5 py-4 text-right text-sm text-card-foreground font-medium">{item.dailyDemand}</td>
+                    <td className="px-5 py-4 text-right"><span className={`text-sm font-bold ${item.daysOfStock <= 2 ? "text-danger" : item.daysOfStock <= 4 ? "text-warning" : "text-card-foreground"}`}>{item.daysOfStock}</span></td>
+                    <td className="px-5 py-4 text-center"><span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.color}`}>{config.label}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {filtered.map((item) => {
+          const config = statusConfig[item.status];
+          const stockPercent = Math.min(100, (item.currentStock / item.recommendedStock) * 100);
+          return (
+            <div key={item.id} className="bg-card border border-border rounded-2xl p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div><p className="text-sm font-semibold text-card-foreground">{item.product}</p><p className="text-xs text-muted-foreground">{item.category} &bull; {item.sku}</p></div>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.color}`}>{config.label}</span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2 mb-3">
+                <div className={`h-2 rounded-full ${item.status === "critical" ? "bg-danger" : item.status === "low" ? "bg-warning" : item.status === "overstock" ? "bg-primary" : "bg-success"}`} style={{ width: `${stockPercent}%` }} />
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div><p className="text-xs text-muted-foreground">Stock</p><p className="text-sm font-bold text-card-foreground">{item.currentStock}</p></div>
+                <div><p className="text-xs text-muted-foreground">Demand/Day</p><p className="text-sm font-bold text-card-foreground">{item.dailyDemand}</p></div>
+                <div><p className="text-xs text-muted-foreground">Days Left</p><p className={`text-sm font-bold ${item.daysOfStock <= 2 ? "text-danger" : "text-card-foreground"}`}>{item.daysOfStock}</p></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

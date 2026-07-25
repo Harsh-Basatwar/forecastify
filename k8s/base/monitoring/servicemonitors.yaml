@@ -1,0 +1,45 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: forecastify-servicemonitor
+  namespace: forecastify-prod
+  labels:
+    app.kubernetes.io/name: forecastify-servicemonitor
+    release: prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: forecastify-api
+  endpoints:
+  - port: http
+    path: /api/health
+    interval: 15s
+    scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: forecastify-alert-rules
+  namespace: forecastify-prod
+  labels:
+    role: alert-rules
+spec:
+  groups:
+  - name: forecastify.rules
+    rules:
+    - alert: ForecastifyHighErrorRate
+      expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100 > 5
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High 5xx Error Rate detected on Forecastify API"
+        description: "5xx error rate is currently {{ $value }}% (above 5% threshold)."
+    - alert: ForecastifyPodMemoryHigh
+      expr: container_memory_working_set_bytes{namespace="forecastify-prod",container!=""} / container_spec_memory_limit_bytes{namespace="forecastify-prod",container!=""} * 100 > 85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Pod memory utilization high (>85%)"
+        description: "Pod {{ $labels.pod }} memory utilization is at {{ $value }}%."
