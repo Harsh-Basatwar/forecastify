@@ -27,11 +27,11 @@ spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - forecastify.app
-    - api.forecastify.app
+    - forecastify.in
+    - api.forecastify.in
     secretName: forecastify-tls-cert
   rules:
-  - host: forecastify.app
+  - host: forecastify.in
     http:
       paths:
       - path: /api/jarvis

@@ -1,6 +1,6 @@
 global:
   environment: production
-  domain: forecastify.app
+  domain: forecastify.in
 
 image:
   repository: darshan11111/forecastify
