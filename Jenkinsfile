@@ -1,6 +1,5 @@
 pipeline {
     agent { label 'deploy' }
-    
 
     environment {
         SONARQUBE = credentials('sonar-token')
@@ -12,7 +11,7 @@ pipeline {
 
         stage('Pull OR Clone the Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/Darshan1814/Forecastify'
+                git branch: 'main', url: 'https://github.com/Harsh-Basatwar/forecastify.git'
             }
         }
 
@@ -28,6 +27,7 @@ pipeline {
                 }
             }
         }
+
         stage('Trivy Security Scan') {
             steps {
                 sh '''
@@ -79,7 +79,9 @@ pipeline {
                 )]) {
                     sh '''
                     echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                    docker tag forecastify $DOCKER_USER/forecastify:${BUILD_NUMBER}
                     docker tag forecastify $DOCKER_USER/forecastify:latest
+                    docker push $DOCKER_USER/forecastify:${BUILD_NUMBER}
                     docker push $DOCKER_USER/forecastify:latest
                     '''
                 }
@@ -88,11 +90,26 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh '''
-                kubectl apply -f k8s/namespace.yaml
-                kubectl create secret generic forecastify-secrets --from-env-file=.env -n forecastify-prod --dry-run=client -o yaml | kubectl apply -f -
-                kubectl apply -f k8s/
-                '''
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                    # 1. Ensure Namespace & Secrets exist
+                    kubectl create namespace forecastify-prod --dry-run=client -o yaml | kubectl apply -f -
+                    kubectl create secret generic forecastify-secrets --from-env-file=.env -n forecastify-prod --dry-run=client -o yaml | kubectl apply -f -
+
+                    # 2. Deploy using Kustomize Production Overlay
+                    cd k8s/overlays/production
+                    kubectl apply -k .
+
+                    # 3. Verify Rollout Status
+                    kubectl rollout status deployment/forecastify-frontend -n forecastify-prod --timeout=120s
+                    kubectl rollout status deployment/forecastify-api -n forecastify-prod --timeout=120s
+                    kubectl rollout status deployment/forecastify-jarvis -n forecastify-prod --timeout=120s
+                    '''
+                }
             }
         }
     }
@@ -100,12 +117,13 @@ pipeline {
     post {
         always {
             archiveArtifacts artifacts: 'trivy-report.html', fingerprint: true
+            sh 'rm -f .env'
         }
         success {
-            echo '✅ Pipeline completed successfully!'
+            echo '✅ Forecastify Kubernetes Pipeline completed successfully!'
         }
         failure {
-            echo '❌ Pipeline failed!'
+            echo '❌ Forecastify Pipeline failed!'
         }
     }
 }
