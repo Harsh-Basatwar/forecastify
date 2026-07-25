@@ -10,7 +10,7 @@
 │     ██║     ╚██████╔╝██║  ██║███████╗███████║███████╗   ██║   ██║██║        ██║           │
 │     ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝   ╚═╝   ╚═╝╚═╝        ╚═╝           │
 │                                                                                           │
-│     AI-POWERED DEMAND FORECASTING  ·  AETHER TELEMETRY  ·  SMART RETAIL INTELLIGENCE     │
+│     AI-POWERED DEMAND FORECASTING  ·  AETHER TELEMETRY  ·  SMART RETAIL INTELLIGENCE      │
 └───────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
