@@ -7,11 +7,11 @@ echo "🚀 One-Click Deploy: Forecastify -> Docker -> Kubernetes (Reverse Proxy)
 
 # 1. Build the Docker Image on the host machine
 echo "📦 Building Docker Image..."
-docker build -t darshan11111/forecastify:latest .
+docker build -t heavenledemon60/forecastify:latest .
 
 # 2. Load the built image directly into Minikube's storage
 echo "🚚 Loading Docker Image into Minikube cluster (this may take a minute)..."
-minikube image load darshan11111/forecastify:latest
+minikube image load heavenledemon60/forecastify:latest
 
 # 2. Setup Kubernetes Namespace
 echo "🌐 Setting up Kubernetes Namespace..."

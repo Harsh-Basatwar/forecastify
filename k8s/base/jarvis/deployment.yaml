@@ -60,7 +60,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
       - name: jarvis
-        image: darshan11111/forecastify:v1.0.0
+        image: heavenledemon60/forecastify:v1.0.0
         imagePullPolicy: IfNotPresent
         securityContext:
           runAsNonRoot: true

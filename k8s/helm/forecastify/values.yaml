@@ -3,7 +3,7 @@ global:
   domain: forecastify.in
 
 image:
-  repository: darshan11111/forecastify
+  repository: heavenledemon60/forecastify
   tag: "v1.2.4"
   pullPolicy: IfNotPresent
 

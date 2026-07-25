@@ -7,5 +7,5 @@ resources:
   - "../../base"
 
 images:
-  - name: darshan11111/forecastify
+  - name: heavenledemon60/forecastify
     newTag: v1.2.4
