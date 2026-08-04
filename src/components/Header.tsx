@@ -1,24 +1,24 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Menu, Moon, Sun, Bell, Globe } from "lucide-react";
+import { Menu, Moon, Sun, Bell, Globe, Search, Command } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
 import { useLang } from "@/lib/lang-context";
 import { LANGUAGES } from "@/lib/translations";
 
 interface HeaderProps {
   onMenuClick: () => void;
-  title: string;
 }
 
-export default function Header({ onMenuClick, title }: HeaderProps) {
+export default function Header({ onMenuClick }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { lang, setLang } = useLang();
   const router = useRouter();
 
   return (
-    <header className="h-16 border-b border-border glass flex items-center justify-between px-4 sm:px-8 shrink-0 sticky top-0 z-30">
-      <div className="flex items-center gap-3 min-w-0">
+    <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 shrink-0 sticky top-0 z-30">
+      {/* Left: mobile menu + search */}
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         <button
           onClick={onMenuClick}
           className="lg:hidden p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary fx-focus"
@@ -26,10 +26,22 @@ export default function Header({ onMenuClick, title }: HeaderProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <h1 className="fx-display text-lg sm:text-[21px] text-foreground truncate">{title}</h1>
+
+        {/* Global search placeholder — future command palette trigger */}
+        <button
+          className="hidden sm:flex items-center gap-2.5 h-9 px-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary hover:border-border-strong text-muted-foreground transition-colors fx-focus w-full max-w-xs"
+          aria-label="Search products, reports, commands"
+        >
+          <Search className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+          <span className="text-[13px] font-medium truncate">Search...</span>
+          <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground/70 bg-background border border-border rounded px-1.5 py-0.5 shrink-0">
+            <Command className="w-3 h-3" strokeWidth={2} />K
+          </kbd>
+        </button>
       </div>
 
-      <div className="flex items-center gap-1">
+      {/* Right: global controls */}
+      <div className="flex items-center gap-0.5 shrink-0">
         {/* Language */}
         <div className="relative hidden sm:block">
           <label htmlFor="lang-select" className="sr-only">Language</label>

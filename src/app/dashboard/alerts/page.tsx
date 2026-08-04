@@ -149,6 +149,13 @@ export default function AlertsPage() {
 
   return (
     <div className="space-y-8 max-w-[1200px] mx-auto pb-12">
+      <div>
+        <h1 className="fx-display text-[24px] text-foreground">Stock Alerts</h1>
+        <p className="text-[13px] text-muted-foreground mt-1.5">
+          AI-generated alerts for stockout risks, low inventory, and demand surges
+        </p>
+      </div>
+
       {/* ── Alert posture · one ledger strip ──────────────────────── */}
       <section aria-label="Alert summary" className="fx-card grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border)] overflow-hidden">
         <div className="p-5 sm:p-6">

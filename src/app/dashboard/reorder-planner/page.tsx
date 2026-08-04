@@ -121,6 +121,13 @@ export default function ReorderPlannerPage() {
 
   return (
     <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      <div>
+        <h1 className="fx-display text-[24px] text-foreground">Reorder Planner</h1>
+        <p className="text-[13px] text-muted-foreground mt-1.5">
+          Plan purchase orders based on projected demand spikes and inventory lead times
+        </p>
+      </div>
+
       {/* ── Reorder posture · one ledger strip ────────────────────── */}
       <section aria-label="Reorder summary" className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
         <div className="p-5 sm:p-6">

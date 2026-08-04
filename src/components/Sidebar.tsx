@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle } from "lucide-react";
+import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { supabase } from "@/lib/supabase";
+import { ChartLine } from "@/components/animate-ui/icons/chart-line";
+import { cn } from "@/lib/utils";
+import { useSidebar } from "@/providers/sidebar-provider";
 
 const navSections = [
   {
@@ -19,7 +22,7 @@ const navSections = [
   {
     titleKey: "nav.section.intelligence",
     items: [
-      { href: "/dashboard/demand-analysis", labelKey: "nav.demandSpikes", icon: Zap },
+      { href: "/dashboard/demand-analysis", labelKey: "nav.demandSpikes", icon: ChartLine },
       { href: "/dashboard/product-analysis", labelKey: "nav.productAnalysis", icon: Box },
       { href: "/dashboard/category-analysis", labelKey: "nav.categoryAnalysis", icon: Tag },
       { href: "/dashboard/what-if", labelKey: "nav.whatIf", icon: FlaskConical },
@@ -59,12 +62,10 @@ function BrandMark({ size = 30 }: { size?: number }) {
   );
 }
 
-interface SidebarProps {
-  mobileOpen: boolean;
-  onMobileClose: () => void;
-}
-
-export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
+export default function Sidebar() {
+  const { isExpanded, isPinned, isMobileOpen, togglePin, setMobileOpen, setHovered } = useSidebar();
+  const mobileOpen = isMobileOpen;
+  const onMobileClose = () => setMobileOpen(false);
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { t } = useLang();
@@ -120,13 +121,33 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const sidebarContent = (
     <div className="flex flex-col h-full overflow-x-hidden select-none">
       {/* Brand */}
-      <div className="flex items-center justify-between pl-5 pr-3 h-16 shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-2.5 fx-focus rounded-md">
-          <BrandMark />
-          <span className="fx-display text-[17px] font-semibold tracking-tight text-foreground">
-            Forecastify
-          </span>
+      <div className={cn(
+        "flex items-center shrink-0 border-b border-border/80 h-16 transition-all duration-200",
+        isExpanded ? "justify-between pl-4 pr-3" : "justify-center"
+      )}>
+        <Link 
+          href="/dashboard" 
+          className={cn(
+            "flex items-center fx-focus rounded-md overflow-hidden transition-all duration-150", 
+            isExpanded ? "gap-3" : "mx-auto justify-center"
+          )}
+        >
+          <BrandMark size={isExpanded ? 32 : 36} />
+          {isExpanded && (
+            <span className="fx-display text-[18px] font-semibold tracking-tight text-foreground whitespace-nowrap truncate animate-fade-in">
+              Forecastify
+            </span>
+          )}
         </Link>
+        {isExpanded && (
+          <button
+            onClick={togglePin}
+            title={isPinned ? "Collapse sidebar" : "Pin sidebar"}
+            className="hidden lg:block p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors fx-focus"
+          >
+            {isPinned ? <PinOff className="w-4 h-4 text-accent" /> : <Pin className="w-4 h-4" />}
+          </button>
+        )}
         <button
           onClick={onMobileClose}
           className="lg:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary fx-focus"
@@ -136,23 +157,31 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         </button>
       </div>
 
-      {/* Primary action */}
-      <div className="px-3 pt-1 pb-2 shrink-0">
+      <div className="px-3 pt-4.5 pb-2.5 shrink-0 flex justify-center">
         <button
           onClick={() => setShowAddProduct(true)}
-          className="fx-btn w-full justify-start gap-2 text-[13px] text-secondary-foreground"
+          className={cn(
+            "fx-btn text-[14px] text-secondary-foreground transition-all duration-150",
+            isExpanded 
+              ? "w-full justify-start gap-3 py-2.5" 
+              : "w-11 h-11 p-0 flex items-center justify-center rounded-lg"
+          )}
+          title={isExpanded ? undefined : t("nav.addProduct")}
         >
-          <Plus className="w-4 h-4 shrink-0 text-accent" strokeWidth={2.2} />
-          {t("nav.addProduct")}
+          <Plus className="w-5 h-5 shrink-0 text-accent" strokeWidth={2.4} />
+          {isExpanded && <span className="animate-fade-in whitespace-nowrap truncate">{t("nav.addProduct")}</span>}
         </button>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 pb-4 overflow-y-auto overflow-x-hidden" aria-label="Primary">
+      <nav className="flex-1 px-3 pt-2 pb-4 overflow-y-auto overflow-x-hidden animate-fade-in" aria-label="Primary">
         {navSections.map((section) => (
-          <div key={section.titleKey} className="mt-4 first:mt-1">
-            <p className="fx-eyebrow px-2.5 mb-1.5 text-[10px]">{t(section.titleKey)}</p>
-            <div className="space-y-px">
+          <div key={section.titleKey} className="mt-7 first:mt-2">
+            {isExpanded ? (
+              <p className="fx-eyebrow px-2.5 mb-2.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground/80 uppercase animate-fade-in">{t(section.titleKey)}</p>
+            ) : (
+              <div className="h-px bg-border/40 my-4.5 first:hidden" />
+            )}
+            <div className={isExpanded ? "space-y-1.5" : "space-y-2.5"}>
               {section.items.map((item) => {
                 const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
                 return (
@@ -161,20 +190,34 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                     href={item.href}
                     onClick={onMobileClose}
                     aria-current={isActive ? "page" : undefined}
-                    className={`relative flex items-center gap-2.5 pl-2.5 pr-2 py-[7px] rounded-md text-[13px] transition-colors duration-100 fx-focus group ${
+                    title={isExpanded ? undefined : t(item.labelKey)}
+                    className={cn(
+                      "relative flex items-center rounded-md text-[14.5px] transition-all duration-100 fx-focus group",
+                      isExpanded
+                        ? "pl-3.5 pr-2.5 py-[8px] gap-3.5 w-full"
+                        : "w-11 h-11 p-0 justify-center mx-auto",
                       isActive
                         ? "bg-card text-foreground font-semibold shadow-xs border border-border"
                         : "text-sidebar-foreground font-medium border border-transparent hover:text-foreground hover:bg-card/60"
-                    }`}
-                  >
-                    {isActive && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-4 rounded-full bg-accent" aria-hidden="true" />
                     )}
-                    <item.icon
-                      className={`w-4 h-4 shrink-0 transition-colors ${isActive ? "text-accent" : "text-muted-foreground group-hover:text-foreground"}`}
-                      strokeWidth={isActive ? 2.1 : 1.8}
-                    />
-                    <span className="whitespace-nowrap truncate">{t(item.labelKey)}</span>
+                  >
+                    {isActive && isExpanded && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-4.5 rounded-full bg-accent animate-fade-in" aria-hidden="true" />
+                    )}
+                    {item.icon === ChartLine ? (
+                      <ChartLine
+                        size={21}
+                        className={`shrink-0 transition-colors ${isActive ? "text-accent" : "text-muted-foreground group-hover:text-foreground"}`}
+                        animateOnHover
+                      />
+                    ) : (
+                      <item.icon
+                        size={21}
+                        className={`shrink-0 transition-colors ${isActive ? "text-accent" : "text-muted-foreground group-hover:text-foreground"}`}
+                        strokeWidth={isActive ? 2.0 : 1.7}
+                      />
+                    )}
+                    {isExpanded && <span className="whitespace-nowrap truncate animate-fade-in">{t(item.labelKey)}</span>}
                   </Link>
                 );
               })}
@@ -183,24 +226,33 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Account */}
-      <div className="fx-rule px-3 py-3 shrink-0">
-        <div className="flex items-center gap-2.5 px-2 py-1.5">
-          <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-[11px] font-semibold text-secondary-foreground uppercase shrink-0">
+      <div className="fx-rule px-3 pt-4 pb-4 shrink-0 flex justify-center">
+        <div className={cn(
+          "flex items-center w-full transition-all duration-150",
+          isExpanded ? "gap-3 px-2 py-1.5" : "justify-center h-11"
+        )}>
+          <div
+            className="w-9 h-9 rounded-full bg-secondary border border-border flex items-center justify-center text-[12px] font-semibold text-secondary-foreground uppercase shrink-0"
+            title={isExpanded ? undefined : `${userName} (${storeName})`}
+          >
             {String(userName).slice(0, 2)}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-foreground truncate leading-tight">{userName}</p>
-            <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">{storeName}</p>
-          </div>
-          <button
-            onClick={signOut}
-            title={t("nav.signOut")}
-            aria-label={t("nav.signOut")}
-            className="p-2 rounded-md text-muted-foreground hover:text-danger hover:bg-danger/8 transition-colors fx-focus shrink-0"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          {isExpanded && (
+            <>
+              <div className="min-w-0 flex-1 animate-fade-in">
+                <p className="text-[13.5px] font-semibold text-foreground truncate leading-tight">{userName}</p>
+                <p className="text-[11.5px] text-muted-foreground truncate leading-tight mt-0.5">{storeName}</p>
+              </div>
+              <button
+                onClick={signOut}
+                title={t("nav.signOut")}
+                aria-label={t("nav.signOut")}
+                className="p-2 rounded-md text-muted-foreground hover:text-danger hover:bg-danger/8 transition-colors fx-focus shrink-0 animate-fade-in"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -290,15 +342,31 @@ export default function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         </div>
       )}
 
-      {mobileOpen && <div className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-40 lg:hidden fx-fade-in" onClick={onMobileClose} aria-hidden="true" />}
+      {mobileOpen && (
+        <div 
+          className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-40 lg:hidden fx-fade-in" 
+          onClick={onMobileClose} 
+          aria-hidden="true" 
+        />
+      )}
 
-      {/* Mobile drawer */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-border transform transition-transform duration-200 ease-out lg:hidden ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      {/* Mobile drawer (always fully expanded) */}
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-border transform transition-transform duration-200 ease-out lg:hidden",
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         {sidebarContent}
       </aside>
 
-      {/* Desktop rail */}
-      <aside className="hidden lg:flex flex-col sticky top-0 h-screen w-[232px] bg-sidebar border-r border-border shrink-0">
+      {/* Desktop rail (collapsible with transitions) */}
+      <aside 
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={cn(
+          "hidden lg:flex flex-col sticky top-0 h-screen bg-sidebar border-r border-border shrink-0 transition-all duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)] overflow-x-hidden",
+          isExpanded ? "w-[240px] shadow-lg" : "w-[60px]"
+        )}
+      >
         {sidebarContent}
       </aside>
     </>

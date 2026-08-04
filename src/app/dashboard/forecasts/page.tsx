@@ -87,6 +87,13 @@ export default function ForecastsPage() {
 
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto pb-12">
+      <div>
+        <h1 className="fx-display text-[24px] text-foreground">Sales Forecasts</h1>
+        <p className="text-[13px] text-muted-foreground mt-1.5">
+          7-day demand predictions with confidence bounds across your inventory
+        </p>
+      </div>
+
       {/* Store-Wide Forecast Chart — the hero */}
       <section aria-label="Store-wide forecast" className="fx-card p-6">
         <div className="flex items-center gap-2 mb-1">

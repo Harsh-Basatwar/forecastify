@@ -113,6 +113,13 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
       <div className="max-w-3xl space-y-6">
+        <div>
+          <h1 className="fx-display text-[24px] text-foreground">Settings</h1>
+          <p className="text-[13px] text-muted-foreground mt-1.5">
+            Manage your profile, store details, and notification preferences
+          </p>
+        </div>
+
         {/* Segmented tabs */}
         <div className="flex gap-0.5 bg-secondary rounded-[var(--radius-md)] p-0.5" role="tablist" aria-label="Settings sections">
           {tabs.map((tab) => (

@@ -283,9 +283,12 @@ export default function PurchaseListPage() {
     <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
       {/* ── Page lead · editorial, no card ────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <p className="text-[13px] text-muted-foreground">
-          Upload your purchase list — get demand-based restock recommendations
-        </p>
+        <div>
+          <h1 className="fx-display text-[24px] text-foreground">Smart Purchase List</h1>
+          <p className="text-[13px] text-muted-foreground mt-1.5">
+            Upload your purchase list — get demand-based restock recommendations
+          </p>
+        </div>
         {analysis && (
           <div className="flex gap-2 shrink-0">
             <button onClick={downloadPDF} className="fx-btn"><FileText className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Analysis PDF</button>

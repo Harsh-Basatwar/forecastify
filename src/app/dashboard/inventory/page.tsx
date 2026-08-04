@@ -165,6 +165,13 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      <div>
+        <h1 className="fx-display text-[24px] text-foreground">Inventory Management</h1>
+        <p className="text-[13px] text-muted-foreground mt-1.5">
+          Monitor stock levels, daily demand, and AI restock recommendations
+        </p>
+      </div>
+
       {/* ── Stock posture · one ledger strip ─────────────────────── */}
       <section aria-label="Inventory summary" className="fx-card grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-[var(--border)] overflow-hidden">
         <div className="p-5 sm:p-6">

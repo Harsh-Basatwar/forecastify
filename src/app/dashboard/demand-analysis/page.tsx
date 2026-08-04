@@ -16,6 +16,7 @@ import {
   Wind, Calendar, Tag, Package, ShieldAlert, ArrowUpRight, ArrowDownRight,
   ChevronDown, ChevronUp, Star, Clock, Brain, Lightbulb,
 } from "lucide-react";
+import { ChartLine } from "@/components/animate-ui/icons/chart-line";
 
 interface WeatherData {
   current: {
@@ -1121,7 +1122,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
             {/* Spike Probability Chart */}
             <section aria-label="Demand spike probability" className="fx-card p-6">
               <div className="flex items-center gap-2 mb-1">
-                <TrendingUp className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
+                <ChartLine className="w-4 h-4 text-accent" aria-hidden="true" animateOnHover />
                 <h3 className="text-sm font-semibold text-foreground">Demand Spike Probability</h3>
               </div>
               <p className="text-xs text-muted-foreground mb-4">Day-level chance of a demand jump this week</p>
@@ -1591,7 +1592,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
               <p className="text-xs text-muted-foreground">Upcoming festivals, IPL matches, local events that drive demand spikes</p>
             </div>
             <div className="p-5">
-              <TrendingUp className="w-4 h-4 text-accent mb-2.5" aria-hidden="true" strokeWidth={1.8} />
+              <ChartLine className="w-4 h-4 text-accent mb-2.5" aria-hidden="true" animateOnHover />
               <h4 className="text-sm font-medium text-foreground mb-1">Smart Predictions</h4>
               <p className="text-xs text-muted-foreground">Get spike probability, trending products, offers, and restock alerts for each day</p>
             </div>

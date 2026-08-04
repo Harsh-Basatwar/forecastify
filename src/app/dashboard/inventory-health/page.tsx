@@ -176,6 +176,13 @@ export default function InventoryHealthPage() {
 
   return (
     <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      <div>
+        <h1 className="fx-display text-[24px] text-foreground">Inventory Health Score</h1>
+        <p className="text-[13px] text-muted-foreground mt-1.5">
+          Monitor stock level alignment, service level, demand alignment, and freshness metrics
+        </p>
+      </div>
+
       {/* ── Score + factor breakdown ──────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Overall score ring */}

@@ -219,6 +219,13 @@ export default function ExpiryRiskPage() {
 
   return (
     <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      <div>
+        <h1 className="fx-display text-[24px] text-foreground">Expiry & Waste Risk</h1>
+        <p className="text-[13px] text-muted-foreground mt-1.5">
+          Identify products at risk of expiring and project potential waste losses
+        </p>
+      </div>
+
       {/* ── Waste exposure · one ledger strip ─────────────────────── */}
       {summary && (
         <section aria-label="Expiry risk summary" className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
