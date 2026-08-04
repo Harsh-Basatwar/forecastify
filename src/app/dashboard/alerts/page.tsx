@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import {
-  AlertTriangle, ShieldAlert, Package, CheckCircle2, ChevronDown, ChevronUp,
-  TrendingUp, TrendingDown, Loader2, RefreshCw, ArrowUpRight, Clock, Zap,
+  CheckCircle2, ChevronDown, ChevronUp,
+  TrendingUp, TrendingDown, Loader2, RefreshCw, Clock, Zap,
   Minus, Mail,
 } from "lucide-react";
 
@@ -28,17 +28,42 @@ interface Alert {
   factors: string[];
 }
 
+// Severity language: critical screams, warning warns, info stays quiet
 const severityConfig = {
-  critical: { label: "Critical", bg: "bg-red-500/10", border: "border-red-500/20", text: "text-red-500", icon: ShieldAlert, dotColor: "bg-red-500" },
-  warning: { label: "Warning", bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-500", icon: AlertTriangle, dotColor: "bg-amber-500" },
-  info: { label: "Info", bg: "bg-blue-500/10", border: "border-blue-500/20", text: "text-blue-500", icon: Package, dotColor: "bg-blue-500" },
+  critical: { label: "Critical", badge: "fx-badge fx-badge-danger", signal: "fx-signal fx-signal-danger" },
+  warning: { label: "Warning", badge: "fx-badge fx-badge-warning", signal: "fx-signal fx-signal-warning" },
+  info: { label: "Info", badge: "fx-badge", signal: "fx-signal fx-signal-accent" },
 };
 
 const demandConfig = {
-  High: { color: "bg-red-500/10 text-red-600", icon: TrendingUp },
-  Medium: { color: "bg-amber-500/10 text-amber-600", icon: Minus },
-  Low: { color: "bg-green-500/10 text-green-600", icon: TrendingDown },
+  High: { icon: TrendingUp },
+  Medium: { icon: Minus },
+  Low: { icon: TrendingDown },
 };
+
+// Skeleton rows mirror the alert list to prevent shift
+function AlertsSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Scanning inventory for alerts">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="fx-card p-5">
+          <div className="flex items-start gap-3">
+            <div className="skeleton-shimmer h-2 w-2 rounded-full mt-1.5" />
+            <div className="flex-1 space-y-2.5">
+              <div className="flex gap-2">
+                <div className="skeleton-shimmer h-4 w-16" />
+                <div className="skeleton-shimmer h-4 w-24" />
+              </div>
+              <div className="skeleton-shimmer h-3.5 w-48" />
+              <div className="skeleton-shimmer h-3 w-2/3" />
+            </div>
+            <div className="skeleton-shimmer h-4 w-12" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function AlertsPage() {
   const { user } = useAuth();
@@ -123,67 +148,77 @@ export default function AlertsPage() {
   const filtered = filter === "all" ? alerts : alerts.filter(a => a.severity === filter);
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          { label: "Critical Alerts", count: summary.critical, icon: ShieldAlert, color: "text-red-500", bg: "bg-red-500/10", desc: "Products at stockout risk" },
-          { label: "Warnings", count: summary.warning, icon: AlertTriangle, color: "text-amber-500", bg: "bg-amber-500/10", desc: "Low stock items" },
-          { label: "Informational", count: summary.info, icon: Package, color: "text-blue-500", bg: "bg-blue-500/10", desc: "Overstock & demand spikes" },
-        ].map((item) => (
-          <div key={item.label} className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4">
-            <div className={`w-12 h-12 ${item.bg} rounded-xl flex items-center justify-center`}><item.icon className={`w-6 h-6 ${item.color}`} /></div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{item.count}</p>
-              <p className="text-sm text-muted-foreground">{item.label}</p>
-              <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="space-y-8 max-w-[1200px] mx-auto pb-12">
+      {/* ── Alert posture · one ledger strip ──────────────────────── */}
+      <section aria-label="Alert summary" className="fx-card grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border)] overflow-hidden">
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Critical Alerts</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.critical}</p>
+          <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.critical > 0 ? "text-danger" : "text-muted-foreground"}`}>
+            <span className={`fx-signal ${summary.critical > 0 ? "fx-signal-danger" : "fx-signal-success"}`} aria-hidden="true" />
+            {summary.critical > 0 ? "Products at stockout risk" : "No stockout risk"}
+          </p>
+        </div>
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Warnings</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.warning}</p>
+          <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.warning > 0 ? "text-warning" : "text-muted-foreground"}`}>
+            <span className={`fx-signal ${summary.warning > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
+            {summary.warning > 0 ? "Low stock items" : "Stock levels healthy"}
+          </p>
+        </div>
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Informational</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.info}</p>
+          <p className="text-xs text-muted-foreground mt-2.5">Overstock &amp; demand spikes</p>
+        </div>
+      </section>
 
-      {/* Filter + Refresh */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+      {/* ── Filter + actions · quiet toolbar ──────────────────────── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex gap-0.5 bg-secondary rounded-[var(--radius-md)] p-0.5 overflow-x-auto" role="tablist" aria-label="Filter alerts by severity">
           {["all", "critical", "warning", "info"].map((f) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${filter === f ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-muted"}`}>
+            <button
+              key={f}
+              role="tab"
+              aria-selected={filter === f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-xs font-medium whitespace-nowrap fx-focus ${
+                filter === f ? "bg-card text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
               {f === "all" ? `All (${alerts.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${alerts.filter(a => a.severity === f).length})`}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
-          {generatedAt && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(generatedAt).toLocaleTimeString("en-IN")}</span>}
+          {generatedAt && (
+            <span className="fx-num text-[11px] text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} />
+              {new Date(generatedAt).toLocaleTimeString("en-IN")}
+            </span>
+          )}
           {alerts.length > 0 && (
-            <button onClick={sendAlertEmail} disabled={sending || emailSent}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                emailSent ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600 hover:bg-red-500/20"
-              } disabled:opacity-50`}>
-              {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : emailSent ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+            <button onClick={sendAlertEmail} disabled={sending || emailSent} className="fx-btn">
+              {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : emailSent ? <CheckCircle2 className="w-3.5 h-3.5 text-success" aria-hidden="true" strokeWidth={1.8} /> : <Mail className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
               {sending ? "Sending..." : emailSent ? "Email Sent" : "Email Alerts"}
             </button>
           )}
-          <button onClick={fetchAlerts} disabled={loading}
-            className="p-2 rounded-lg bg-secondary hover:bg-muted text-muted-foreground">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          <button onClick={fetchAlerts} disabled={loading} aria-label="Refresh alerts" className="fx-btn fx-btn-ghost">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />}
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-          {error}
+        <div role="alert" className="bg-danger/8 border border-danger/25 rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm text-danger">{error}</span>
+          <button onClick={fetchAlerts} className="fx-btn">Retry</button>
         </div>
       )}
 
       {/* Loading */}
-      {loading && !alerts.length && (
-        <div className="bg-card border border-border rounded-2xl p-12 flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
-          <p className="font-semibold text-foreground">Scanning inventory for alerts...</p>
-          <p className="text-sm text-muted-foreground">Checking stock levels, demand patterns, and upcoming events</p>
-        </div>
-      )}
+      {loading && !alerts.length && <AlertsSkeleton />}
 
       {/* Alerts list */}
       {filtered.length > 0 && (
@@ -197,93 +232,90 @@ export default function AlertsPage() {
             const stockPercent = safeStock > 0 ? Math.round((alert.currentStock / safeStock) * 100) : 0;
 
             return (
-              <div key={idx} className={`bg-card border rounded-2xl overflow-hidden transition-all ${config.border}`}>
+              <div key={idx} className="fx-card fx-card-interactive overflow-hidden">
                 {/* Header */}
-                <button onClick={() => setExpandedId(isExpanded ? null : idx)} className="w-full text-left p-4 sm:p-5">
+                <button onClick={() => setExpandedId(isExpanded ? null : idx)} aria-expanded={isExpanded} className="w-full text-left p-4 sm:p-5 fx-focus">
                   <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 ${config.bg} rounded-xl flex items-center justify-center shrink-0 mt-0.5`}>
-                      <config.icon className={`w-5 h-5 ${config.text}`} />
-                    </div>
+                    <span className={`${config.signal} mt-1.5 shrink-0`} aria-hidden="true" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${config.bg} ${config.text}`}>{config.label}</span>
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{alert.alertType.replace(/_/g, " ")}</span>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${demand.color} flex items-center gap-1`}>
-                          <DemandIcon className="w-3 h-3" />{alert.demandLevel} Demand
+                        <span className={config.badge}>{config.label}</span>
+                        <span className="fx-badge capitalize">{alert.alertType.replace(/_/g, " ")}</span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                          <DemandIcon className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} />{alert.demandLevel} Demand
                         </span>
                       </div>
                       <p className="text-sm font-semibold text-foreground mt-1.5">{alert.productName}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">{alert.message}</p>
+                      <p className="text-[13px] text-muted-foreground mt-0.5">{alert.message}</p>
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1">
                       {alert.daysUntilStockout > 0 && alert.daysUntilStockout < 30 && (
-                        <span className={`text-xs font-bold ${alert.daysUntilStockout <= 2 ? "text-red-500" : alert.daysUntilStockout <= 5 ? "text-amber-500" : "text-foreground"}`}>
+                        <span className={`fx-num text-xs font-semibold ${alert.daysUntilStockout <= 2 ? "text-danger" : alert.daysUntilStockout <= 5 ? "text-warning" : "text-secondary-foreground"}`}>
                           {alert.daysUntilStockout}d left
                         </span>
                       )}
-                      {isExpanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                      {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} /> : <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />}
                     </div>
                   </div>
                 </button>
 
                 {/* Expanded details */}
                 {isExpanded && (
-                  <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-border">
+                  <div className="px-4 sm:px-5 pb-5 border-t border-border">
                     <div className="pt-4 space-y-4">
                       {/* Stock bar */}
-                      <div className="bg-secondary/50 rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs text-muted-foreground">Stock Level</span>
-                          <span className="text-xs font-semibold text-foreground">{alert.currentStock} {alert.unit} in stock</span>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="fx-eyebrow text-[10px]">Stock Level</span>
+                          <span className="fx-num text-xs font-semibold text-foreground">{alert.currentStock} {alert.unit} in stock</span>
                         </div>
-                        <div className="w-full h-3 bg-secondary rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${
-                            stockPercent <= 20 ? "bg-red-500" : stockPercent <= 50 ? "bg-amber-500" : stockPercent >= 90 ? "bg-blue-500" : "bg-green-500"
-                          }`} style={{ width: `${Math.min(stockPercent, 100)}%` }} />
+                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={Math.min(stockPercent, 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Stock level against 14-day supply">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${Math.min(stockPercent, 100)}%`,
+                              background: stockPercent <= 20 ? "var(--danger)" : stockPercent <= 50 ? "var(--warning)" : stockPercent >= 90 ? "var(--accent)" : "var(--success)",
+                            }}
+                          />
                         </div>
                         <div className="flex justify-between mt-1">
-                          <span className="text-[10px] text-muted-foreground">0</span>
-                          <span className="text-[10px] text-muted-foreground">{stockPercent}% of 14-day supply</span>
-                          <span className="text-[10px] text-muted-foreground">{safeStock} {alert.unit}</span>
+                          <span className="fx-num text-[10px] text-muted-foreground">0</span>
+                          <span className="fx-num text-[10px] text-muted-foreground">{stockPercent}% of 14-day supply</span>
+                          <span className="fx-num text-[10px] text-muted-foreground">{safeStock} {alert.unit}</span>
                         </div>
                       </div>
 
-                      {/* Stats grid */}
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-secondary/50 rounded-xl p-3 text-center">
-                          <p className="text-lg font-bold text-foreground">{alert.estimatedDailyDemand}</p>
-                          <p className="text-[10px] text-muted-foreground">{alert.unit}/day demand</p>
+                      {/* Stats — plain cells, no boxes */}
+                      <div className="grid grid-cols-3 gap-4 fx-rule pt-4">
+                        <div>
+                          <p className="fx-eyebrow text-[10px]">Daily Demand</p>
+                          <p className="fx-num text-lg font-semibold text-foreground mt-1">{alert.estimatedDailyDemand} <span className="text-xs font-normal text-muted-foreground">{alert.unit}/day</span></p>
                         </div>
-                        <div className="bg-secondary/50 rounded-xl p-3 text-center">
-                          <p className={`text-lg font-bold ${alert.daysUntilStockout <= 2 ? "text-red-500" : alert.daysUntilStockout <= 5 ? "text-amber-500" : "text-green-500"}`}>
+                        <div>
+                          <p className="fx-eyebrow text-[10px]">Days Until Stockout</p>
+                          <p className={`fx-num text-lg font-semibold mt-1 ${alert.daysUntilStockout > 0 && alert.daysUntilStockout <= 2 ? "text-danger" : alert.daysUntilStockout > 0 && alert.daysUntilStockout <= 5 ? "text-warning" : "text-foreground"}`}>
                             {alert.daysUntilStockout > 0 ? alert.daysUntilStockout : "N/A"}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">Days until stockout</p>
                         </div>
-                        <div className="bg-secondary/50 rounded-xl p-3 text-center">
-                          <p className="text-lg font-bold text-indigo-500">+{Math.max(0, alert.suggestedRestock)}</p>
-                          <p className="text-[10px] text-muted-foreground">{alert.unit} to restock</p>
+                        <div>
+                          <p className="fx-eyebrow text-[10px]">Restock Qty</p>
+                          <p className="fx-num text-lg font-semibold mt-1" style={{ color: "var(--accent)" }}>+{Math.max(0, alert.suggestedRestock)} <span className="text-xs font-normal text-muted-foreground">{alert.unit}</span></p>
                         </div>
                       </div>
 
                       {/* Recommendation */}
-                      <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
-                          <p className="text-sm font-semibold text-green-600 dark:text-green-400">Recommendation</p>
-                        </div>
-                        <p className="text-sm text-foreground">{alert.recommendation}</p>
+                      <div className="rounded-[var(--radius-md)] p-4 border" style={{ background: "var(--accent-soft)", borderColor: "var(--accent-border)" }}>
+                        <p className="fx-eyebrow mb-1.5" style={{ color: "var(--accent)" }}>Recommendation</p>
+                        <p className="text-sm text-foreground leading-relaxed">{alert.recommendation}</p>
                       </div>
 
                       {/* Factors */}
                       {alert.factors?.length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">Contributing Factors</p>
-                          <div className="flex flex-wrap gap-2">
+                          <p className="fx-eyebrow mb-2">Contributing Factors</p>
+                          <div className="flex flex-wrap gap-1.5">
                             {alert.factors.map((f, i) => (
-                              <span key={i} className="inline-flex items-center gap-1.5 bg-secondary px-3 py-1.5 rounded-full text-xs font-medium text-foreground">
-                                <ArrowUpRight className="w-3 h-3 text-indigo-500" />{f}
-                              </span>
+                              <span key={i} className="fx-badge">{f}</span>
                             ))}
                           </div>
                         </div>
@@ -299,12 +331,10 @@ export default function AlertsPage() {
 
       {/* Empty state */}
       {!loading && alerts.length === 0 && (
-        <div className="bg-card border border-border rounded-2xl p-12 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-green-500/10 rounded-2xl flex items-center justify-center">
-            <CheckCircle2 className="w-8 h-8 text-green-500" />
-          </div>
-          <h3 className="text-xl font-bold text-foreground mb-2">All Clear</h3>
-          <p className="text-muted-foreground max-w-md mx-auto">
+        <div className="fx-card py-10 text-center">
+          <span className="fx-signal fx-signal-success mx-auto mb-3 block" aria-hidden="true" />
+          <p className="text-sm text-secondary-foreground font-medium">All Clear</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
             No stock alerts right now. Your inventory levels look healthy. We check stock levels, demand patterns, and upcoming events to keep you ahead.
           </p>
         </div>
@@ -312,32 +342,34 @@ export default function AlertsPage() {
 
       {/* Demand legend */}
       {alerts.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Zap className="w-4 h-4 text-indigo-500" /> Demand Categories</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0"><TrendingUp className="w-4 h-4 text-red-500" /></div>
+        <section aria-label="Demand categories" className="fx-card p-6">
+          <h4 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Zap className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} /> Demand Categories
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
+            <div className="flex items-start gap-2.5">
+              <TrendingUp className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
               <div>
                 <p className="text-sm font-semibold text-foreground">High Demand</p>
-                <p className="text-xs text-muted-foreground">10+ units sold daily. Restock immediately if below minimum. These products drive footfall.</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">10+ units sold daily. Restock immediately if below minimum. These products drive footfall.</p>
               </div>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0"><Minus className="w-4 h-4 text-amber-500" /></div>
+            <div className="flex items-start gap-2.5">
+              <Minus className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
               <div>
                 <p className="text-sm font-semibold text-foreground">Medium Demand</p>
-                <p className="text-xs text-muted-foreground">3-10 units daily. Monitor weekly. Restock when below 7-day supply threshold.</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">3-10 units daily. Monitor weekly. Restock when below 7-day supply threshold.</p>
               </div>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0"><TrendingDown className="w-4 h-4 text-green-500" /></div>
+            <div className="flex items-start gap-2.5">
+              <TrendingDown className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
               <div>
                 <p className="text-sm font-semibold text-foreground">Low Demand</p>
-                <p className="text-xs text-muted-foreground">Under 3 units daily. Keep minimal stock. Risk of overstock and expiry if overstocked.</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">Under 3 units daily. Keep minimal stock. Risk of overstock and expiry if overstocked.</p>
               </div>
             </div>
           </div>
-        </div>
+        </section>
       )}
     </div>
   );

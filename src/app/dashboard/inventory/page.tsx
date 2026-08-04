@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Package, Search, AlertTriangle, CheckCircle2, ArrowUpDown, Loader2 } from "lucide-react";
+import { Package, Search, ArrowUpDown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 
@@ -47,12 +47,63 @@ function transformItem(row: any): InventoryItem {
   };
 }
 
-const statusConfig = {
-  critical: { label: "Critical", color: "bg-danger/10 text-danger border-danger/20", icon: AlertTriangle },
-  low: { label: "Low Stock", color: "bg-warning/10 text-warning border-warning/20", icon: AlertTriangle },
-  optimal: { label: "Optimal", color: "bg-success/10 text-success border-success/20", icon: CheckCircle2 },
-  overstock: { label: "Overstock", color: "bg-primary/10 text-primary border-primary/20", icon: Package },
+// Severity language: critical screams, low warns, optimal stays quiet
+function StatusCell({ status }: { status: Status }) {
+  if (status === "critical") {
+    return <span className="fx-badge fx-badge-danger">Critical</span>;
+  }
+  if (status === "low") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning">
+        <span className="fx-signal fx-signal-warning" aria-hidden="true" /> Low Stock
+      </span>
+    );
+  }
+  if (status === "overstock") {
+    return <span className="fx-badge">Overstock</span>;
+  }
+  return <span className="text-xs text-muted-foreground">Optimal</span>;
+}
+
+const barColor: Record<Status, string> = {
+  critical: "var(--danger)",
+  low: "var(--warning)",
+  optimal: "var(--success)",
+  overstock: "var(--muted-foreground)",
 };
+
+// Skeleton mirrors the KPI strip + ledger table to prevent shift
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12" aria-busy="true" aria-label="Loading inventory">
+      <div className="fx-card grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-[var(--border)] overflow-hidden">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="p-5 space-y-3">
+            <div className="skeleton-shimmer h-3 w-24" />
+            <div className="skeleton-shimmer h-7 w-14" />
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="skeleton-shimmer h-10 flex-1" />
+        <div className="skeleton-shimmer h-10 w-full sm:w-36" />
+        <div className="skeleton-shimmer h-10 w-full sm:w-36" />
+      </div>
+      <div className="fx-card p-6 space-y-0">
+        <div className="skeleton-shimmer h-3.5 w-40 mb-5" />
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="flex items-center gap-4 py-3 border-b border-border last:border-b-0">
+            <div className="skeleton-shimmer h-3.5 w-1/3" />
+            <div className="skeleton-shimmer h-3.5 w-16" />
+            <div className="skeleton-shimmer h-3.5 w-12 ml-auto" />
+            <div className="skeleton-shimmer h-3.5 w-12" />
+            <div className="skeleton-shimmer h-3.5 w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function InventoryPage() {
   const { user } = useAuth();
@@ -99,120 +150,184 @@ export default function InventoryPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <span className="ml-3 text-muted-foreground">Loading inventory...</span>
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64 text-danger">
-        <AlertTriangle className="w-6 h-6 mr-2" />
-        Failed to load inventory: {error}
+      <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm">
+          Failed to load inventory: {error}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Total Products", value: summary.total, color: "text-foreground" },
-          { label: "Critical", value: summary.critical, color: "text-danger" },
-          { label: "Low Stock", value: summary.low, color: "text-warning" },
-          { label: "Overstock", value: summary.overstock, color: "text-primary" },
-        ].map((item) => (
-          <div key={item.label} className="bg-card border border-border rounded-2xl p-4 text-center">
-            <p className="text-sm text-muted-foreground">{item.label}</p>
-            <p className={`text-2xl font-bold ${item.color} mt-1`}>{item.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-card border border-border rounded-2xl p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input type="text" placeholder="Search products or SKU..." value={search} onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm" />
-          </div>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-2.5 bg-secondary border border-border rounded-xl text-foreground text-sm">
-            <option value="all">All Status</option>
-            <option value="critical">Critical</option>
-            <option value="low">Low Stock</option>
-            <option value="optimal">Optimal</option>
-            <option value="overstock">Overstock</option>
-          </select>
-          <button onClick={() => setSortBy(sortBy === "daysOfStock" ? "product" : "daysOfStock")}
-            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border rounded-xl text-sm text-foreground hover:bg-muted">
-            <ArrowUpDown className="w-4 h-4" />{sortBy === "daysOfStock" ? "Days of Stock" : "Name"}
-          </button>
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      {/* ── Stock posture · one ledger strip ─────────────────────── */}
+      <section aria-label="Inventory summary" className="fx-card grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-[var(--border)] overflow-hidden">
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Total Products</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.total}</p>
+          <p className="text-xs text-muted-foreground mt-2.5">Tracked SKUs</p>
         </div>
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Critical</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold mt-2.5 leading-none text-foreground">{summary.critical}</p>
+          <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.critical > 0 ? "text-danger" : "text-muted-foreground"}`}>
+            <span className={`fx-signal ${summary.critical > 0 ? "fx-signal-danger" : "fx-signal-success"}`} aria-hidden="true" />
+            {summary.critical > 0 ? "Under 3 days supply" : "None at risk"}
+          </p>
+        </div>
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Low Stock</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold mt-2.5 leading-none text-foreground">{summary.low}</p>
+          <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.low > 0 ? "text-warning" : "text-muted-foreground"}`}>
+            <span className={`fx-signal ${summary.low > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
+            {summary.low > 0 ? "Reorder this week" : "All above threshold"}
+          </p>
+        </div>
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Overstock</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.overstock}</p>
+          <p className="text-xs text-muted-foreground mt-2.5">Over 30 days supply</p>
+        </div>
+      </section>
+
+      {/* ── Controls · quiet toolbar, no card ─────────────────────── */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+          <input
+            type="text"
+            placeholder="Search products or SKU..."
+            aria-label="Search products or SKU"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="fx-input pl-9"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by status"
+          className="fx-input sm:w-44"
+        >
+          <option value="all">All Status</option>
+          <option value="critical">Critical</option>
+          <option value="low">Low Stock</option>
+          <option value="optimal">Optimal</option>
+          <option value="overstock">Overstock</option>
+        </select>
+        <button onClick={() => setSortBy(sortBy === "daysOfStock" ? "product" : "daysOfStock")} className="fx-btn">
+          <ArrowUpDown className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />
+          {sortBy === "daysOfStock" ? "Days of Stock" : "Name"}
+        </button>
       </div>
 
-      {/* Desktop Table */}
-      <div className="hidden md:block bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+      {/* ── Ledger · desktop ──────────────────────────────────────── */}
+      <section aria-label="Inventory ledger" className="hidden md:block fx-card p-6">
+        <div className="flex items-baseline justify-between gap-3 mb-4">
+          <h2 className="fx-display text-[17px] text-foreground">Stock Ledger</h2>
+          <p className="text-xs text-muted-foreground fx-num">{filtered.length} of {inventoryData.length} products</p>
+        </div>
+        <div className="overflow-x-auto -mx-2">
+          <table className="fx-table min-w-[720px]">
             <thead>
-              <tr className="border-b border-border bg-secondary/50">
-                {["Product", "Category", "Current Stock", "Recommended", "Daily Demand", "Days Left", "Status"].map((h) => (
-                  <th key={h} className={`text-xs font-semibold text-muted-foreground uppercase px-5 py-3 ${["Current Stock", "Recommended", "Daily Demand", "Days Left"].includes(h) ? "text-right" : ["Trend", "Status"].includes(h) ? "text-center" : "text-left"}`}>{h}</th>
-                ))}
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th className="text-right">Current Stock</th>
+                <th className="text-right">Recommended</th>
+                <th className="text-right">Daily Demand</th>
+                <th className="text-right">Days Left</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((item) => {
-                const config = statusConfig[item.status];
                 const stockPercent = Math.min(100, (item.currentStock / item.recommendedStock) * 100);
                 return (
-                  <tr key={item.id} className="border-b border-border last:border-0 hover:bg-secondary/30">
-                    <td className="px-5 py-4"><p className="text-sm font-medium text-card-foreground">{item.product}</p><p className="text-xs text-muted-foreground">{item.sku}</p></td>
-                    <td className="px-5 py-4 text-sm text-muted-foreground">{item.category}</td>
-                    <td className="px-5 py-4 text-right">
-                      <p className="text-sm font-semibold text-card-foreground">{item.currentStock}</p>
-                      <div className="w-full bg-secondary rounded-full h-1.5 mt-1">
-                        <div className={`h-1.5 rounded-full ${item.status === "critical" ? "bg-danger" : item.status === "low" ? "bg-warning" : item.status === "overstock" ? "bg-primary" : "bg-success"}`} style={{ width: `${stockPercent}%` }} />
+                  <tr key={item.id}>
+                    <td>
+                      <p className="text-sm font-medium text-foreground">{item.product}</p>
+                      <p className="fx-num text-[11px] text-muted-foreground mt-0.5">{item.sku}</p>
+                    </td>
+                    <td className="text-xs text-muted-foreground">{item.category}</td>
+                    <td className="text-right">
+                      <p className="fx-num text-sm font-semibold text-foreground">{item.currentStock}</p>
+                      <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-1.5" aria-hidden="true">
+                        <div className="h-full rounded-full" style={{ width: `${stockPercent}%`, background: barColor[item.status] }} />
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-right text-sm text-muted-foreground">{item.recommendedStock}</td>
-                    <td className="px-5 py-4 text-right text-sm text-card-foreground font-medium">{item.dailyDemand}</td>
-                    <td className="px-5 py-4 text-right"><span className={`text-sm font-bold ${item.daysOfStock <= 2 ? "text-danger" : item.daysOfStock <= 4 ? "text-warning" : "text-card-foreground"}`}>{item.daysOfStock}</span></td>
-                    <td className="px-5 py-4 text-center"><span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.color}`}>{config.label}</span></td>
+                    <td className="text-right fx-num text-muted-foreground">{item.recommendedStock}</td>
+                    <td className="text-right fx-num text-secondary-foreground">{item.dailyDemand}</td>
+                    <td className="text-right">
+                      <span className={`fx-num font-semibold inline-flex items-center gap-1.5 ${item.daysOfStock <= 2 ? "text-danger" : item.daysOfStock <= 4 ? "text-warning" : "text-foreground"}`}>
+                        {item.daysOfStock <= 2 && <span className="fx-signal fx-signal-danger" aria-hidden="true" />}
+                        {item.daysOfStock}d
+                      </span>
+                    </td>
+                    <td><StatusCell status={item.status} /></td>
                   </tr>
                 );
               })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center">
+                    <Package className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-50" aria-hidden="true" strokeWidth={1.8} />
+                    <p className="text-sm text-secondary-foreground font-medium">No products match</p>
+                    <p className="text-xs text-muted-foreground mt-1">Adjust the search or status filter to see inventory.</p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
-      {/* Mobile Cards */}
-      <div className="md:hidden space-y-3">
+      {/* ── Mobile · hairline-divided rows ────────────────────────── */}
+      <section aria-label="Inventory list" className="md:hidden fx-card px-5">
         {filtered.map((item) => {
-          const config = statusConfig[item.status];
           const stockPercent = Math.min(100, (item.currentStock / item.recommendedStock) * 100);
           return (
-            <div key={item.id} className="bg-card border border-border rounded-2xl p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div><p className="text-sm font-semibold text-card-foreground">{item.product}</p><p className="text-xs text-muted-foreground">{item.category} &bull; {item.sku}</p></div>
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.color}`}>{config.label}</span>
+            <div key={item.id} className="py-4 border-b border-border last:border-b-0">
+              <div className="flex items-start justify-between gap-3 mb-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{item.product}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.category} · <span className="fx-num">{item.sku}</span></p>
+                </div>
+                <StatusCell status={item.status} />
               </div>
-              <div className="w-full bg-secondary rounded-full h-2 mb-3">
-                <div className={`h-2 rounded-full ${item.status === "critical" ? "bg-danger" : item.status === "low" ? "bg-warning" : item.status === "overstock" ? "bg-primary" : "bg-success"}`} style={{ width: `${stockPercent}%` }} />
+              <div className="w-full h-1 bg-muted rounded-full overflow-hidden mb-2.5" aria-hidden="true">
+                <div className="h-full rounded-full" style={{ width: `${stockPercent}%`, background: barColor[item.status] }} />
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div><p className="text-xs text-muted-foreground">Stock</p><p className="text-sm font-bold text-card-foreground">{item.currentStock}</p></div>
-                <div><p className="text-xs text-muted-foreground">Demand/Day</p><p className="text-sm font-bold text-card-foreground">{item.dailyDemand}</p></div>
-                <div><p className="text-xs text-muted-foreground">Days Left</p><p className={`text-sm font-bold ${item.daysOfStock <= 2 ? "text-danger" : "text-card-foreground"}`}>{item.daysOfStock}</p></div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <p className="fx-eyebrow text-[10px]">Stock</p>
+                  <p className="fx-num text-sm font-semibold text-foreground mt-0.5">{item.currentStock}</p>
+                </div>
+                <div>
+                  <p className="fx-eyebrow text-[10px]">Demand/Day</p>
+                  <p className="fx-num text-sm font-semibold text-foreground mt-0.5">{item.dailyDemand}</p>
+                </div>
+                <div>
+                  <p className="fx-eyebrow text-[10px]">Days Left</p>
+                  <p className={`fx-num text-sm font-semibold mt-0.5 ${item.daysOfStock <= 2 ? "text-danger" : "text-foreground"}`}>{item.daysOfStock}</p>
+                </div>
               </div>
             </div>
           );
         })}
-      </div>
+        {filtered.length === 0 && (
+          <div className="py-10 text-center">
+            <Package className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-50" aria-hidden="true" strokeWidth={1.8} />
+            <p className="text-sm text-secondary-foreground font-medium">No products match</p>
+            <p className="text-xs text-muted-foreground mt-1">Adjust the search or status filter to see inventory.</p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,4 +1,9 @@
 const en: Record<string, string> = {
+  // Nav sections
+  "nav.section.command": "Command",
+  "nav.section.intelligence": "Intelligence",
+  "nav.section.market": "Market Signals",
+  "nav.section.operations": "Operations",
   // Nav
   "nav.overview": "Overview",
   "nav.jarvis": "Jarvis",

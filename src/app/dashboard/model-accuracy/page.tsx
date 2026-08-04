@@ -8,32 +8,71 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
-import { Target, TrendingUp, Activity, CheckCircle, Loader2 } from "lucide-react";
+import { Target, TrendingUp, Activity, CheckCircle } from "lucide-react";
 
-const CAT_COLORS = ["#6366f1", "#a855f7", "#ec4899", "#f59e0b", "#22c55e", "#06b6d4", "#f43f5e", "#8b5cf6"];
+// Restrained categorical ramp — teal + warm neutrals
+const CAT_COLORS = ["#11746A", "#579E92", "#93C0B7", "#7A7466", "#A39C8C", "#4E4A42", "#C0A46B", "#5C7A74"];
+
+const chartTooltipStyle = {
+  background: "var(--elevated)",
+  border: "1px solid var(--border-strong)",
+  borderRadius: "10px",
+  boxShadow: "var(--shadow-md)",
+  fontSize: "12px",
+  color: "var(--foreground)",
+} as const;
 
 function accuracyColor(acc: number) {
-  if (acc >= 85) return "text-green-500";
-  if (acc >= 70) return "text-amber-500";
-  return "text-red-500";
+  if (acc >= 85) return "text-success";
+  if (acc >= 70) return "text-warning";
+  return "text-danger";
 }
 
-function accuracyBg(acc: number) {
-  if (acc >= 85) return "bg-green-500/10 border-green-500/20";
-  if (acc >= 70) return "bg-amber-500/10 border-amber-500/20";
-  return "bg-red-500/10 border-red-500/20";
+function accuracyBadge(acc: number) {
+  if (acc >= 85) return "fx-badge fx-badge-success";
+  if (acc >= 70) return "fx-badge fx-badge-warning";
+  return "fx-badge fx-badge-danger";
 }
 
-function statBg(acc: number) {
-  if (acc >= 85) return "from-green-500/10 to-green-500/5";
-  if (acc >= 70) return "from-amber-500/10 to-amber-500/5";
-  return "from-red-500/10 to-red-500/5";
+function accuracySignal(acc: number) {
+  if (acc >= 85) return "fx-signal fx-signal-success";
+  if (acc >= 70) return "fx-signal fx-signal-warning";
+  return "fx-signal fx-signal-danger";
 }
 
-function statIcon(acc: number) {
-  if (acc >= 85) return "text-green-500";
-  if (acc >= 70) return "text-amber-500";
-  return "text-red-500";
+// Contextual skeleton — mirrors the real layout to prevent shift
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12" aria-busy="true" aria-label="Loading model accuracy">
+      <div className="space-y-3">
+        <div className="skeleton-shimmer h-7 w-56" />
+        <div className="skeleton-shimmer h-3.5 w-72" />
+      </div>
+      <div className="fx-card grid grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="p-6 space-y-3 border-r border-border last:border-r-0">
+            <div className="skeleton-shimmer h-3 w-16" />
+            <div className="skeleton-shimmer h-8 w-24" />
+            <div className="skeleton-shimmer h-3 w-32" />
+          </div>
+        ))}
+      </div>
+      <div className="fx-card p-6 space-y-4">
+        <div className="skeleton-shimmer h-4 w-52" />
+        <div className="skeleton-shimmer h-64 w-full" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="fx-card p-6 space-y-3">
+          <div className="skeleton-shimmer h-4 w-44" />
+          {[0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton-shimmer h-9 w-full" />)}
+        </div>
+        <div className="fx-card p-6 space-y-3">
+          <div className="skeleton-shimmer h-4 w-44" />
+          <div className="skeleton-shimmer h-64 w-full" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ModelAccuracyPage() {
@@ -60,19 +99,17 @@ export default function ModelAccuracyPage() {
   }, [user]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   if (!data || data.matchedCount === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-        <Target className="w-10 h-10 mb-3 opacity-40" />
-        <p className="text-lg font-medium">No accuracy data available</p>
-        <p className="text-sm mt-1">Forecast data for past dates is needed to compute accuracy.</p>
+      <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+        <div className="fx-card flex flex-col items-center justify-center text-center py-16 px-6">
+          <Target className="w-5 h-5 text-muted-foreground mb-3 opacity-60" aria-hidden="true" strokeWidth={1.8} />
+          <p className="text-sm text-secondary-foreground font-medium">No accuracy data available</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-[320px]">Forecast data for past dates is needed to compute accuracy.</p>
+        </div>
       </div>
     );
   }
@@ -111,147 +148,135 @@ export default function ModelAccuracyPage() {
   ];
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Target className="w-5 h-5 text-primary" />
-            {t("modelAccuracy") || "Model Accuracy"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            How well our demand forecasts match actual sales
-          </p>
-        </div>
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      {/* Page lead — editorial, no card */}
+      <div>
+        <h1 className="fx-display text-[24px] text-foreground">
+          {t("modelAccuracy") || "Model Accuracy"}
+        </h1>
+        <p className="text-[13px] text-muted-foreground mt-1.5">
+          How well our demand forecasts match actual sales
+        </p>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Error metrics — one ledger sheet */}
+      <section aria-label="Accuracy metrics" className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
         {stats.map((s) => {
           const Icon = s.icon;
           return (
-            <div
-              key={s.label}
-              className={`bg-linear-to-br ${statBg(s.acc)} border border-border rounded-xl p-5`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-muted-foreground">{s.label}</span>
-                <Icon className={`w-5 h-5 ${statIcon(s.acc)}`} />
+            <div key={s.label} className="p-5 sm:p-6">
+              <div className="flex items-center justify-between">
+                <p className="fx-eyebrow">{s.label}</p>
+                <Icon className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
               </div>
-              <p className={`text-2xl font-bold ${accuracyColor(s.acc)}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.subtitle}</p>
+              <p className={`fx-num text-[26px] sm:text-[30px] font-semibold mt-2.5 leading-none ${accuracyColor(s.acc)}`}>{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-2.5">{s.subtitle}</p>
             </div>
           );
         })}
-      </div>
+      </section>
 
       {/* Accuracy Trend Chart */}
-      <div className="bg-card border border-border rounded-xl p-5">
-        <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-primary" />
-          Daily Accuracy Trend (Last 14 Days)
-        </h3>
+      <section aria-label="Daily accuracy trend" className="fx-card p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <TrendingUp className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
+          <h3 className="text-sm font-semibold text-foreground">Daily Accuracy Trend (Last 14 Days)</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">Daily forecast-vs-actual accuracy across the matched window</p>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dailyTrend}>
+            <AreaChart data={dailyTrend} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
               <defs>
                 <linearGradient id="gAccuracy" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.18} />
+                  <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="var(--color-muted-foreground)" />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="var(--color-muted-foreground)" />
+              <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
+              <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} dy={6} />
+              <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--color-card)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "8px",
-                  fontSize: "13px",
-                }}
+                contentStyle={chartTooltipStyle}
+                cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }}
                 formatter={(value: any) => [`${value}%`, "Accuracy"]}
               />
               <Area
                 type="monotone"
                 dataKey="accuracy"
                 name="Accuracy"
-                stroke="#6366f1"
+                stroke="var(--accent)"
                 fill="url(#gAccuracy)"
                 strokeWidth={2}
+                activeDot={{ r: 4 }}
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Per-Product Accuracy Table */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            Per-Product Accuracy
-          </h3>
-          <div className="overflow-auto max-h-96">
-            <table className="w-full text-sm">
+        <section aria-label="Per-product accuracy" className="fx-card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Activity className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+            <h3 className="text-sm font-semibold text-foreground">Per-Product Accuracy</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">Predicted vs actual units per product</p>
+          <div className="overflow-x-auto -mx-2 max-h-96 overflow-y-auto">
+            <table className="fx-table min-w-[480px]">
               <thead>
-                <tr className="text-muted-foreground border-b border-border">
-                  <th className="text-left py-2 pr-3 font-medium">Product</th>
-                  <th className="text-right py-2 px-2 font-medium">Predicted</th>
-                  <th className="text-right py-2 px-2 font-medium">Actual</th>
-                  <th className="text-right py-2 px-2 font-medium">Error%</th>
-                  <th className="text-right py-2 pl-2 font-medium">Accuracy%</th>
+                <tr>
+                  <th>Product</th>
+                  <th className="text-right">Predicted</th>
+                  <th className="text-right">Actual</th>
+                  <th className="text-right">Error%</th>
+                  <th className="text-right">Accuracy%</th>
                 </tr>
               </thead>
               <tbody>
                 {productAccuracy.map((p: any) => (
-                  <tr key={p.product} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                    <td className="py-2 pr-3 font-medium text-foreground">{p.product}</td>
-                    <td className="py-2 px-2 text-right text-muted-foreground">{p.predicted}</td>
-                    <td className="py-2 px-2 text-right text-muted-foreground">{p.actual}</td>
-                    <td className="py-2 px-2 text-right text-muted-foreground">{p.errorPct}%</td>
-                    <td className="py-2 pl-2 text-right">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${accuracyBg(p.accuracy)} ${accuracyColor(p.accuracy)}`}
-                      >
-                        {p.accuracy}%
-                      </span>
+                  <tr key={p.product}>
+                    <td className="font-medium text-foreground">{p.product}</td>
+                    <td className="text-right fx-num text-muted-foreground">{p.predicted}</td>
+                    <td className="text-right fx-num text-muted-foreground">{p.actual}</td>
+                    <td className="text-right fx-num text-muted-foreground">{p.errorPct}%</td>
+                    <td className="text-right">
+                      <span className={`${accuracyBadge(p.accuracy)} fx-num`}>{p.accuracy}%</span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
 
         {/* Per-Category Accuracy Bar Chart */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-primary" />
-            Accuracy by Category
-          </h3>
+        <section aria-label="Accuracy by category" className="fx-card p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <CheckCircle className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+            <h3 className="text-sm font-semibold text-foreground">Accuracy by Category</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">Category-level forecast reliability</p>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryAccuracy} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} stroke="var(--color-muted-foreground)" />
+              <BarChart data={categoryAccuracy} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis
                   type="category"
                   dataKey="category"
-                  tick={{ fontSize: 12 }}
-                  stroke="var(--color-muted-foreground)"
+                  stroke="var(--muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
                   width={100}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: "8px",
-                    fontSize: "13px",
-                  }}
+                  contentStyle={chartTooltipStyle}
+                  cursor={{ fill: "var(--secondary)", opacity: 0.5 }}
                   formatter={(value: any) => [`${value}%`, "Accuracy"]}
                 />
-                <Bar dataKey="accuracy" name="Accuracy" radius={[0, 6, 6, 0]}>
+                <Bar dataKey="accuracy" name="Accuracy" radius={[0, 4, 4, 0]} barSize={14}>
                   {categoryAccuracy.map((_: any, i: number) => (
                     <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]} />
                   ))}
@@ -259,7 +284,11 @@ export default function ModelAccuracyPage() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+          <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+            <span className={accuracySignal(accuracy)} aria-hidden="true" />
+            Overall accuracy {accuracy}% across {matchedCount} matched predictions
+          </p>
+        </section>
       </div>
     </div>
   );

@@ -9,6 +9,36 @@ import { BadgePercent, Cloud, Download, ExternalLink, Loader2, MapPin, RefreshCw
 
 type Signal = { title: string; snippet: string; link: string; imageUrl?: string };
 
+function sourceOf(link?: string) {
+  if (!link || link === "#") return null;
+  try {
+    return new URL(link).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+// Skeleton mirrors the promotion-list layout to prevent shift
+function PromotionsSkeleton() {
+  return (
+    <div className="fx-card" aria-busy="true" aria-label="Loading promotion signals">
+      <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+        <div className="skeleton-shimmer h-4 w-56" />
+        <div className="skeleton-shimmer h-3 w-16" />
+      </div>
+      <div className="px-6">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="py-4 border-b border-border last:border-b-0 space-y-2.5">
+            <div className="skeleton-shimmer h-4 w-2/3" />
+            <div className="skeleton-shimmer h-3 w-full" />
+            <div className="skeleton-shimmer h-3 w-28" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function PromotionsPage() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -175,77 +205,138 @@ export default function PromotionsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-3 rounded-2xl border border-pink-500/40 bg-pink-500/10 px-5 py-3 shadow-[0_0_30px_rgba(236,72,153,0.28)]">
-            <BadgePercent className="w-8 h-8 text-pink-400" />
-            <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">Promotions</h1>
-          </div>
-          <p className="text-muted-foreground mt-3 text-base">Store-aware offers and campaigns using your type, location, and weather.</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => loadPromotions(query)} disabled={loading} className="px-4 py-2 rounded-xl bg-secondary text-foreground text-sm font-semibold flex items-center gap-2">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Refresh
-          </button>
-          <button onClick={downloadPDF} className="px-4 py-2 rounded-xl bg-pink-500/10 text-pink-600 text-sm font-semibold flex items-center gap-2"><Download className="w-4 h-4" /> PDF</button>
-        </div>
-      </div>
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
 
-      <div className="bg-card border border-pink-500/30 rounded-2xl p-4 shadow-[0_0_24px_rgba(236,72,153,0.12)]">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-pink-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") void loadPromotions(query); }}
-              placeholder="Search promotions by product, category, supplier, brand, or season..."
-              className="w-full pl-11 pr-4 py-3 bg-secondary border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-pink-500/40"
-            />
-          </div>
-          <button onClick={() => loadPromotions(query)} disabled={loading} className="px-5 py-3 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Search
+      {/* ── Page lead · editorial, no card ─────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-5">
+        <div className="min-w-0">
+          <p className="fx-eyebrow flex items-center gap-1.5">
+            <BadgePercent className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Market Intelligence
+          </p>
+          <h1 className="fx-display text-[26px] sm:text-[30px] leading-tight text-foreground mt-2">Promotions</h1>
+          <p className="text-[13px] text-muted-foreground mt-1.5">Store-aware offers and campaigns using your type, location, and weather.</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => loadPromotions(query)} disabled={loading} className="fx-btn">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} aria-hidden="true" /> Refresh
+          </button>
+          <button onClick={downloadPDF} className="fx-btn">
+            <Download className="w-3.5 h-3.5" aria-hidden="true" /> PDF
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-card border border-pink-500/30 rounded-2xl p-5 shadow-[0_0_22px_rgba(236,72,153,0.16)]"><Store className="w-5 h-5 text-pink-500 mb-3" /><p className="font-bold text-lg">{store?.store_name || "Store"}</p><p className="text-sm text-muted-foreground">{store?.store_category || "Grocery & Supermarket"}</p></div>
-        <div className="bg-card border border-blue-500/30 rounded-2xl p-5 shadow-[0_0_22px_rgba(59,130,246,0.14)]"><MapPin className="w-5 h-5 text-blue-500 mb-3" /><p className="font-bold text-base">{location || "Detecting location"}</p><p className="text-sm text-muted-foreground mt-1">Used for local offer relevance</p></div>
-        <div className="bg-card border border-orange-500/30 rounded-2xl p-5 shadow-[0_0_22px_rgba(249,115,22,0.14)]"><Cloud className="w-5 h-5 text-orange-500 mb-3" /><p className="font-bold text-lg">{weather ? `${weather.temp}C, ${weather.description}` : "Weather unavailable"}</p><p className="text-sm text-muted-foreground">Used for weather-sensitive promos</p></div>
+      {/* ── Store context · one sheet, hairline-divided ────────── */}
+      <section aria-label="Store context" className="fx-card grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border)] overflow-hidden">
+        <div className="p-5 flex items-start gap-3">
+          <Store className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" strokeWidth={1.8} />
+          <div className="min-w-0">
+            <p className="fx-eyebrow">Store</p>
+            <p className="text-sm font-medium text-foreground mt-1 truncate">{store?.store_name || "Store"}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{store?.store_category || "Grocery & Supermarket"}</p>
+          </div>
+        </div>
+        <div className="p-5 flex items-start gap-3">
+          <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" strokeWidth={1.8} />
+          <div className="min-w-0">
+            <p className="fx-eyebrow">Location</p>
+            <p className="text-sm font-medium text-foreground mt-1 truncate">{location || "Detecting location"}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Used for local offer relevance</p>
+          </div>
+        </div>
+        <div className="p-5 flex items-start gap-3">
+          <Cloud className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" strokeWidth={1.8} />
+          <div className="min-w-0">
+            <p className="fx-eyebrow">Weather</p>
+            <p className="text-sm font-medium text-foreground mt-1 truncate">{weather ? `${weather.temp}C, ${weather.description}` : "Weather unavailable"}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Used for weather-sensitive promos</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Search ──────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void loadPromotions(query); }}
+            placeholder="Search promotions by product, category, supplier, brand, or season..."
+            aria-label="Search promotions"
+            className="fx-input pl-9"
+          />
+        </div>
+        <button onClick={() => loadPromotions(query)} disabled={loading} className="fx-btn fx-btn-accent sm:shrink-0">
+          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Search className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />} Search
+        </button>
       </div>
 
-      {error && <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>}
+      {error && (
+        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm flex items-center justify-between gap-3 flex-wrap">
+          <span>{error}</span>
+          <button onClick={() => loadPromotions(query)} className="fx-btn">Retry</button>
+        </div>
+      )}
+
+      {/* ── Promotion ledger ────────────────────────────────────── */}
       {loading ? (
-        <div className="bg-card border border-border rounded-xl p-12 text-center"><Loader2 className="w-8 h-8 animate-spin text-pink-500 mx-auto mb-3" /><p className="text-muted-foreground">Fetching live promotions...</p></div>
+        <PromotionsSkeleton />
       ) : (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-2xl border border-pink-500/30 bg-pink-500/10 px-5 py-4 shadow-[0_0_24px_rgba(236,72,153,0.18)]">
-            <h2 className="text-xl font-black text-foreground">Highlighted Promotion Opportunities</h2>
-            <span className="text-sm font-semibold text-pink-400">{allPromos.length} cards</span>
+        <section aria-label="Promotion signals" className="fx-card">
+          <div className="flex items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-border">
+            <h2 className="fx-display text-[17px] text-foreground">Highlighted Promotion Opportunities</h2>
+            <span className="text-xs text-muted-foreground">
+              <span className="fx-num font-semibold text-foreground">{allPromos.length}</span> signals
+            </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {allPromos.map((item, index) => {
-              const validLink = item.link && item.link !== "#" ? item.link : undefined;
 
-              return (
-              <a key={index} href={validLink} target={validLink ? "_blank" : undefined} rel={validLink ? "noopener noreferrer" : undefined} className={`group min-h-[220px] bg-card border border-pink-500/30 rounded-2xl p-6 shadow-[0_0_24px_rgba(236,72,153,0.14)] transition-all ${validLink ? "hover:shadow-[0_0_36px_rgba(236,72,153,0.28)] hover:border-pink-400/70 cursor-pointer" : "cursor-default opacity-90"}`}>
-                {item.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt="" className="mb-4 h-36 w-full rounded-xl object-cover border border-pink-500/20 bg-secondary" loading="lazy" />
-                )}
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="rounded-full bg-pink-500/15 px-3 py-1 text-xs font-bold text-pink-400">PROMO #{index + 1}</span>
-                  {validLink && <ExternalLink className="w-4 h-4 text-pink-400 opacity-70 group-hover:opacity-100" />}
-                </div>
-                <p className="text-base font-bold text-foreground line-clamp-3">{item.title}</p>
-                <p className="text-sm text-muted-foreground mt-3 line-clamp-5">{item.snippet}</p>
-              </a>
-              );
-            })}
-          </div>
-        </div>
+          {allPromos.length === 0 ? (
+            <div className="text-center py-10 px-6">
+              <BadgePercent className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-50" aria-hidden="true" strokeWidth={1.8} />
+              <p className="text-sm text-secondary-foreground font-medium">No promotion signals right now</p>
+              <p className="text-xs text-muted-foreground mt-1">Try a different search term or refresh to fetch the latest offers.</p>
+            </div>
+          ) : (
+            <div className="px-6">
+              {allPromos.map((item, index) => {
+                const validLink = item.link && item.link !== "#" ? item.link : undefined;
+                const source = sourceOf(validLink);
+
+                return (
+                  <a
+                    key={index}
+                    href={validLink}
+                    target={validLink ? "_blank" : undefined}
+                    rel={validLink ? "noopener noreferrer" : undefined}
+                    className={`group flex items-start gap-4 py-4 border-b border-border last:border-b-0 fx-focus ${validLink ? "cursor-pointer" : "cursor-default"}`}
+                  >
+                    <span className="fx-num text-[11px] text-muted-foreground w-6 pt-0.5 text-right shrink-0" aria-hidden="true">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    {item.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.imageUrl} alt="" className="w-16 h-12 rounded-[var(--radius-sm)] object-cover border border-border bg-secondary shrink-0" loading="lazy" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-medium text-foreground leading-snug line-clamp-2 transition-colors ${validLink ? "group-hover:text-accent" : ""}`}>
+                        {item.title}
+                      </p>
+                      <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed line-clamp-2">{item.snippet}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                        <span className={`fx-signal ${validLink ? "fx-signal-accent" : ""}`} aria-hidden="true" />
+                        <span className="truncate">{source || "Store-derived signal"}</span>
+                      </p>
+                    </div>
+                    {validLink && (
+                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground opacity-40 group-hover:opacity-100 transition-opacity shrink-0 mt-1" aria-hidden="true" strokeWidth={1.8} />
+                    )}
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
     </div>
   );

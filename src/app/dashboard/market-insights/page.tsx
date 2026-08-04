@@ -16,6 +16,36 @@ const BOOSTER_CATEGORIES = [
   "Pulses dals", "Packaged water", "Ready-to-cook", "Festival baskets",
 ];
 
+function sourceOf(link?: string) {
+  if (!link || link === "#") return null;
+  try {
+    return new URL(link).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+// Skeleton mirrors the deal-list layout to prevent shift
+function OffersSkeleton() {
+  return (
+    <div className="fx-card" aria-busy="true" aria-label="Loading offers and deals">
+      <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+        <div className="skeleton-shimmer h-4 w-52" />
+        <div className="skeleton-shimmer h-3 w-16" />
+      </div>
+      <div className="px-6">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="py-4 border-b border-border last:border-b-0 space-y-2.5">
+            <div className="skeleton-shimmer h-4 w-2/3" />
+            <div className="skeleton-shimmer h-3 w-full" />
+            <div className="skeleton-shimmer h-3 w-28" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function MarketInsightsPage() {
   const { user, loading: authLoading } = useAuth();
   const [query, setQuery] = useState("");
@@ -112,68 +142,125 @@ export default function MarketInsightsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-5 py-3 shadow-[0_0_30px_rgba(16,185,129,0.25)]">
-            <BadgePercent className="w-8 h-8 text-emerald-400" />
-            <h1 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">Offers & Deals</h1>
-          </div>
-          <p className="text-muted-foreground mt-3 text-base">Live offer, distributor, promotion, and market deal signals for your grocery store.</p>
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+
+      {/* ── Page lead · editorial, no card ─────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-5">
+        <div className="min-w-0">
+          <p className="fx-eyebrow flex items-center gap-1.5">
+            <BadgePercent className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Market Intelligence
+          </p>
+          <h1 className="fx-display text-[26px] sm:text-[30px] leading-tight text-foreground mt-2">Offers &amp; Deals</h1>
+          <p className="text-[13px] text-muted-foreground mt-1.5">Live offer, distributor, promotion, and market deal signals for your grocery store.</p>
         </div>
-        <button onClick={downloadPDF} className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-500 text-sm font-semibold flex items-center gap-2"><Download className="w-4 h-4" /> PDF</button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={downloadPDF} className="fx-btn">
+            <Download className="w-3.5 h-3.5" aria-hidden="true" /> PDF
+          </button>
+        </div>
       </div>
 
-      <div className="bg-card border border-emerald-500/30 rounded-2xl p-4 shadow-[0_0_24px_rgba(16,185,129,0.12)]">
-        <div className="flex flex-col sm:flex-row gap-3">
+      {/* ── Search + category rail ──────────────────────────────── */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void searchOffers(query); }} placeholder="Search offers by product, category, supplier, brand, or festival..." className="w-full pl-11 pr-4 py-3 bg-secondary border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void searchOffers(query); }}
+              placeholder="Search offers by product, category, supplier, brand, or festival..."
+              aria-label="Search offers"
+              className="fx-input pl-9"
+            />
           </div>
-          <button onClick={() => searchOffers(query)} disabled={loading} className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Search
+          <button onClick={() => searchOffers(query)} disabled={loading} className="fx-btn fx-btn-accent sm:shrink-0">
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Search className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />} Search
           </button>
         </div>
         {categories.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="text-xs text-muted-foreground flex items-center gap-1 mr-1"><Tag className="w-3 h-3" /> Your categories:</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground flex items-center gap-1 mr-1">
+              <Tag className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} /> Your categories:
+            </span>
             {categories.map(cat => (
-              <button key={cat} onClick={() => { setQuery(cat); void searchOffers(cat); }} className="px-3 py-1 rounded-full text-xs font-medium bg-secondary text-foreground border border-border hover:border-emerald-500/60 transition-colors">{cat}</button>
+              <button
+                key={cat}
+                onClick={() => { setQuery(cat); void searchOffers(cat); }}
+                className="px-2.5 py-1 rounded-[var(--radius-sm)] text-xs font-medium bg-secondary text-secondary-foreground border border-transparent hover:border-border-strong hover:text-foreground transition-colors fx-focus"
+              >
+                {cat}
+              </button>
             ))}
           </div>
         )}
       </div>
 
-      {error && <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>}
-      {loading ? (
-        <div className="bg-card border border-border rounded-xl p-12 text-center"><Loader2 className="w-8 h-8 animate-spin text-emerald-500 mx-auto mb-3" /><p className="text-muted-foreground">Fetching offers and deals...</p></div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 shadow-[0_0_24px_rgba(16,185,129,0.16)]">
-            <h2 className="text-xl font-black text-foreground">Highlighted Offers & Deals</h2>
-            <span className="text-sm font-semibold text-emerald-400">{cards.length} cards</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {cards.map((item, index) => {
-              const validLink = item.link && item.link !== "#" ? item.link : undefined;
-
-              return (
-              <a key={`${item.title}-${index}`} href={validLink} target={validLink ? "_blank" : undefined} rel={validLink ? "noopener noreferrer" : undefined} className={`group min-h-[220px] bg-card border border-emerald-500/30 rounded-2xl p-6 shadow-[0_0_24px_rgba(16,185,129,0.12)] transition-all ${validLink ? "hover:shadow-[0_0_36px_rgba(16,185,129,0.24)] hover:border-emerald-400/70 cursor-pointer" : "cursor-default opacity-90"}`}>
-                {item.imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt="" className="mb-4 h-36 w-full rounded-xl object-cover border border-emerald-500/20 bg-secondary" loading="lazy" />
-                )}
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-400">DEAL #{index + 1}</span>
-                  {validLink && <ExternalLink className="w-4 h-4 text-emerald-400 opacity-70 group-hover:opacity-100" />}
-                </div>
-                <p className="text-base font-bold text-foreground line-clamp-3">{item.title}</p>
-                <p className="text-sm text-muted-foreground mt-3 line-clamp-5">{item.snippet}</p>
-              </a>
-              );
-            })}
-          </div>
+      {error && (
+        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm flex items-center justify-between gap-3 flex-wrap">
+          <span>{error}</span>
+          <button onClick={() => searchOffers(query)} className="fx-btn">Retry</button>
         </div>
+      )}
+
+      {/* ── Deal ledger ─────────────────────────────────────────── */}
+      {loading ? (
+        <OffersSkeleton />
+      ) : (
+        <section aria-label="Offers and deals" className="fx-card">
+          <div className="flex items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-border">
+            <h2 className="fx-display text-[17px] text-foreground">Highlighted Offers &amp; Deals</h2>
+            <span className="text-xs text-muted-foreground">
+              <span className="fx-num font-semibold text-foreground">{cards.length}</span> signals
+            </span>
+          </div>
+
+          {cards.length === 0 ? (
+            <div className="text-center py-10 px-6">
+              <BadgePercent className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-50" aria-hidden="true" strokeWidth={1.8} />
+              <p className="text-sm text-secondary-foreground font-medium">No offers or deals right now</p>
+              <p className="text-xs text-muted-foreground mt-1">Try a different search term or pick one of your categories above.</p>
+            </div>
+          ) : (
+            <div className="px-6">
+              {cards.map((item, index) => {
+                const validLink = item.link && item.link !== "#" ? item.link : undefined;
+                const source = sourceOf(validLink);
+
+                return (
+                  <a
+                    key={`${item.title}-${index}`}
+                    href={validLink}
+                    target={validLink ? "_blank" : undefined}
+                    rel={validLink ? "noopener noreferrer" : undefined}
+                    className={`group flex items-start gap-4 py-4 border-b border-border last:border-b-0 fx-focus ${validLink ? "cursor-pointer" : "cursor-default"}`}
+                  >
+                    <span className="fx-num text-[11px] text-muted-foreground w-6 pt-0.5 text-right shrink-0" aria-hidden="true">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    {item.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.imageUrl} alt="" className="w-16 h-12 rounded-[var(--radius-sm)] object-cover border border-border bg-secondary shrink-0" loading="lazy" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-medium text-foreground leading-snug line-clamp-2 transition-colors ${validLink ? "group-hover:text-accent" : ""}`}>
+                        {item.title}
+                      </p>
+                      <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed line-clamp-2">{item.snippet}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                        <span className={`fx-signal ${validLink ? "fx-signal-accent" : ""}`} aria-hidden="true" />
+                        <span className="truncate">{source || "Store-derived signal"}</span>
+                      </p>
+                    </div>
+                    {validLink && (
+                      <ExternalLink className="w-3.5 h-3.5 text-muted-foreground opacity-40 group-hover:opacity-100 transition-opacity shrink-0 mt-1" aria-hidden="true" strokeWidth={1.8} />
+                    )}
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
     </div>
   );

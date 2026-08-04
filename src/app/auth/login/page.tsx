@@ -6,6 +6,20 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Eye, EyeOff, BarChart3, TrendingUp, ShieldCheck } from "lucide-react";
 
+function BrandMark({ dark = false, size = 38 }: { dark?: boolean; size?: number }) {
+  return (
+    <div
+      className="rounded-lg flex items-center justify-center shrink-0"
+      style={{ width: size, height: size, background: dark ? "rgba(245, 243, 237, 0.12)" : "var(--accent)" }}
+    >
+      <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M3 20L7 10L11 13L17 6L21 10" stroke={dark ? "#F5F3ED" : "var(--accent-foreground)"} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="17" cy="6" r="2.3" fill={dark ? "#F5F3ED" : "var(--accent-foreground)"} />
+      </svg>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState(() => {
@@ -42,46 +56,55 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500">
-        <div className="absolute inset-0 bg-black/10" />
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-300/10 rounded-full blur-3xl" />
-        </div>
-        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20 text-white">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-linear-to-br from-indigo-500 to-purple-600 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 20V14L7 10L11 13L17 6L21 10V20H3Z" fill="rgba(255,255,255,0.3)" />
-                <path d="M3 20L7 10L11 13L17 6L21 10" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="17" cy="6" r="2.5" fill="white" opacity="0.9" />
-              </svg>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight">Forecastify</h1>
+      {/* Left panel — deep evergreen editorial */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden" style={{ background: "#12332D" }}>
+        {/* Quiet forecast-line motif */}
+        <svg className="absolute inset-x-0 bottom-0 w-full h-2/5 opacity-[0.14]" viewBox="0 0 800 300" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 260 L110 190 L220 225 L330 130 L440 170 L550 80 L660 115 L800 30" stroke="#F5F3ED" strokeWidth="1.5" fill="none" />
+          <path d="M0 285 L110 240 L220 262 L330 200 L440 228 L550 160 L660 185 L800 120" stroke="#F5F3ED" strokeWidth="1" strokeDasharray="4 6" fill="none" />
+        </svg>
+
+        <div className="relative z-10 flex flex-col justify-between px-12 xl:px-20 py-14 w-full" style={{ color: "#F5F3ED" }}>
+          <div className="flex items-center gap-3">
+            <BrandMark dark />
+            <span className="text-xl font-semibold tracking-tight" style={{ fontFamily: "var(--font-display), Georgia, serif" }}>
+              Forecastify
+            </span>
           </div>
-          <h2 className="text-4xl xl:text-5xl font-bold leading-tight mb-6">
-            Smart Demand
-            <br />
-            Forecasting
-          </h2>
-          <p className="text-lg text-white/80 mb-10 max-w-md">
-            Predict demand, optimize inventory, and reduce waste with
-            intelligent forecasting that adapts in real-time.
-          </p>
-          <div className="space-y-4">
+
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] mb-5" style={{ color: "rgba(245,243,237,0.55)" }}>
+              Retail Intelligence Platform
+            </p>
+            <h2
+              className="text-[44px] xl:text-[54px] leading-[1.06]"
+              style={{ fontFamily: "var(--font-display), Georgia, serif", fontWeight: 520, letterSpacing: "-0.015em" }}
+            >
+              Know what sells,
+              <br />
+              before it sells.
+            </h2>
+            <p className="text-[15px] leading-relaxed mt-6 max-w-md" style={{ color: "rgba(245,243,237,0.72)" }}>
+              Demand forecasting, inventory intelligence, and market signals —
+              one calm operating picture for your store.
+            </p>
+          </div>
+
+          <div>
             {[
-              { icon: TrendingUp, title: "7-Day Demand Predictions", desc: "Accurate forecasts using weather & market data" },
-              { icon: BarChart3, title: "Smart Inventory Levels", desc: "Avoid stockouts and overstocking automatically" },
-              { icon: ShieldCheck, title: "Risk Alerts & Insights", desc: "Actionable alerts for at-risk products" },
-            ].map((feature) => (
-              <div key={feature.title} className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-                  <feature.icon className="w-5 h-5" />
-                </div>
+              { icon: TrendingUp, title: "7-day demand predictions", desc: "Weather, market and event signals built in" },
+              { icon: BarChart3, title: "Smart inventory levels", desc: "Avoid stockouts and overstocking automatically" },
+              { icon: ShieldCheck, title: "Risk alerts & insights", desc: "Actionable alerts for at-risk products" },
+            ].map((feature, i) => (
+              <div
+                key={feature.title}
+                className="flex items-center gap-4 py-4"
+                style={{ borderTop: i === 0 ? "none" : "1px solid rgba(245,243,237,0.14)" }}
+              >
+                <feature.icon className="w-4.5 h-4.5 shrink-0" strokeWidth={1.6} style={{ color: "rgba(245,243,237,0.85)" }} aria-hidden="true" />
                 <div>
-                  <h3 className="font-semibold">{feature.title}</h3>
-                  <p className="text-sm text-white/70">{feature.desc}</p>
+                  <h3 className="text-sm font-medium">{feature.title}</h3>
+                  <p className="text-[13px] mt-0.5" style={{ color: "rgba(245,243,237,0.55)" }}>{feature.desc}</p>
                 </div>
               </div>
             ))}
@@ -89,66 +112,62 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right Panel - Login Form */}
+      {/* Right panel — form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-10 h-10 bg-linear-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 20V14L7 10L11 13L17 6L21 10V20H3Z" fill="rgba(255,255,255,0.3)" />
-                <path d="M3 20L7 10L11 13L17 6L21 10" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="17" cy="6" r="2.5" fill="white" opacity="0.9" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold bg-linear-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">Forecastify</h1>
+        <div className="w-full max-w-[400px]">
+          <div className="lg:hidden flex items-center gap-3 mb-10 justify-center">
+            <BrandMark size={34} />
+            <h1 className="fx-display text-[22px] font-semibold text-foreground">Forecastify</h1>
           </div>
 
-          <div className="mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Welcome back</h2>
-            <p className="text-muted-foreground mt-2">Sign in to access your forecasting dashboard</p>
+          <div className="mb-9">
+            <h2 className="fx-display text-[30px] text-foreground">Welcome back</h2>
+            <p className="text-sm text-muted-foreground mt-2">Sign in to your forecasting console</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="bg-danger/10 border border-danger/20 text-danger rounded-xl px-4 py-3 text-sm">{error}</div>
+              <div className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm" role="alert">{error}</div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Email Address</label>
+              <label htmlFor="login-email" className="block text-[13px] font-medium text-secondary-foreground mb-1.5">Email Address</label>
               <input
+                id="login-email"
                 type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@yourstore.com" required
-                className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                placeholder="you@yourstore.com" required autoComplete="email"
+                className="fx-input py-3"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
+              <label htmlFor="login-password" className="block text-[13px] font-medium text-secondary-foreground mb-1.5">Password</label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? "text" : "password"} value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password" required
-                  className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent pr-12"
+                  placeholder="Enter your password" required autoComplete="current-password"
+                  className="fx-input py-3 pr-12"
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors fx-focus rounded">
+                  {showPassword ? <EyeOff className="w-4.5 h-4.5" strokeWidth={1.8} /> : <Eye className="w-4.5 h-4.5" strokeWidth={1.8} />}
                 </button>
               </div>
             </div>
 
-            <button type="submit" disabled={loading}
-              className="w-full py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <button type="submit" disabled={loading} className="fx-btn fx-btn-accent w-full py-3 text-sm">
               {loading ? (
-                <><div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />Signing in...</>
+                <><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden="true" />Signing in…</>
               ) : "Sign In"}
             </button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
+          <p className="text-center text-sm text-muted-foreground mt-8">
             Don&apos;t have an account?{" "}
-            <Link href="/auth/signup" className="text-primary font-semibold hover:underline">Create Account</Link>
+            <Link href="/auth/signup" className="font-semibold hover:underline fx-focus rounded" style={{ color: "var(--accent)" }}>Create Account</Link>
           </p>
         </div>
       </div>

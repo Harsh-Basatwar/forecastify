@@ -20,18 +20,28 @@ const DEFAULT_CATEGORIES = [
   "Household", "Biscuits", "Chocolates", "Instant Food", "Masala & Spices", "Oils",
 ];
 
-const COLORS = ["#6366f1", "#a855f7", "#ec4899", "#f59e0b", "#22c55e", "#06b6d4", "#f43f5e", "#8b5cf6"];
+// Restrained categorical ramp — teal + warm neutrals
+const COLORS = ["#11746A", "#579E92", "#93C0B7", "#7A7466", "#A39C8C", "#4E4A42", "#C0A46B", "#5C7A74"];
+
+const chartTooltipStyle = {
+  background: "var(--elevated)",
+  border: "1px solid var(--border-strong)",
+  borderRadius: "10px",
+  boxShadow: "var(--shadow-md)",
+  fontSize: "12px",
+  color: "var(--foreground)",
+} as const;
 
 const demandBadge = (level: string) => {
-  if (level === "High") return "bg-red-500/10 text-red-600 dark:text-red-400";
-  if (level === "Medium") return "bg-amber-500/10 text-amber-600 dark:text-amber-400";
-  return "bg-green-500/10 text-green-600 dark:text-green-400";
+  if (level === "High") return "fx-badge fx-badge-danger";
+  if (level === "Medium") return "fx-badge fx-badge-warning";
+  return "fx-badge fx-badge-success";
 };
 
 const DemandIcon = ({ level }: { level: string }) => {
-  if (level === "High") return <TrendingUp className="w-3 h-3" />;
-  if (level === "Medium") return <Minus className="w-3 h-3" />;
-  return <TrendingDown className="w-3 h-3" />;
+  if (level === "High") return <TrendingUp className="w-3 h-3" aria-hidden="true" />;
+  if (level === "Medium") return <Minus className="w-3 h-3" aria-hidden="true" />;
+  return <TrendingDown className="w-3 h-3" aria-hidden="true" />;
 };
 
 export default function CategoryAnalysisPage() {
@@ -122,8 +132,8 @@ export default function CategoryAnalysisPage() {
   const brandChartData = analysis?.topBrands?.map((b: any) => ({ name: b.brand, popularity: b.popularity })) || [];
   const productDemandData = analysis?.products?.slice(0, 8).map((p: any) => ({ name: p.name?.length > 15 ? p.name.slice(0, 15) + "..." : p.name, demand: p.weeklyDemand || p.dailyDemand * 7 })) || [];
   const signalSections = [
-    { key: "news", title: "News", icon: Newspaper, color: "text-blue-500", bg: "bg-blue-500/10", description: "Category news and retail demand signals." },
-    { key: "promotions", title: "Promotion", icon: BadgePercent, color: "text-pink-500", bg: "bg-pink-500/10", description: "Offer and campaign ideas for this category." },
+    { key: "news", title: "News", icon: Newspaper, description: "Category news and retail demand signals." },
+    { key: "promotions", title: "Promotion", icon: BadgePercent, description: "Offer and campaign ideas for this category." },
   ];
   const analysisParameters = [
     { title: "Category Demand", detail: "Inventory products, historic sales, city, weather", output: "Demand level and weekly estimate" },
@@ -180,52 +190,79 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      {/* Page lead — editorial, no card */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Tag className="w-6 h-6 text-purple-500" /> Category Analysis</h1>
-          <p className="text-muted-foreground mt-1">Explore top brands and product demand by category for your region</p>
+          <h1 className="fx-display text-[24px] text-foreground">Category Analysis</h1>
+          <p className="text-[13px] text-muted-foreground mt-1.5">Explore top brands and product demand by category for your region</p>
         </div>
         {analysis && (
-          <div className="flex gap-2">
-            <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-500/20 text-sm font-medium"><FileText className="w-4 h-4" /> PDF</button>
-            <button onClick={downloadHTML} className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-500/20 text-sm font-medium"><Code className="w-4 h-4" /> HTML</button>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={downloadPDF} className="fx-btn"><FileText className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> PDF</button>
+            <button onClick={downloadHTML} className="fx-btn"><Code className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> HTML</button>
           </div>
         )}
       </div>
 
-      {/* Search + Category pills */}
+      {/* Search + Category chips */}
       <div>
         <div className="flex gap-2 mb-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
             <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && analyze(query)}
               placeholder="Search category — e.g. Dairy, Beverages, Snacks..."
-              className="w-full pl-12 pr-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/50" />
+              aria-label="Search category"
+              className="fx-input pl-10" />
           </div>
           <button onClick={() => analyze(query)} disabled={loading || !query.trim()}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 font-semibold flex items-center gap-2">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Analyze
+            className="fx-btn fx-btn-accent">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Search className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />} Analyze
           </button>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {CATEGORIES.map(c => (
             <button key={c} onClick={() => { setQuery(c); analyze(c); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${query === c ? "bg-purple-500 text-white" : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80"}`}>{c}</button>
+              aria-pressed={query === c}
+              className={`px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-colors cursor-pointer fx-focus ${
+                query === c
+                  ? "bg-[var(--accent-soft)] text-accent border border-[var(--accent-border)] font-semibold"
+                  : "bg-secondary text-muted-foreground border border-transparent hover:text-foreground"
+              }`}>{c}</button>
           ))}
         </div>
       </div>
 
-      {error && <div className="bg-danger/10 border border-danger/20 text-danger rounded-xl px-4 py-3 text-sm">{error}</div>}
+      {error && (
+        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm">{error}</div>
+      )}
 
-      {/* Loading */}
+      {/* Loading — skeleton mirrors the result layout */}
       {loading && (
-        <div className="bg-card border border-border rounded-xl p-12 flex flex-col items-center gap-4">
-          <div className="relative"><div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" /><Tag className="w-6 h-6 text-purple-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /></div>
-          <p className="font-semibold text-foreground">Analyzing &quot;{query}&quot; category...</p>
-          <p className="text-sm text-muted-foreground">Fetching regional brands, historic sales, and market data</p>
+        <div className="space-y-6" aria-busy="true" aria-label={`Analyzing ${query} category`}>
+          <div className="fx-card p-6 space-y-3">
+            <div className="flex items-center gap-2 text-sm text-secondary-foreground font-medium">
+              <span className="w-4 h-4 border-2 border-border-strong border-t-accent rounded-full animate-spin" aria-hidden="true" />
+              Analyzing &quot;{query}&quot; category…
+            </div>
+            <p className="text-xs text-muted-foreground">Fetching regional brands, historic sales, and market data</p>
+            <div className="skeleton-shimmer h-5 w-56" />
+            <div className="skeleton-shimmer h-3.5 w-full" />
+            <div className="skeleton-shimmer h-3.5 w-2/3" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[0, 1].map((i) => (
+              <div key={i} className="fx-card p-6 space-y-3">
+                <div className="skeleton-shimmer h-4 w-48" />
+                <div className="skeleton-shimmer h-56 w-full" />
+              </div>
+            ))}
+          </div>
+          <div className="fx-card p-6 space-y-3">
+            <div className="skeleton-shimmer h-4 w-56" />
+            {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton-shimmer h-9 w-full" />)}
+          </div>
         </div>
       )}
 
@@ -233,62 +270,72 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
       {analysis && !loading && (
         <div className="space-y-6">
           {/* Summary header */}
-          <div className="bg-gradient-to-r from-purple-500/10 via-violet-500/10 to-indigo-500/10 border border-purple-500/20 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-xl font-bold text-foreground flex items-center gap-2"><Tag className="w-5 h-5 text-purple-500" />{analysis.category}</h2>
-                <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                  {location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-blue-500" />{location}</span>}
-                  {weather && <span className="flex items-center gap-1"><Cloud className="w-3.5 h-3.5 text-orange-500" />{weather.temp}°C {weather.description}</span>}
+          <section aria-label="Category summary" className="fx-card p-6">
+            <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+              <div className="min-w-0">
+                <h2 className="fx-display text-[19px] text-foreground flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />{analysis.category}
+                </h2>
+                <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
+                  {location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />{location}</span>}
+                  {weather && <span className="flex items-center gap-1"><Cloud className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /><span className="fx-num">{weather.temp}°C</span> {weather.description}</span>}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${demandBadge(analysis.totalCategoryDemand)}`}>{analysis.totalCategoryDemand} Demand</span>
-                <button onClick={() => analyze(query)} className="p-2 text-muted-foreground hover:text-foreground"><RefreshCw className="w-4 h-4" /></button>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={demandBadge(analysis.totalCategoryDemand)}>{analysis.totalCategoryDemand} Demand</span>
+                <button onClick={() => analyze(query)} className="fx-btn fx-btn-ghost !p-2" aria-label="Re-run analysis"><RefreshCw className="w-4 h-4" strokeWidth={1.8} /></button>
               </div>
             </div>
-            <p className="text-foreground/80 text-sm">{analysis.summary}</p>
-            {analysis.seasonalTrend && <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1"><Zap className="w-3 h-3 text-amber-500" />{analysis.seasonalTrend}</p>}
-          </div>
+            <p className="text-sm text-secondary-foreground leading-relaxed">{analysis.summary}</p>
+            {analysis.seasonalTrend && (
+              <p className="text-xs text-muted-foreground mt-2.5 flex items-center gap-1.5">
+                <Zap className="w-3 h-3 text-accent" aria-hidden="true" strokeWidth={1.8} />{analysis.seasonalTrend}
+              </p>
+            )}
 
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4"><Brain className="w-4 h-4 text-cyan-500" /> Analysis Engines & Parameters</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {analysisParameters.map((item) => (
-                <div key={item.title} className="rounded-lg border border-border bg-secondary/30 p-3">
-                  <p className="font-semibold text-sm text-foreground">{item.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{item.detail}</p>
-                  <p className="text-xs text-cyan-500 mt-2">{item.output}</p>
-                </div>
-              ))}
+            <div className="fx-rule mt-5 pt-4">
+              <h3 className="fx-eyebrow flex items-center gap-1.5 mb-3">
+                <Brain className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Analysis Engines &amp; Parameters
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-3">
+                {analysisParameters.map((item) => (
+                  <div key={item.title}>
+                    <p className="text-sm font-medium text-foreground">{item.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{item.detail}</p>
+                    <p className="text-xs font-medium mt-1.5" style={{ color: "var(--accent)" }}>{item.output}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          </section>
 
           {signalSections.some((section) => externalSignals[section.key]?.length) && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {signalSections.map((section) => {
                 const items = (externalSignals[section.key] || []).slice(0, 3);
                 if (!items.length) return null;
                 const Icon = section.icon;
                 return (
-                  <div key={section.key} className="bg-card border border-border rounded-xl p-5">
+                  <section key={section.key} aria-label={section.title} className="fx-card p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-                      <h3 className="font-semibold text-foreground flex items-center gap-2"><Icon className={`w-4 h-4 ${section.color}`} /> {section.title}</h3>
+                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Icon className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} /> {section.title}
+                      </h3>
                       <p className="text-xs text-muted-foreground">{section.description}</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {items.map((item: any, index: number) => (
-                        <a key={index} href={item.link} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border bg-secondary/30 p-3 hover:border-primary/50 transition-colors">
-                          <div className={`w-8 h-8 rounded-lg ${section.bg} flex items-center justify-center mb-2`}>
-                            <Icon className={`w-4 h-4 ${section.color}`} />
-                          </div>
-                          <p className="text-sm font-semibold text-foreground line-clamp-2">{item.title}</p>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{item.snippet}</p>
-                          <span className="inline-flex items-center gap-1 text-xs text-primary mt-2">Open <ExternalLink className="w-3 h-3" /></span>
+                        <a key={index} href={item.link} target="_blank" rel="noopener noreferrer"
+                          className="group border border-border rounded-[var(--radius-md)] p-4 hover:border-border-strong transition-colors fx-focus">
+                          <p className="text-sm font-medium text-foreground line-clamp-2">{item.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3">{item.snippet}</p>
+                          <span className="inline-flex items-center gap-1 text-xs font-medium mt-2.5" style={{ color: "var(--accent)" }}>
+                            Open <ExternalLink className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} />
+                          </span>
                         </a>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 );
               })}
             </div>
@@ -297,125 +344,145 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Brand popularity */}
-            <div className="bg-card border border-border rounded-xl p-5">
-              <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4"><Crown className="w-4 h-4 text-amber-500" /> Top Brands by Popularity</h3>
+            <section aria-label="Top brands by popularity" className="fx-card p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Crown className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
+                <h3 className="text-sm font-semibold text-foreground">Top Brands by Popularity</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">Popularity score out of 100, ranked for your region</p>
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={brandChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis type="number" domain={[0, 100]} stroke="var(--color-muted-foreground)" fontSize={11} />
-                  <YAxis type="category" dataKey="name" width={80} stroke="var(--color-muted-foreground)" fontSize={11} />
-                  <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "8px" }} />
-                  <Bar dataKey="popularity" name="Popularity" radius={[0, 6, 6, 0]}>
+                <BarChart data={brandChartData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="name" width={80} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
+                  <Bar dataKey="popularity" name="Popularity" radius={[0, 4, 4, 0]} barSize={14}>
                     {brandChartData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </section>
 
             {/* Weekly demand by product */}
-            <div className="bg-card border border-border rounded-xl p-5">
-              <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4"><TrendingUp className="w-4 h-4 text-indigo-500" /> Weekly Demand by Product</h3>
+            <section aria-label="Weekly demand by product" className="fx-card p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
+                <h3 className="text-sm font-semibold text-foreground">Weekly Demand by Product</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">Estimated weekly units for the top products</p>
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={productDemandData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={10} angle={-25} textAnchor="end" height={60} />
-                  <YAxis stroke="var(--color-muted-foreground)" fontSize={11} />
-                  <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "8px" }} />
-                  <Bar dataKey="demand" name="Weekly Units" radius={[6, 6, 0, 0]}>
-                    {productDemandData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Bar>
+                <BarChart data={productDemandData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+                  <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
+                  <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={10} tickLine={false} axisLine={false} angle={-25} textAnchor="end" height={60} />
+                  <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
+                  <Bar dataKey="demand" name="Weekly Units" radius={[3, 3, 0, 0]} barSize={14} fill="var(--accent)" />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </section>
           </div>
 
-          {/* Top Brands cards */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4"><Star className="w-4 h-4 text-amber-500" /> Brand Analysis — {analysis.category}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {/* Brand analysis — hairline ledger rows */}
+          <section aria-label="Brand analysis" className="fx-card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Star className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+              <h3 className="fx-display text-[17px] text-foreground">Brand Analysis — {analysis.category}</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10">
               {analysis.topBrands?.map((b: any, i: number) => (
-                <div key={i} className="border border-border rounded-xl p-4 hover:shadow-md transition-shadow relative overflow-hidden">
-                  {i === 0 && <div className="absolute top-2 right-2 w-6 h-6 bg-amber-500/20 rounded-full flex items-center justify-center"><Crown className="w-3 h-3 text-amber-500" /></div>}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-white" style={{ background: COLORS[i % COLORS.length] }}>
-                      {b.brand?.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground text-sm">{b.brand}</p>
-                      <p className="text-xs text-muted-foreground">{b.marketShare} market share</p>
-                    </div>
+                <div key={i} className="py-4 border-b border-border">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <p className="text-sm font-medium text-foreground flex items-center gap-1.5 min-w-0">
+                      <span className="truncate">{b.brand}</span>
+                      {i === 0 && <Crown className="w-3.5 h-3.5 text-accent shrink-0" aria-hidden="true" strokeWidth={1.8} />}
+                    </p>
+                    <span className="fx-num text-xs font-semibold text-foreground shrink-0">{b.popularity}/100</span>
                   </div>
-                  <div className="mb-2">
-                    <div className="flex justify-between text-xs mb-1"><span className="text-muted-foreground">Popularity</span><span className="font-medium text-foreground">{b.popularity}/100</span></div>
-                    <div className="w-full h-2 bg-secondary rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${b.popularity}%`, background: COLORS[i % COLORS.length] }} /></div>
+                  <div className="h-1 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={b.popularity} aria-valuemin={0} aria-valuemax={100} aria-label={`${b.brand} popularity`}>
+                    <div className="h-full rounded-full" style={{ width: `${b.popularity}%`, background: "var(--accent)" }} />
                   </div>
-                  <p className="text-xs text-muted-foreground">{b.priceRange}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">{b.reason}</p>
+                  <p className="text-xs text-muted-foreground mt-2">{b.marketShare} market share · {b.priceRange}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{b.reason}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
 
           {/* Products table */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4"><Package className="w-4 h-4 text-purple-500" /> Product-wise Demand Analysis</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="border-b border-border">
-                  <th className="text-left py-2 text-muted-foreground font-medium text-xs">Product</th>
-                  <th className="text-left py-2 text-muted-foreground font-medium text-xs">Brand</th>
-                  <th className="text-center py-2 text-muted-foreground font-medium text-xs">Demand</th>
-                  <th className="text-center py-2 text-muted-foreground font-medium text-xs">Daily</th>
-                  <th className="text-center py-2 text-muted-foreground font-medium text-xs">Weekly</th>
-                  <th className="text-right py-2 text-muted-foreground font-medium text-xs">Price</th>
-                  <th className="text-center py-2 text-muted-foreground font-medium text-xs">My Stock</th>
-                  <th className="text-center py-2 text-muted-foreground font-medium text-xs">Status</th>
-                  <th className="text-right py-2 text-muted-foreground font-medium text-xs">Margin</th>
-                </tr></thead>
+          <section aria-label="Product-wise demand" className="fx-card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Package className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
+              <h3 className="fx-display text-[17px] text-foreground">Product-wise Demand Analysis</h3>
+            </div>
+            <div className="overflow-x-auto -mx-2">
+              <table className="fx-table min-w-[720px]">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Brand</th>
+                    <th className="text-center">Demand</th>
+                    <th className="text-right">Daily</th>
+                    <th className="text-right">Weekly</th>
+                    <th className="text-right">Price</th>
+                    <th className="text-right">My Stock</th>
+                    <th className="text-center">Status</th>
+                    <th className="text-right">Margin</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {analysis.products?.map((p: any, i: number) => (
-                    <tr key={i} className="border-b border-border last:border-0 hover:bg-secondary/30">
-                      <td className="py-3"><p className="font-medium text-foreground">{p.name}</p><p className="text-[10px] text-muted-foreground">{p.reason}</p></td>
-                      <td className="py-3 text-muted-foreground text-xs">{p.brand}</td>
-                      <td className="py-3 text-center"><span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${demandBadge(p.demandLevel)}`}><DemandIcon level={p.demandLevel} />{p.demandLevel}</span></td>
-                      <td className="py-3 text-center font-semibold text-foreground">{p.dailyDemand}</td>
-                      <td className="py-3 text-center text-foreground">{p.weeklyDemand}</td>
-                      <td className="py-3 text-right text-foreground">₹{p.suggestedPrice}</td>
-                      <td className="py-3 text-center">{p.inMyInventory ? <span className="font-semibold text-foreground">{p.myStock} {p.myUnit}</span> : <span className="text-muted-foreground text-xs">—</span>}</td>
-                      <td className="py-3 text-center">
-                        {p.stockStatus === "Sufficient" && <span className="text-xs text-green-500 flex items-center justify-center gap-1"><CheckCircle2 className="w-3 h-3" />OK</span>}
-                        {p.stockStatus === "Low" && <span className="text-xs text-amber-500 flex items-center justify-center gap-1"><AlertTriangle className="w-3 h-3" />Low</span>}
-                        {(p.stockStatus === "Out of Stock" || p.stockStatus === "Not Stocked") && <span className="text-xs text-red-500 flex items-center justify-center gap-1"><AlertTriangle className="w-3 h-3" />{p.inMyInventory ? "Out" : "Add"}</span>}
+                    <tr key={i}>
+                      <td><p className="font-medium text-foreground">{p.name}</p><p className="text-[11px] text-muted-foreground mt-0.5">{p.reason}</p></td>
+                      <td className="text-xs text-muted-foreground">{p.brand}</td>
+                      <td className="text-center"><span className={demandBadge(p.demandLevel)}><DemandIcon level={p.demandLevel} />{p.demandLevel}</span></td>
+                      <td className="text-right fx-num font-semibold text-foreground">{p.dailyDemand}</td>
+                      <td className="text-right fx-num text-secondary-foreground">{p.weeklyDemand}</td>
+                      <td className="text-right fx-num text-foreground">₹{p.suggestedPrice}</td>
+                      <td className="text-right">{p.inMyInventory ? <span className="fx-num font-semibold text-foreground">{p.myStock} {p.myUnit}</span> : <span className="text-muted-foreground text-xs">—</span>}</td>
+                      <td className="text-center">
+                        {p.stockStatus === "Sufficient" && <span className="text-xs text-success inline-flex items-center justify-center gap-1"><CheckCircle2 className="w-3 h-3" aria-hidden="true" />OK</span>}
+                        {p.stockStatus === "Low" && <span className="text-xs text-warning inline-flex items-center justify-center gap-1"><AlertTriangle className="w-3 h-3" aria-hidden="true" />Low</span>}
+                        {(p.stockStatus === "Out of Stock" || p.stockStatus === "Not Stocked") && <span className="text-xs text-danger inline-flex items-center justify-center gap-1"><AlertTriangle className="w-3 h-3" aria-hidden="true" />{p.inMyInventory ? "Out" : "Add"}</span>}
                       </td>
-                      <td className="py-3 text-right text-foreground font-medium">{p.margin}</td>
+                      <td className="text-right fx-num font-medium text-foreground">{p.margin}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
+          </section>
 
           {/* Missing products + Recommendations */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {analysis.missingProducts?.length > 0 && (
-              <div className="bg-card border border-border rounded-xl p-5">
-                <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4"><ShoppingBag className="w-4 h-4 text-pink-500" /> Products to Consider Adding</h3>
-                <ul className="space-y-2">
+              <section aria-label="Products to consider adding" className="fx-card p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <ShoppingBag className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
+                  <h3 className="text-sm font-semibold text-foreground">Products to Consider Adding</h3>
+                </div>
+                <ul>
                   {analysis.missingProducts.map((m: string, i: number) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-foreground/80"><ArrowUpRight className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />{m}</li>
+                    <li key={i} className="flex items-start gap-2.5 py-2.5 border-b border-border last:border-b-0 text-[13px] text-secondary-foreground leading-snug">
+                      <span className="fx-signal fx-signal-accent mt-[5px]" aria-hidden="true" />{m}
+                    </li>
                   ))}
                 </ul>
-              </div>
+              </section>
             )}
-            <div className="bg-card border border-border rounded-xl p-5">
-              <h3 className="font-semibold text-foreground flex items-center gap-2 mb-4"><Zap className="w-4 h-4 text-indigo-500" /> Recommendations</h3>
-              <ul className="space-y-2">
+            <section aria-label="Recommendations" className="fx-card p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
+                <h3 className="text-sm font-semibold text-foreground">Recommendations</h3>
+              </div>
+              <ul>
                 {analysis.recommendations?.map((r: string, i: number) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-foreground/80"><ArrowUpRight className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />{r}</li>
+                  <li key={i} className="flex items-start gap-2.5 py-2.5 border-b border-border last:border-b-0 text-[13px] text-secondary-foreground leading-snug">
+                    <ArrowUpRight className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />{r}
+                  </li>
                 ))}
               </ul>
-              {analysis.competitorInsight && <p className="text-xs text-muted-foreground mt-4 border-t border-border pt-3"><strong>Competitor:</strong> {analysis.competitorInsight}</p>}
-            </div>
+              {analysis.competitorInsight && <p className="text-xs text-muted-foreground mt-4 fx-rule pt-3"><strong className="font-semibold text-secondary-foreground">Competitor:</strong> {analysis.competitorInsight}</p>}
+            </section>
           </div>
         </div>
       )}
@@ -423,26 +490,31 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
       {/* Empty state */}
       {!loading && !analysis && (
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-purple-500/5 via-violet-500/5 to-indigo-500/5 border border-purple-500/20 rounded-2xl p-8 sm:p-12 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/20"><Tag className="w-8 h-8 text-white" /></div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">Category Analysis</h2>
-            <p className="text-muted-foreground max-w-lg mx-auto mb-6">Select a category to discover top brands in your region, compare product demand, find gaps in your inventory, and get restocking recommendations.</p>
+          <div className="fx-card text-center py-12 px-6">
+            <Tag className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-60" aria-hidden="true" strokeWidth={1.8} />
+            <p className="text-sm text-secondary-foreground font-medium">Select a category to analyze</p>
+            <p className="text-xs text-muted-foreground mt-1.5 max-w-md mx-auto">Discover top brands in your region, compare product demand, find gaps in your inventory, and get restocking recommendations.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              { icon: Crown, color: "text-amber-500", bg: "bg-amber-500/10", title: "Top Regional Brands", desc: "Discover the most popular brands for each category in your city with market share data" },
-              { icon: TrendingUp, color: "text-purple-500", bg: "bg-purple-500/10", title: "Product-wise Demand", desc: "See daily and weekly demand for every product with demand level scoring" },
-              { icon: ShoppingBag, color: "text-pink-500", bg: "bg-pink-500/10", title: "Inventory Gap Analysis", desc: "Find out which products you should add to capture more sales in your area" },
-              { icon: Star, color: "text-indigo-500", bg: "bg-indigo-500/10", title: "Competitor Insights", desc: "Know what other stores in your area stock and how to stay competitive" },
-              { icon: Package, color: "text-green-500", bg: "bg-green-500/10", title: "Stock Recommendations", desc: "Exact restock quantities based on demand patterns and your current inventory" },
-              { icon: FileText, color: "text-cyan-500", bg: "bg-cyan-500/10", title: "Export Reports", desc: "Download professional PDF or HTML reports to share with your team" },
-            ].map(f => (
-              <div key={f.title} className="bg-card border border-border rounded-xl p-5 hover:shadow-md transition-shadow">
-                <div className={`w-10 h-10 rounded-xl ${f.bg} flex items-center justify-center mb-3`}><f.icon className={`w-5 h-5 ${f.color}`} /></div>
-                <h4 className="font-semibold text-foreground text-sm mb-1">{f.title}</h4>
-                <p className="text-xs text-muted-foreground">{f.desc}</p>
-              </div>
-            ))}
+          <div className="fx-card p-6">
+            <h3 className="fx-eyebrow mb-2">What you&apos;ll get</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-0">
+              {[
+                { icon: Crown, title: "Top Regional Brands", desc: "Discover the most popular brands for each category in your city with market share data" },
+                { icon: TrendingUp, title: "Product-wise Demand", desc: "See daily and weekly demand for every product with demand level scoring" },
+                { icon: ShoppingBag, title: "Inventory Gap Analysis", desc: "Find out which products you should add to capture more sales in your area" },
+                { icon: Star, title: "Competitor Insights", desc: "Know what other stores in your area stock and how to stay competitive" },
+                { icon: Package, title: "Stock Recommendations", desc: "Exact restock quantities based on demand patterns and your current inventory" },
+                { icon: FileText, title: "Export Reports", desc: "Download professional PDF or HTML reports to share with your team" },
+              ].map(f => (
+                <div key={f.title} className="flex gap-3 items-start py-4 border-t border-border">
+                  <f.icon className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
+                  <div>
+                    <h4 className="text-sm font-medium text-foreground">{f.title}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

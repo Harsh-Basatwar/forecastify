@@ -22,11 +22,11 @@ import { LANGUAGES } from "@/lib/translations";
 type LangCode = string;
 
 const LANG_STATUS: Record<string, { listening: string; thinking: string; speaking: string }> = {
-  "en": { listening: "🎙️ Listening...", thinking: "🧠 Jarvis is thinking...", speaking: "🔊 Speaking..." },
-  "hi": { listening: "🎙️ सुन रहे हैं...", thinking: "🧠 जार्विस सोच रहा है...", speaking: "🔊 बोल रहा है..." },
-  "mr": { listening: "🎙️ ऐकत आहे...", thinking: "🧠 जार्विस विचार करत आहे...", speaking: "🔊 बोलत आहे..." },
-  "ta": { listening: "🎙️ கேட்கிறது...", thinking: "🧠 ஜார்விஸ் யோசிக்கிறார்...", speaking: "🔊 பேசுகிறது..." },
-  "te": { listening: "🎙️ వింటోంది...", thinking: "🧠 జార్విస్ ఆలోచిస్తోంది...", speaking: "🔊 మాట్లాడుతోంది..." },
+  "en": { listening: "Listening...", thinking: "Jarvis is thinking...", speaking: "Speaking..." },
+  "hi": { listening: "सुन रहे हैं...", thinking: "जार्विस सोच रहा है...", speaking: "बोल रहा है..." },
+  "mr": { listening: "ऐकत आहे...", thinking: "जार्विस विचार करत आहे...", speaking: "बोलत आहे..." },
+  "ta": { listening: "கேட்கிறது...", thinking: "ஜார்விஸ் யோசிக்கிறார்...", speaking: "பேசுகிறது..." },
+  "te": { listening: "వింటోంది...", thinking: "జార్విస్ ఆలోచిస్తోంది...", speaking: "మాట్లాడుతోంది..." },
 };
 
 const TEST_QUERIES: { code: string; label: string; query: string }[] = [
@@ -469,7 +469,7 @@ export default function JarvisPage() {
     if (!user) return;
 
     const showLoading = (title: string) => {
-      setPopup({ title, content: "<div style='text-align:center;padding:20px;color:#94a3b8;'>Analyzing data...</div>", loading: true });
+      setPopup({ title, content: "<div style='text-align:center;padding:20px;color:var(--muted-foreground);'>Analyzing data...</div>", loading: true });
     };
 
     try {
@@ -495,7 +495,7 @@ export default function JarvisPage() {
           const data = await res.json();
 
           if (data.error) {
-            setPopup({ title: `Product Analysis: ${productName}`, content: `<p style="color:#ef4444;">Error: ${data.error}</p>` });
+            setPopup({ title: `Product Analysis: ${productName}`, content: `<p style="color:var(--danger);">Error: ${data.error}</p>` });
             return;
           }
 
@@ -504,29 +504,29 @@ export default function JarvisPage() {
           const forecast = a.dailyForecast || [];
           let html = `<div style="margin-bottom:10px;">
             <strong style="font-size:14px;">${a.productName || productName}</strong>
-            ${a.inInventory ? `<span style="margin-left:8px;color:#22c55e;font-size:11px;">In Stock: ${a.currentStock || 0} ${a.unit || "pcs"}</span>` : `<span style="margin-left:8px;color:#f59e0b;font-size:11px;">Not in inventory</span>`}
+            ${a.inInventory ? `<span style="margin-left:8px;color:var(--success);font-size:11px;">In Stock: ${a.currentStock || 0} ${a.unit || "pcs"}</span>` : `<span style="margin-left:8px;color:var(--warning);font-size:11px;">Not in inventory</span>`}
           </div>`;
 
-          if (a.summary) html += `<p style="margin-bottom:10px;color:#94a3b8;font-size:12px;">${a.summary}</p>`;
+          if (a.summary) html += `<p style="margin-bottom:10px;color:var(--muted-foreground);font-size:12px;">${a.summary}</p>`;
 
           if (forecast.length) {
             html += `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-              <tr style="border-bottom:1px solid #333;"><th style="text-align:left;padding:5px;">Day</th><th style="text-align:right;padding:5px;">Sales</th><th style="text-align:right;padding:5px;">Conf.</th><th style="text-align:left;padding:5px;font-size:11px;">Reason</th></tr>`;
+              <tr style="border-bottom:1px solid var(--border-strong);"><th style="text-align:left;padding:5px;">Day</th><th style="text-align:right;padding:5px;">Sales</th><th style="text-align:right;padding:5px;">Conf.</th><th style="text-align:left;padding:5px;font-size:11px;">Reason</th></tr>`;
             forecast.forEach((d: any) => {
-              html += `<tr style="border-bottom:1px solid #222;"><td style="padding:5px;">${d.day}</td><td style="text-align:right;padding:5px;font-weight:bold;">${d.predictedSales || 0}</td><td style="text-align:right;padding:5px;color:${(d.confidence || 0) >= 80 ? "#22c55e" : "#f59e0b"};">${d.confidence || 0}%</td><td style="padding:5px;color:#666;font-size:10px;">${(d.reason || "").slice(0, 40)}</td></tr>`;
+              html += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:5px;">${d.day}</td><td style="text-align:right;padding:5px;font-weight:bold;">${d.predictedSales || 0}</td><td style="text-align:right;padding:5px;color:${(d.confidence || 0) >= 80 ? "var(--success)" : "var(--warning)"};">${d.confidence || 0}%</td><td style="padding:5px;color:var(--muted-foreground);font-size:10px;">${(d.reason || "").slice(0, 40)}</td></tr>`;
             });
             html += `</table>`;
           }
 
           html += `<div style="margin-top:8px;display:flex;gap:12px;font-size:11px;">
-            <span style="color:#22c55e;">Weekly: ${a.totalPredictedSales || 0} units</span>
-            <span style="color:#f59e0b;">Need: ${a.stockRequired || 0}</span>
-            <span style="color:${a.restockUrgency === "High" ? "#ef4444" : "#888"};">Urgency: ${a.restockUrgency || "Low"}</span>
+            <span style="color:var(--success);">Weekly: ${a.totalPredictedSales || 0} units</span>
+            <span style="color:var(--warning);">Need: ${a.stockRequired || 0}</span>
+            <span style="color:${a.restockUrgency === "High" ? "var(--danger)" : "var(--muted-foreground)"};">Urgency: ${a.restockUrgency || "Low"}</span>
           </div>`;
 
           if (a.recommendations?.length) {
-            html += `<div style="margin-top:8px;border-top:1px solid #333;padding-top:6px;"><strong style="font-size:11px;">Recommendations:</strong>`;
-            a.recommendations.slice(0, 3).forEach((r: string) => { html += `<p style="color:#888;font-size:11px;margin:2px 0;">• ${r}</p>`; });
+            html += `<div style="margin-top:8px;border-top:1px solid var(--border-strong);padding-top:6px;"><strong style="font-size:11px;">Recommendations:</strong>`;
+            a.recommendations.slice(0, 3).forEach((r: string) => { html += `<p style="color:var(--muted-foreground);font-size:11px;margin:2px 0;">• ${r}</p>`; });
             html += `</div>`;
           }
 
@@ -571,7 +571,7 @@ export default function JarvisPage() {
           const data = await res.json();
 
           if (data.error) {
-            setPopup({ title: "Demand Spike Analysis", content: `<p style="color:#ef4444;">Error: ${data.error}</p>` });
+            setPopup({ title: "Demand Spike Analysis", content: `<p style="color:var(--danger);">Error: ${data.error}</p>` });
             return;
           }
 
@@ -579,12 +579,12 @@ export default function JarvisPage() {
           const a = data.analysis || {};
           let html = "";
 
-          if (a.summary) html += `<p style="margin-bottom:10px;color:#94a3b8;font-size:12px;">${a.summary}</p>`;
+          if (a.summary) html += `<p style="margin-bottom:10px;color:var(--muted-foreground);font-size:12px;">${a.summary}</p>`;
 
           // Weather impact
           if (a.weatherImpact) {
             const sev = a.weatherImpact.severity;
-            html += `<div style="margin-bottom:10px;padding:6px 10px;background:${sev === "High" ? "#7f1d1d" : "#1e293b"};border-radius:8px;font-size:12px;">
+            html += `<div style="margin-bottom:10px;padding:6px 10px;background:${sev === "High" ? "var(--danger-soft)" : "var(--secondary)"};border-radius:10px;font-size:12px;">
               <strong>Weather Impact (${sev}):</strong> ${a.weatherImpact.description || ""}
             </div>`;
           }
@@ -593,28 +593,28 @@ export default function JarvisPage() {
           const spikes = a.demandSpikes || [];
           if (spikes.length) {
             html += `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-              <tr style="border-bottom:1px solid #333;"><th style="text-align:left;padding:5px;">Day</th><th style="text-align:right;padding:5px;">Spike %</th><th style="text-align:right;padding:5px;">Prob.</th><th style="text-align:left;padding:5px;">Reason</th></tr>`;
+              <tr style="border-bottom:1px solid var(--border-strong);"><th style="text-align:left;padding:5px;">Day</th><th style="text-align:right;padding:5px;">Spike %</th><th style="text-align:right;padding:5px;">Prob.</th><th style="text-align:left;padding:5px;">Reason</th></tr>`;
             spikes.slice(0, 7).forEach((s: any) => {
-              html += `<tr style="border-bottom:1px solid #222;"><td style="padding:5px;">${s.dayName || s.day || "?"}</td><td style="text-align:right;padding:5px;color:#22c55e;font-weight:bold;">${s.expectedIncrease || "?"}</td><td style="text-align:right;padding:5px;">${s.spikeProbability || 0}%</td><td style="padding:5px;color:#888;font-size:10px;">${(s.reason || "").slice(0, 50)}</td></tr>`;
+              html += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:5px;">${s.dayName || s.day || "?"}</td><td style="text-align:right;padding:5px;color:var(--success);font-weight:bold;">${s.expectedIncrease || "?"}</td><td style="text-align:right;padding:5px;">${s.spikeProbability || 0}%</td><td style="padding:5px;color:var(--muted-foreground);font-size:10px;">${(s.reason || "").slice(0, 50)}</td></tr>`;
             });
             html += `</table>`;
           }
 
           // Risk alerts
           if (a.riskAlerts?.length) {
-            html += `<div style="margin-top:8px;border-top:1px solid #333;padding-top:6px;"><strong style="font-size:11px;">Risk Alerts:</strong>`;
+            html += `<div style="margin-top:8px;border-top:1px solid var(--border-strong);padding-top:6px;"><strong style="font-size:11px;">Risk Alerts:</strong>`;
             a.riskAlerts.slice(0, 3).forEach((r: any) => {
-              const color = r.severity === "critical" ? "#ef4444" : r.severity === "warning" ? "#f59e0b" : "#3b82f6";
-              html += `<p style="color:${color};font-size:11px;margin:3px 0;">⚠ ${r.message || r.type}</p>`;
+              const color = r.severity === "critical" ? "var(--danger)" : r.severity === "warning" ? "var(--warning)" : "var(--info)";
+              html += `<p style="color:${color};font-size:11px;margin:3px 0;">${r.message || r.type}</p>`;
             });
             html += `</div>`;
           }
 
           // Inventory recommendations
           if (a.inventoryRecommendations?.length) {
-            html += `<div style="margin-top:8px;border-top:1px solid #333;padding-top:6px;"><strong style="font-size:11px;">Stock Actions:</strong>`;
+            html += `<div style="margin-top:8px;border-top:1px solid var(--border-strong);padding-top:6px;"><strong style="font-size:11px;">Stock Actions:</strong>`;
             a.inventoryRecommendations.filter((r: any) => r.action !== "Maintain").slice(0, 5).forEach((r: any) => {
-              const color = r.urgency === "High" ? "#ef4444" : r.urgency === "Medium" ? "#f59e0b" : "#22c55e";
+              const color = r.urgency === "High" ? "var(--danger)" : r.urgency === "Medium" ? "var(--warning)" : "var(--success)";
               html += `<p style="font-size:11px;margin:2px 0;"><span style="color:${color};font-weight:bold;">${r.action}</span> ${r.product}: ${r.currentAdvice || ""}</p>`;
             });
             html += `</div>`;
@@ -647,7 +647,7 @@ export default function JarvisPage() {
           const data = await res.json();
 
           if (data.error) {
-            setPopup({ title: "Category Analysis", content: `<p style="color:#ef4444;">Error: ${data.error}</p>` });
+            setPopup({ title: "Category Analysis", content: `<p style="color:var(--danger);">Error: ${data.error}</p>` });
             return;
           }
 
@@ -656,15 +656,15 @@ export default function JarvisPage() {
           let html = "";
 
           html += `<div style="margin-bottom:8px;"><strong style="font-size:14px;">${a.category || categoryName || "All"}</strong>
-            <span style="margin-left:8px;color:#888;font-size:11px;">Demand: ${a.totalCategoryDemand || "?"} | Weekly: ~${a.weeklyEstimate || "?"} units</span></div>`;
+            <span style="margin-left:8px;color:var(--muted-foreground);font-size:11px;">Demand: ${a.totalCategoryDemand || "?"} | Weekly: ~${a.weeklyEstimate || "?"} units</span></div>`;
 
-          if (a.summary) html += `<p style="margin-bottom:10px;color:#94a3b8;font-size:12px;">${a.summary}</p>`;
+          if (a.summary) html += `<p style="margin-bottom:10px;color:var(--muted-foreground);font-size:12px;">${a.summary}</p>`;
 
           // Top brands
           if (a.topBrands?.length) {
             html += `<div style="margin-bottom:8px;"><strong style="font-size:11px;">Top Brands:</strong><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">`;
             a.topBrands.slice(0, 6).forEach((b: any) => {
-              html += `<span style="display:inline-block;background:#6366f1;color:white;padding:2px 8px;border-radius:12px;font-size:10px;">${b.brand} (${b.popularity || "?"}%)</span>`;
+              html += `<span style="display:inline-block;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">${b.brand} (${b.popularity || "?"}%)</span>`;
             });
             html += `</div></div>`;
           }
@@ -672,23 +672,23 @@ export default function JarvisPage() {
           // Products table
           if (a.products?.length) {
             html += `<table style="width:100%;border-collapse:collapse;font-size:11px;">
-              <tr style="border-bottom:1px solid #333;"><th style="text-align:left;padding:4px;">Product</th><th style="text-align:right;padding:4px;">Daily</th><th style="text-align:center;padding:4px;">Status</th><th style="text-align:right;padding:4px;">Stock</th></tr>`;
+              <tr style="border-bottom:1px solid var(--border-strong);"><th style="text-align:left;padding:4px;">Product</th><th style="text-align:right;padding:4px;">Daily</th><th style="text-align:center;padding:4px;">Status</th><th style="text-align:right;padding:4px;">Stock</th></tr>`;
             a.products.slice(0, 10).forEach((p: any) => {
-              const statusColor = p.stockStatus === "Low" || p.stockStatus === "Out of Stock" ? "#ef4444" : p.stockStatus === "Sufficient" ? "#22c55e" : "#f59e0b";
-              html += `<tr style="border-bottom:1px solid #222;"><td style="padding:4px;">${p.name}<br/><span style="color:#666;font-size:9px;">${p.brand || ""}</span></td><td style="text-align:right;padding:4px;font-weight:bold;">${p.dailyDemand || 0}</td><td style="text-align:center;padding:4px;color:${statusColor};font-size:10px;">${p.stockStatus || "?"}</td><td style="text-align:right;padding:4px;">${p.inMyInventory ? `${p.myStock || 0}${p.myUnit || ""}` : "—"}</td></tr>`;
+              const statusColor = p.stockStatus === "Low" || p.stockStatus === "Out of Stock" ? "var(--danger)" : p.stockStatus === "Sufficient" ? "var(--success)" : "var(--warning)";
+              html += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:4px;">${p.name}<br/><span style="color:var(--muted-foreground);font-size:9px;">${p.brand || ""}</span></td><td style="text-align:right;padding:4px;font-weight:bold;">${p.dailyDemand || 0}</td><td style="text-align:center;padding:4px;color:${statusColor};font-size:10px;">${p.stockStatus || "?"}</td><td style="text-align:right;padding:4px;">${p.inMyInventory ? `${p.myStock || 0}${p.myUnit || ""}` : "—"}</td></tr>`;
             });
             html += `</table>`;
           }
 
           // Missing products
           if (a.missingProducts?.length) {
-            html += `<div style="margin-top:6px;"><strong style="font-size:11px;color:#f59e0b;">Should Stock:</strong> <span style="font-size:11px;color:#888;">${a.missingProducts.slice(0, 5).join(", ")}</span></div>`;
+            html += `<div style="margin-top:6px;"><strong style="font-size:11px;color:var(--warning);">Should Stock:</strong> <span style="font-size:11px;color:var(--muted-foreground);">${a.missingProducts.slice(0, 5).join(", ")}</span></div>`;
           }
 
           // Recommendations
           if (a.recommendations?.length) {
-            html += `<div style="margin-top:6px;border-top:1px solid #333;padding-top:4px;">`;
-            a.recommendations.slice(0, 3).forEach((r: string) => { html += `<p style="color:#888;font-size:11px;margin:2px 0;">• ${r}</p>`; });
+            html += `<div style="margin-top:6px;border-top:1px solid var(--border-strong);padding-top:4px;">`;
+            a.recommendations.slice(0, 3).forEach((r: string) => { html += `<p style="color:var(--muted-foreground);font-size:11px;margin:2px 0;">• ${r}</p>`; });
             html += `</div>`;
           }
 
@@ -719,7 +719,7 @@ export default function JarvisPage() {
           const summary = data.summary;
 
           if (!alerts.length) {
-            setPopup({ title: "Stock Alerts", content: "<p style='color:#22c55e;text-align:center;padding:20px;'>All clear! No alerts, Sir.</p>" });
+            setPopup({ title: "Stock Alerts", content: "<p style='color:var(--success);text-align:center;padding:20px;'>All clear! No alerts, Sir.</p>" });
             rememberActivity("STOCK_ALERTS", "Stock Alerts Checked", "No urgent stock alerts were found.", { count: 0, summary });
             return;
           }
@@ -727,17 +727,17 @@ export default function JarvisPage() {
           let html = "";
           if (summary) {
             html += `<div style="display:flex;gap:12px;margin-bottom:10px;font-size:12px;">
-              <span style="color:#ef4444;">Critical: ${summary.critical || 0}</span>
-              <span style="color:#f59e0b;">Warning: ${summary.warning || 0}</span>
-              <span style="color:#3b82f6;">Info: ${summary.info || 0}</span>
+              <span style="color:var(--danger);">Critical: ${summary.critical || 0}</span>
+              <span style="color:var(--warning);">Warning: ${summary.warning || 0}</span>
+              <span style="color:var(--info);">Info: ${summary.info || 0}</span>
             </div>`;
           }
 
           html += `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <tr style="border-bottom:1px solid #333;"><th style="text-align:left;padding:5px;">Product</th><th style="text-align:center;padding:5px;">Type</th><th style="text-align:left;padding:5px;">Action</th></tr>`;
+            <tr style="border-bottom:1px solid var(--border-strong);"><th style="text-align:left;padding:5px;">Product</th><th style="text-align:center;padding:5px;">Type</th><th style="text-align:left;padding:5px;">Action</th></tr>`;
           alerts.forEach((a: any) => {
-            const color = a.type === "stockout" || a.severity === "critical" ? "#ef4444" : a.type === "overstock" ? "#3b82f6" : "#f59e0b";
-            html += `<tr style="border-bottom:1px solid #222;"><td style="padding:5px;">${a.productName || a.product_name || a.product || "?"}</td><td style="text-align:center;padding:5px;"><span style="color:${color};font-weight:bold;font-size:10px;text-transform:uppercase;">${a.type || a.severity || "alert"}</span></td><td style="padding:5px;color:#888;font-size:11px;">${a.action || a.recommendation || a.message || ""}</td></tr>`;
+            const color = a.type === "stockout" || a.severity === "critical" ? "var(--danger)" : a.type === "overstock" ? "var(--info)" : "var(--warning)";
+            html += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:5px;">${a.productName || a.product_name || a.product || "?"}</td><td style="text-align:center;padding:5px;"><span style="color:${color};font-weight:bold;font-size:10px;text-transform:uppercase;">${a.type || a.severity || "alert"}</span></td><td style="padding:5px;color:var(--muted-foreground);font-size:11px;">${a.action || a.recommendation || a.message || ""}</td></tr>`;
           });
           html += `</table>`;
 
@@ -752,20 +752,20 @@ export default function JarvisPage() {
         case "news": {
           showLoading("Fetching Market News...");
           if (!newsRef.current) {
-            setPopup({ title: "News & Market Updates", content: "<p style='padding:20px;color:#94a3b8;text-align:center;'>No live news available right now, Sir.</p>" });
+            setPopup({ title: "News & Market Updates", content: "<p style='padding:20px;color:var(--muted-foreground);text-align:center;'>No live news available right now, Sir.</p>" });
             return;
           }
           const allNews = [...(newsRef.current.trending || []), ...(newsRef.current.events || [])].filter((n: any) => n.title && n.link);
           let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;max-height:400px;overflow-y:auto;padding-right:5px;">`;
           if (allNews.length === 0) {
-            html += `<p style='color:#94a3b8;grid-column:1/-1;text-align:center;'>No recent market news found.</p>`;
+            html += `<p style='color:var(--muted-foreground);grid-column:1/-1;text-align:center;'>No recent market news found.</p>`;
           } else {
             allNews.forEach(item => {
-              html += `<a href="${item.link}" target="_blank" style="display:block;border:1px solid rgba(148,163,184,0.15);border-radius:8px;padding:8px;text-decoration:none;color:inherit;background:rgba(30,41,59,0.5);transition:all 0.2s;">
+              html += `<a href="${item.link}" target="_blank" style="display:block;border:1px solid var(--border);border-radius:10px;padding:8px;text-decoration:none;color:inherit;background:var(--card);transition:all 0.2s;">
                 ${item.imageUrl ? `<img src="${item.imageUrl}" style="width:100%;height:100px;object-fit:cover;border-radius:4px;margin-bottom:8px;" />` : ''}
-                <strong style="font-size:12px;color:#818cf8;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;">${item.title}</strong>
-                <p style="font-size:10px;color:#94a3b8;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;">${item.snippet || ""}</p>
-                <div style="font-size:9px;color:#64748b;margin-top:6px;text-align:right;">Read more ↗</div>
+                <strong style="font-size:12px;color:var(--accent);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;">${item.title}</strong>
+                <p style="font-size:10px;color:var(--muted-foreground);margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;">${item.snippet || ""}</p>
+                <div style="font-size:9px;color:var(--muted-foreground);margin-top:6px;text-align:right;">Read more ↗</div>
               </a>`;
             });
           }
@@ -793,14 +793,14 @@ export default function JarvisPage() {
 
           let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:10px;max-height:400px;overflow-y:auto;padding-right:5px;">`;
           if (offers.length === 0) {
-            html += `<p style='color:#94a3b8;grid-column:1/-1;text-align:center;'>No live promotions found right now.</p>`;
+            html += `<p style='color:var(--muted-foreground);grid-column:1/-1;text-align:center;'>No live promotions found right now.</p>`;
           } else {
             offers.forEach((item: any) => {
-              html += `<a href="${item.link}" target="_blank" style="display:block;border:1px solid rgba(244,114,182,0.2);border-radius:8px;padding:8px;text-decoration:none;color:inherit;background:rgba(131,24,67,0.1);transition:all 0.2s;">
+              html += `<a href="${item.link}" target="_blank" style="display:block;border:1px solid var(--border);border-radius:10px;padding:8px;text-decoration:none;color:inherit;background:var(--card);transition:all 0.2s;">
                 ${item.imageUrl ? `<img src="${item.imageUrl}" style="width:100%;height:100px;object-fit:cover;border-radius:4px;margin-bottom:8px;" />` : ''}
-                <strong style="font-size:12px;color:#f472b6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;">${item.title}</strong>
-                <p style="font-size:10px;color:#cbd5e1;margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;">${item.snippet || ""}</p>
-                <div style="font-size:9px;color:#ec4899;margin-top:6px;text-align:right;">Claim Offer 🛒</div>
+                <strong style="font-size:12px;color:var(--accent);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;">${item.title}</strong>
+                <p style="font-size:10px;color:var(--muted-foreground);margin-top:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4;">${item.snippet || ""}</p>
+                <div style="font-size:9px;color:var(--accent);margin-top:6px;text-align:right;">Claim Offer</div>
               </a>`;
             });
           }
@@ -811,7 +811,7 @@ export default function JarvisPage() {
         }
       }
     } catch (err: any) {
-      setPopup({ title: "Error", content: `<p style="color:#ef4444;">Failed: ${err.message || "Unknown error"}</p>` });
+      setPopup({ title: "Error", content: `<p style="color:var(--danger);">Failed: ${err.message || "Unknown error"}</p>` });
     }
   }, [user, fetchInventory, fetchStoreProfile, fetchWeatherFull, rememberActivity]);
 
@@ -882,8 +882,8 @@ export default function JarvisPage() {
               title: `${verb}: ${item.product_name}`,
               content: `<div style="font-size:13px;line-height:1.5;">
                 <p><strong>${item.product_name}</strong></p>
-                <p>Current quantity is <strong style="color:#22c55e;">${stockText}</strong>.</p>
-                ${action.result.previousQty !== undefined ? `<p style="color:#94a3b8;">Previous quantity: ${action.result.previousQty} ${item.unit || "units"}.</p>` : ""}
+                <p>Current quantity is <strong style="color:var(--success);">${stockText}</strong>.</p>
+                ${action.result.previousQty !== undefined ? `<p style="color:var(--muted-foreground);">Previous quantity: ${action.result.previousQty} ${item.unit || "units"}.</p>` : ""}
               </div>`,
             });
             rememberActivity(
@@ -1305,54 +1305,53 @@ export default function JarvisPage() {
 
   // ---- RENDER ----
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col items-center justify-center relative overflow-hidden" onClick={() => {
+    <div className="h-[calc(100vh-8rem)] max-w-[1400px] mx-auto flex flex-col items-center justify-center relative" onClick={() => {
       unlockAudio();
       // On any click, try to get mic permission if not yet granted (user gesture context)
       if (micAllowed === null) requestMicPermission().then(ok => { if (ok && !isListeningRef.current) startRecognition(); });
     }}>
-      {/* Background */}
-      <div className="absolute inset-0 opacity-5" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)", backgroundSize: "40px 40px" }} />
+      <style>{`@keyframes shrink { from { width: 100%; } to { width: 0%; } }`}</style>
 
-      {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-3 z-10">
-        <div className="flex items-center gap-3">
+      {/* Context strip · quiet meta, hairline rule */}
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between gap-3 px-1 py-3 border-b border-border z-10">
+        <div className="flex items-center gap-4 min-w-0 text-xs text-muted-foreground">
           {weather && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
-              <Cloud className="w-3.5 h-3.5 text-cyan-500" />{weather.temp}°C, {weather.description}
-            </div>
+            <span className="inline-flex items-center gap-1.5 shrink-0">
+              <Cloud className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" />
+              <span className="fx-num">{weather.temp}°C</span>, {weather.description}
+            </span>
           )}
           {locationName && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
-              <MapPin className="w-3.5 h-3.5 text-cyan-500" /><span className="max-w-[200px] truncate">{locationName}</span>
-            </div>
+            <span className="inline-flex items-center gap-1.5 min-w-0">
+              <MapPin className="w-3.5 h-3.5 shrink-0" strokeWidth={1.8} aria-hidden="true" />
+              <span className="max-w-[220px] truncate">{locationName}</span>
+            </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {state !== "sleeping" && (
             <button
               onClick={state === "paused" ? resumeJarvis : pauseJarvis}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-                state === "paused" ? "bg-green-500/20 text-green-500" : "bg-orange-500/20 text-orange-500"
-              }`}
+              className="fx-btn"
             >
-              {state === "paused" ? <><PlayCircle className="w-3.5 h-3.5" /> Resume</> : <><PauseCircle className="w-3.5 h-3.5" /> Pause</>}
+              {state === "paused" ? <><PlayCircle className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" /> Resume</> : <><PauseCircle className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" /> Pause</>}
             </button>
           )}
           {/* Language selector dropdown */}
           <div className="relative" ref={langDropdownRef}>
             <button onClick={() => setLangOpen(!langOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary/50 backdrop-blur-sm rounded-full text-xs text-muted-foreground hover:text-foreground transition-colors">
-              <Globe className="w-3.5 h-3.5" />
+              className="fx-btn" aria-haspopup="listbox" aria-expanded={langOpen}>
+              <Globe className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" />
               <span>{LANGUAGES.find(l => l.code === lang)?.nativeName || "English"}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${langOpen ? "rotate-180" : ""}`} />
+              <ChevronDown className={`w-3 h-3 transition-transform ${langOpen ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
             {langOpen && (
-              <div className="absolute right-0 top-full mt-1 w-44 max-h-64 overflow-y-auto bg-card border border-border/60 rounded-xl shadow-2xl z-50" style={{ animation: "fadeSlideIn 0.15s ease-out" }}>
+              <div className="absolute right-0 top-full mt-1.5 w-44 max-h-64 overflow-y-auto bg-elevated border border-border rounded-[var(--radius-md)] z-50 fx-fade-in" style={{ boxShadow: "var(--shadow-md)" }}>
                 {LANGUAGES.map(l => (
                   <button key={l.code}
                     onClick={() => { setLang(l.code); setLangOpen(false); }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-xs hover:bg-secondary/60 transition-colors ${
-                      lang === l.code ? "bg-cyan-500/10 text-cyan-500 font-bold" : "text-foreground"
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 text-xs hover:bg-secondary transition-colors fx-focus ${
+                      lang === l.code ? "bg-[var(--accent-soft)] text-accent font-semibold" : "text-foreground"
                     }`}>
                     <span>{l.flag} {l.nativeName}</span>
                     <span className="text-muted-foreground text-[10px]">{l.name}</span>
@@ -1362,124 +1361,106 @@ export default function JarvisPage() {
             )}
           </div>
           <button onClick={() => { setVoiceEnabled(!voiceEnabled); if (isSpeakingRef.current) stopSpeaking(); }}
-            className={`p-1.5 rounded-full ${voiceEnabled ? "bg-cyan-500/20 text-cyan-500" : "bg-secondary/50 text-muted-foreground"}`}>
-            {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            className="fx-btn fx-btn-ghost"
+            style={voiceEnabled ? { color: "var(--accent)" } : undefined}
+            aria-label={voiceEnabled ? "Mute voice output" : "Enable voice output"}
+            aria-pressed={voiceEnabled}>
+            {voiceEnabled ? <Volume2 className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" /> : <VolumeX className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" />}
           </button>
           {/* Initialize Jarvis Button Top Right */}
           {(state === "sleeping" || state === "paused") && (
-            <button onClick={wakeUp}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full text-xs font-medium hover:shadow-lg hover:shadow-cyan-500/30 transition-all hover:scale-105">
-              <Zap className="w-3.5 h-3.5" /> Initialize
+            <button onClick={wakeUp} className="fx-btn fx-btn-accent">
+              <Zap className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" /> Initialize
             </button>
           )}
         </div>
       </div>
 
-      {/* Central orb */}
-      <div className="flex flex-col items-center gap-8 z-10 w-full relative">
+      {/* Central stage */}
+      <div className="flex flex-col items-center gap-7 z-10 w-full relative">
         {user && <ClapDetector onClap={() => {
           if (state === "sleeping" || state === "paused") wakeUp();
         }} enabled={!["listening", "speaking", "thinking"].includes(state)} />}
-        
-        <div className="relative">
-          <AiOrb 
-            state={state} 
-            onClick={state === "sleeping" || state === "paused" ? wakeUp : stopSpeaking} 
-            className="mb-4"
-          />
-          {state !== "sleeping" && (
-            <>
-              <div className="absolute top-0 -left-16 bg-card/80 backdrop-blur-md border border-border/50 px-3 py-1.5 rounded-full text-[10px] whitespace-nowrap shadow-xl animate-[orb-float_5s_ease-in-out_infinite]">
-                <span className="text-cyan-500 font-bold">Store Pulse:</span> Live
-              </div>
-              <div className="absolute top-10 -right-20 bg-card/80 backdrop-blur-md border border-border/50 px-3 py-1.5 rounded-full text-[10px] whitespace-nowrap shadow-xl animate-[orb-float_4s_ease-in-out_infinite_0.5s]">
-                <span className="text-green-500 font-bold">Demand Mood:</span> Watching
-              </div>
-              <div className="absolute bottom-10 -left-20 bg-card/80 backdrop-blur-md border border-border/50 px-3 py-1.5 rounded-full text-[10px] whitespace-nowrap shadow-xl animate-[orb-float_6s_ease-in-out_infinite_1s]">
-                <span className="text-red-500 font-bold">Stock Focus:</span> Review
-              </div>
-              <div className="absolute -bottom-4 -right-16 bg-card/80 backdrop-blur-md border border-border/50 px-3 py-1.5 rounded-full text-[10px] whitespace-nowrap shadow-xl animate-[orb-float_5.5s_ease-in-out_infinite_1.5s]">
-                <span className="text-purple-500 font-bold">Assistant:</span> Ready
-              </div>
-            </>
-          )}
-        </div>
+
+        <AiOrb
+          state={state}
+          onClick={state === "sleeping" || state === "paused" ? wakeUp : stopSpeaking}
+        />
 
         <div className="text-center">
-          <h1 className={`text-3xl font-bold tracking-tight transition-colors duration-500 ${["sleeping","paused"].includes(state) ? "text-muted-foreground" : "text-foreground"}`}>J.A.R.V.I.S.</h1>
-          <p className="text-xs text-muted-foreground mt-1 tracking-wider flex items-center justify-center gap-2">
-            YOUR PERSONAL STORE ASSISTANT
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-500 text-[10px] font-bold border border-cyan-500/20">
+          <h1 className={`fx-display text-[26px] leading-tight transition-colors duration-500 ${["sleeping","paused"].includes(state) ? "text-muted-foreground" : "text-foreground"}`}>J.A.R.V.I.S.</h1>
+          <p className="fx-eyebrow mt-2 flex items-center justify-center gap-2 flex-wrap">
+            Your personal store assistant
+            <span className="fx-badge fx-badge-accent">
               {LANGUAGES.find(l => l.code === lang)?.nativeName || "English"}
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary/60 text-muted-foreground text-[10px] font-bold border border-border/40">
-              {metrics.storeName} · {metrics.skuCount} SKUs · event {metrics.festival}
-            </span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {metrics.storeName} · <span className="fx-num">{metrics.skuCount}</span> SKUs · event {metrics.festival}
           </p>
         </div>
 
-        {/* User transcript */}
+        {/* User transcript · the shopkeeper's voice, set apart in serif italic */}
         {state === "listening" && transcript && (
-          <div className="max-w-lg text-center animate-in fade-in">
+          <div className="max-w-lg text-center fx-fade-in">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <Mic className="w-4 h-4 text-cyan-500 animate-pulse" />
-              <span className="text-xs text-cyan-500 font-medium tracking-wider">LISTENING</span>
+              <span className="fx-signal fx-signal-accent" aria-hidden="true" />
+              <span className="fx-eyebrow" style={{ color: "var(--accent)" }}>Listening</span>
             </div>
-            <p className="text-lg text-foreground/80 italic">&quot;{transcript}&quot;</p>
+            <p className="fx-display text-[19px] italic text-foreground leading-snug">&quot;{transcript}&quot;</p>
           </div>
         )}
 
-        {/* Jarvis response */}
+        {/* Jarvis response · reads like a briefing */}
         {["speaking", "idle", "thinking", "paused"].includes(state) && displayedText && (
-          <div className="max-w-2xl text-center animate-in fade-in px-4">
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <Zap className="w-4 h-4 text-cyan-500" />
-              <span className="text-xs text-cyan-500 font-medium tracking-wider">JARVIS</span>
+          <div className="max-w-xl w-full fx-fade-in px-4">
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="fx-signal fx-signal-accent" aria-hidden="true" />
+              <span className="fx-eyebrow">Jarvis</span>
             </div>
-            <p className="text-base sm:text-lg text-foreground leading-relaxed">
+            <p className="text-[15px] text-foreground leading-relaxed border-l border-border pl-4">
               {displayedText}
-              {state === "speaking" && displayedText.length < jarvisText.length && <span className="inline-block w-0.5 h-5 bg-cyan-500 ml-1 animate-pulse" />}
+              {state === "speaking" && displayedText.length < jarvisText.length && <span className="inline-block w-0.5 h-4 ml-1 animate-pulse align-middle" style={{ background: "var(--accent)" }} />}
             </p>
           </div>
         )}
 
         {/* Thinking */}
         {state === "thinking" && !displayedText && (
-          <div className="flex items-center gap-3 animate-in fade-in">
-            <div className="flex gap-1.5">
-              <div className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-              <div className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-              <div className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          <div className="flex items-center gap-3 fx-fade-in">
+            <div className="flex gap-1.5" aria-hidden="true">
+              <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--muted-foreground)", animationDelay: "0ms" }} />
+              <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--muted-foreground)", animationDelay: "150ms" }} />
+              <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--muted-foreground)", animationDelay: "300ms" }} />
             </div>
-            <span className="text-sm text-amber-500 font-medium">{LANG_STATUS[lang]?.thinking || "Jarvis is thinking..."}</span>
+            <span className="text-sm text-muted-foreground font-medium">{LANG_STATUS[lang]?.thinking || "Jarvis is thinking..."}</span>
           </div>
         )}
 
         {/* Sleeping / Paused CTA + Features */}
         {(state === "sleeping" || state === "paused") && !displayedText && (
-          <div className="text-center animate-in fade-in max-w-2xl">
-            <p className="text-muted-foreground mb-5">
+          <div className="text-center fx-fade-in max-w-2xl">
+            <p className="text-sm text-muted-foreground mb-5">
               {state === "paused" ? "Jarvis is paused. Click resume or the orb to continue." :
                 micAllowed === false ? (
-                  <span className="flex flex-col items-center gap-2 text-red-400">
-                    <span>Microphone access denied.</span>
+                  <span className="flex flex-col items-center gap-2 text-danger" role="alert">
+                    <span className="font-medium">Microphone access denied.</span>
                     <span className="text-xs text-muted-foreground">Click the lock/site-settings icon in Chrome&apos;s address bar → Allow Microphone → Reload the page</span>
                   </span>
                 ) : (
-                  <span className="flex items-center justify-center gap-2"><Mic className="w-4 h-4 text-cyan-500/50 animate-pulse" /> Say <strong>&quot;Hey Jarvis&quot;</strong>, double clap, or click below <span className="text-xs text-muted-foreground"> ({LANGUAGES.find(l => l.code === lang)?.nativeName || "EN"})</span></span>
+                  <span className="flex items-center justify-center gap-2 flex-wrap"><Mic className="w-4 h-4 text-muted-foreground" strokeWidth={1.8} aria-hidden="true" /> Say <strong className="text-foreground">&quot;Hey Jarvis&quot;</strong>, double clap, or click below <span className="text-xs"> ({LANGUAGES.find(l => l.code === lang)?.nativeName || "EN"})</span></span>
                 )
               }
             </p>
-            <button onClick={wakeUp}
-              className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full font-semibold hover:shadow-lg hover:shadow-cyan-500/30 transition-all hover:scale-105 flex items-center gap-2 mx-auto mb-8">
-              <Zap className="w-4 h-4" /> {state === "paused" ? "Resume Jarvis" : "Initialize Jarvis"}
+            <button onClick={wakeUp} className="fx-btn fx-btn-accent mx-auto mb-8">
+              <Zap className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" /> {state === "paused" ? "Resume Jarvis" : "Initialize Jarvis"}
             </button>
           </div>
         )}
 
         {/* Quick actions */}
         {state === "idle" && (
-          <div className="flex flex-col items-center gap-4 max-w-2xl animate-in fade-in">
+          <div className="flex flex-col items-center gap-4 max-w-2xl fx-fade-in">
             <div className="flex flex-wrap justify-center gap-2">
               {[
                 { label: "Show inventory", icon: Package },
@@ -1491,7 +1472,7 @@ export default function JarvisPage() {
                 { label: "Show forecasts", icon: TrendingUp },
                 { label: "Daily news", icon: ExternalLink },
               ].map((action, i) => (
-                <button key={i} 
+                <button key={i}
                   onClick={() => {
                     if (action.label.includes("inventory")) sendToJarvis("show my inventory");
                     else if (action.label.includes("Product")) sendToJarvis("analyze product Milk");
@@ -1500,8 +1481,8 @@ export default function JarvisPage() {
                     else if (action.label.includes("alerts")) sendToJarvis("show stock alerts");
                     else sendToJarvis(action.label);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary/50 hover:bg-secondary text-secondary-foreground rounded-full text-xs transition-colors border border-border/50">
-                  <action.icon className="w-3 h-3 text-cyan-500" /> {action.label}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-[var(--radius-md)] bg-card text-xs text-secondary-foreground hover:bg-secondary hover:text-foreground hover:border-border-strong transition-colors fx-focus">
+                  <action.icon className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.8} aria-hidden="true" /> {action.label}
                 </button>
               ))}
             </div>
@@ -1509,20 +1490,21 @@ export default function JarvisPage() {
             {/* Quick Test Buttons */}
             <div className="w-full">
               <button onClick={() => setShowTestQueries(!showTestQueries)}
-                className="flex items-center gap-1.5 mx-auto px-3 py-1.5 text-[10px] text-muted-foreground hover:text-foreground bg-secondary/30 rounded-full transition-all">
-                <TestTube className="w-3 h-3" /> Test Language Queries
-                <ChevronDown className={`w-3 h-3 transition-transform ${showTestQueries ? "rotate-180" : ""}`} />
+                className="flex items-center gap-1.5 mx-auto px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground rounded-[var(--radius-md)] hover:bg-secondary transition-colors fx-focus"
+                aria-expanded={showTestQueries}>
+                <TestTube className="w-3 h-3" strokeWidth={1.8} aria-hidden="true" /> Test Language Queries
+                <ChevronDown className={`w-3 h-3 transition-transform ${showTestQueries ? "rotate-180" : ""}`} aria-hidden="true" />
               </button>
               {showTestQueries && (
-                <div className="flex flex-wrap justify-center gap-2 mt-3" style={{ animation: "fadeSlideIn 0.2s ease-out" }}>
+                <div className="flex flex-wrap justify-center gap-2 mt-3 fx-fade-in">
                   {TEST_QUERIES.map(tq => (
                     <button key={tq.code}
                       onClick={() => {
                         setLang(tq.code);
                         setTimeout(() => sendToJarvis(tq.query), 150);
                       }}
-                      className="flex flex-col items-start px-3 py-2 bg-card/60 border border-border/40 rounded-xl text-left hover:bg-secondary/60 hover:border-cyan-500/30 transition-all max-w-[200px]">
-                      <span className="text-[10px] font-bold text-cyan-500 mb-0.5">{tq.label}</span>
+                      className="fx-card fx-card-interactive flex flex-col items-start px-3 py-2 text-left max-w-[200px] cursor-pointer fx-focus">
+                      <span className="text-[10px] font-semibold text-accent mb-0.5">{tq.label}</span>
                       <span className="text-xs text-muted-foreground leading-tight">{tq.query}</span>
                     </button>
                   ))}
@@ -1535,29 +1517,29 @@ export default function JarvisPage() {
 
       {/* Jarvis report card */}
       {reportCard && (
-        <div className="fixed top-24 right-6 z-40 w-[360px] max-w-[calc(100vw-2rem)] bg-card/95 backdrop-blur-xl border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-500/10 overflow-hidden animate-in slide-in-from-right">
-          <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-border bg-gradient-to-r from-cyan-500/10 to-blue-500/10">
+        <div className="fixed top-24 right-6 z-40 w-[360px] max-w-[calc(100vw-2rem)] bg-elevated border border-border rounded-[var(--radius-lg)] overflow-hidden fx-fade-in" style={{ boxShadow: "var(--shadow-lg)" }}>
+          <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-border">
             <div>
-              <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
-                <Zap className="w-3.5 h-3.5 text-cyan-500" /> {reportCard.title}
+              <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                <Zap className="w-3.5 h-3.5 text-accent" strokeWidth={1.8} aria-hidden="true" /> {reportCard.title}
               </h3>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
+              <p className="text-[10px] text-muted-foreground mt-0.5 fx-num">
                 {new Date(reportCard.generatedAt).toLocaleString("en-IN")} · {reportCard.activityCount || localActivities.length} recent actions
               </p>
             </div>
-            <button onClick={() => setReportCard(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            <button onClick={() => setReportCard(null)} className="text-muted-foreground hover:text-foreground fx-focus rounded" aria-label="Close report card"><X className="w-4 h-4" strokeWidth={1.8} /></button>
           </div>
           <div
-            className="p-4 max-h-[320px] overflow-y-auto text-xs leading-relaxed text-foreground/80 [&_h2]:text-sm [&_h2]:font-black [&_h2]:text-foreground [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-cyan-400 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:ml-4 [&_li]:mb-1"
+            className="p-4 max-h-[320px] overflow-y-auto text-xs leading-relaxed text-secondary-foreground [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-accent [&_p]:mb-2 [&_ul]:list-disc [&_ul]:ml-4 [&_li]:mb-1"
             dangerouslySetInnerHTML={{ __html: reportCard.reportHtml }}
           />
-          <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-border bg-secondary/30">
+          <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-border">
             <span className="text-[10px] text-muted-foreground">Voice: “Jarvis give me today&apos;s report”</span>
             <button
               onClick={() => downloadReportCard(reportCard)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-cyan-600 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-cyan-500"
+              className="fx-btn fx-btn-accent"
             >
-              <Download className="w-3 h-3" /> PDF
+              <Download className="w-3 h-3" strokeWidth={1.8} aria-hidden="true" /> PDF
             </button>
           </div>
         </div>
@@ -1565,113 +1547,110 @@ export default function JarvisPage() {
 
       {/* Feature Popup */}
       {popup && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right w-[480px] max-h-[75vh] bg-card border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-500/10 overflow-hidden"
+        <div className="fixed top-4 right-4 z-50 fx-fade-in w-[480px] max-w-[calc(100vw-2rem)] max-h-[75vh] bg-elevated border border-border rounded-[var(--radius-lg)] overflow-hidden" style={{ boxShadow: "var(--shadow-lg)" }}
           onMouseEnter={() => { setPopupHovered(true); if (popupTimerRef.current) clearTimeout(popupTimerRef.current); }}
           onMouseLeave={() => { setPopupHovered(false); popupTimerRef.current = setTimeout(() => setPopup(null), 5000); }}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-cyan-500/10 to-blue-500/10">
-            <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
-              {popup.loading ? <Loader2 className="w-3.5 h-3.5 text-cyan-500 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-cyan-500" />}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+              {popup.loading ? <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" strokeWidth={1.8} aria-hidden="true" /> : <Zap className="w-3.5 h-3.5 text-accent" strokeWidth={1.8} aria-hidden="true" />}
               {popup.title}
             </h3>
-            <button onClick={() => setPopup(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            <button onClick={() => setPopup(null)} className="text-muted-foreground hover:text-foreground fx-focus rounded" aria-label="Close popup"><X className="w-4 h-4" strokeWidth={1.8} /></button>
           </div>
-          <div className="p-4 overflow-y-auto max-h-[60vh] text-sm text-foreground/80 leading-relaxed [&_table]:w-full [&_th]:text-left [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:text-foreground/80" dangerouslySetInnerHTML={{ __html: popup.content }} />
-          {!popupHovered && !popup.loading && <div className="h-0.5 bg-cyan-500/30"><div className="h-full bg-cyan-500" style={{ animation: "shrink 8s linear forwards" }} /></div>}
+          <div className="p-4 overflow-y-auto max-h-[60vh] text-sm text-secondary-foreground leading-relaxed [&_table]:w-full [&_th]:text-left [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:text-secondary-foreground" dangerouslySetInnerHTML={{ __html: popup.content }} />
+          {!popupHovered && !popup.loading && <div className="h-0.5" style={{ background: "var(--border)" }}><div className="h-full" style={{ background: "var(--accent)", animation: "shrink 8s linear forwards" }} /></div>}
         </div>
       )}
 
       {/* Inventory popup */}
       {inventoryPopup && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right w-[520px] max-h-[75vh] bg-card border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-500/10 overflow-hidden"
+        <div className="fixed top-4 right-4 z-50 fx-fade-in w-[520px] max-w-[calc(100vw-2rem)] max-h-[75vh] bg-elevated border border-border rounded-[var(--radius-lg)] overflow-hidden" style={{ boxShadow: "var(--shadow-lg)" }}
           onMouseEnter={() => { setInvHovered(true); if (invTimerRef.current) clearTimeout(invTimerRef.current); }}
           onMouseLeave={() => { setInvHovered(false); invTimerRef.current = setTimeout(() => setInventoryPopup(null), 5000); }}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-cyan-500/10 to-blue-500/10">
-            <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
-              <Package className="w-3.5 h-3.5 text-cyan-500" /> Inventory
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+              <Package className="w-3.5 h-3.5 text-accent" strokeWidth={1.8} aria-hidden="true" /> Inventory
             </h3>
             <div className="flex items-center gap-2">
-              <select 
-                value={invFilter} 
+              <select
+                value={invFilter}
                 onChange={e => setInvFilter(e.target.value as any)}
-                className="bg-background border border-border text-xs rounded px-2 py-1 outline-none focus:border-cyan-500"
+                className="fx-input"
+                style={{ width: "auto", padding: "0.3rem 0.55rem", fontSize: "0.75rem" }}
+                aria-label="Filter inventory"
               >
                 <option value="all">All Items</option>
                 <option value="low">Low Stock (≤5)</option>
                 <option value="over">Overstock (≥150)</option>
               </select>
-              <button onClick={() => setInventoryPopup(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+              <button onClick={() => setInventoryPopup(null)} className="text-muted-foreground hover:text-foreground fx-focus rounded" aria-label="Close inventory popup"><X className="w-4 h-4" strokeWidth={1.8} /></button>
             </div>
           </div>
           <div className="overflow-y-auto max-h-[60vh]">
-            <table className="w-full text-xs">
-              <thead className="bg-secondary/60 sticky top-0">
+            <table className="fx-table">
+              <thead className="bg-elevated sticky top-0">
                 <tr>
-                  <th className="text-left px-3 py-2.5 text-muted-foreground font-semibold uppercase tracking-wider">#</th>
-                  <th className="text-left px-3 py-2.5 text-muted-foreground font-semibold uppercase tracking-wider">Product</th>
-                  <th className="text-left px-3 py-2.5 text-muted-foreground font-semibold uppercase tracking-wider">Category</th>
-                  <th className="text-right px-3 py-2.5 text-muted-foreground font-semibold uppercase tracking-wider">Qty</th>
-                  <th className="text-right px-3 py-2.5 text-muted-foreground font-semibold uppercase tracking-wider">Price</th>
-                  <th className="text-center px-3 py-2.5 text-muted-foreground font-semibold uppercase tracking-wider">Status</th>
+                  <th>#</th>
+                  <th>Product</th>
+                  <th>Category</th>
+                  <th className="text-right">Qty</th>
+                  <th className="text-right">Price</th>
+                  <th className="text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {inventoryPopup
                   .filter(i => invFilter === "all" ? true : invFilter === "low" ? i.current_stock <= 5 : i.current_stock >= 150)
                   .map((item: any, i: number) => (
-                  <tr key={i} className="border-b border-border/50 hover:bg-cyan-500/5">
-                    <td className="px-3 py-2.5 text-muted-foreground">{i + 1}</td>
-                    <td className="px-3 py-2.5">
-                      <p className="font-semibold text-foreground">{item.product_name}</p>
+                  <tr key={i}>
+                    <td className="text-muted-foreground fx-num">{i + 1}</td>
+                    <td>
+                      <p className="font-medium text-foreground">{item.product_name}</p>
                       {item.brand && <p className="text-muted-foreground text-[10px]">{item.brand}</p>}
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{item.category}</td>
-                    <td className="px-3 py-2.5 text-right font-bold text-foreground">{item.current_stock} <span className="text-muted-foreground font-normal">{item.unit || "pcs"}</span></td>
-                    <td className="px-3 py-2.5 text-right text-foreground font-medium">₹{item.price}</td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={`inline-block w-2 h-2 rounded-full ${
-                        item.current_stock <= 5 ? "bg-red-500" : item.current_stock >= 150 ? "bg-yellow-500" : "bg-green-500"
-                      }`} />
+                    <td className="text-xs text-muted-foreground">{item.category}</td>
+                    <td className="text-right fx-num font-semibold text-foreground">{item.current_stock} <span className="text-muted-foreground font-normal">{item.unit || "pcs"}</span></td>
+                    <td className="text-right fx-num text-foreground">₹{item.price}</td>
+                    <td className="text-center">
+                      <span className={`fx-signal ${
+                        item.current_stock <= 5 ? "fx-signal-danger" : item.current_stock >= 150 ? "fx-signal-warning" : "fx-signal-success"
+                      }`} aria-label={item.current_stock <= 5 ? "Low stock" : item.current_stock >= 150 ? "Overstock" : "Healthy stock"} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {!invHovered && <div className="h-0.5 bg-cyan-500/30"><div className="h-full bg-cyan-500" style={{ animation: "shrink 8s linear forwards" }} /></div>}
+          {!invHovered && <div className="h-0.5" style={{ background: "var(--border)" }}><div className="h-full" style={{ background: "var(--accent)", animation: "shrink 8s linear forwards" }} /></div>}
         </div>
       )}
 
-      {/* Bottom mic */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10">
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all ${
-          state === "listening" ? "bg-cyan-500/20 text-cyan-500" : state === "speaking" ? "bg-indigo-500/20 text-indigo-400" : state === "paused" ? "bg-orange-500/20 text-orange-500" : "bg-secondary/50 text-muted-foreground"
-        }`}>
-          <Mic className={`w-3.5 h-3.5 ${state === "listening" ? "animate-pulse text-cyan-500" : micAllowed === false ? "text-red-500" : ""}`} />
-          {micAllowed === false ? "Mic blocked — allow in browser"
-            : state === "listening" ? (LANG_STATUS[lang]?.listening || "Listening...")
-            : state === "speaking" ? (LANG_STATUS[lang]?.speaking || "Speaking...")
-            : state === "paused" ? "Paused — 60s auto-resume"
-            : state === "sleeping" ? "Click, say \"Hey Jarvis\", or double clap"
-            : "Always listening · double clap wake"}
+      {/* Bottom status rail · hairline rule, quiet signal */}
+      <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-3 px-1 py-3 border-t border-border z-10">
+        <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <span className={`fx-signal ${
+            micAllowed === false ? "fx-signal-danger"
+              : state === "listening" || state === "speaking" ? "fx-signal-accent"
+              : state === "paused" ? "fx-signal-warning"
+              : ""
+          }`} aria-hidden="true" />
+          <Mic className={`w-3.5 h-3.5 ${micAllowed === false ? "text-danger" : ""}`} strokeWidth={1.8} aria-hidden="true" />
+          <span className={micAllowed === false ? "text-danger" : state === "listening" || state === "speaking" ? "text-foreground" : ""}>
+            {micAllowed === false ? "Mic blocked — allow in browser"
+              : state === "listening" ? (LANG_STATUS[lang]?.listening || "Listening...")
+              : state === "speaking" ? (LANG_STATUS[lang]?.speaking || "Speaking...")
+              : state === "paused" ? "Paused — 60s auto-resume"
+              : state === "sleeping" ? "Click, say \"Hey Jarvis\", or double clap"
+              : "Always listening · double clap wake"}
+          </span>
         </div>
-      </div>
 
-      {/* Corners */}
-      <div className="absolute top-0 left-0 w-16 h-16 border-l-2 border-t-2 border-cyan-500/10" />
-      <div className="absolute top-0 right-0 w-16 h-16 border-r-2 border-t-2 border-cyan-500/10" />
-      <div className="absolute bottom-0 left-0 w-16 h-16 border-l-2 border-b-2 border-cyan-500/10" />
-      <div className="absolute bottom-0 right-0 w-16 h-16 border-r-2 border-b-2 border-cyan-500/10" />
-
-      {/* Live status */}
-      <div className="absolute bottom-6 right-6 z-10 flex flex-col items-end gap-2">
+        {/* Live status */}
         {state !== "sleeping" && (
-          <div className="flex items-center gap-2 text-xs font-mono text-cyan-500 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20 shadow-md">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-            </span>
-            Jarvis Online · always listening · double clap wake
-          </div>
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+            <span className="fx-signal fx-signal-accent" aria-hidden="true" />
+            Jarvis online · always listening · double clap wake
+          </span>
         )}
       </div>
     </div>

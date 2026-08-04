@@ -11,7 +11,6 @@ import {
   Calendar,
   TrendingDown,
   Percent,
-  Loader2,
 } from "lucide-react";
 import {
   Bar,
@@ -52,36 +51,69 @@ interface Summary {
   totalProducts: number;
 }
 
-const RISK_COLORS: Record<string, { bg: string; text: string; dot: string; border: string; row: string }> = {
-  critical: {
-    bg: "bg-red-500/10",
-    text: "text-red-400",
-    dot: "bg-red-500",
-    border: "border-red-500/30",
-    row: "bg-red-500/5",
-  },
-  high: {
-    bg: "bg-amber-500/10",
-    text: "text-amber-400",
-    dot: "bg-amber-500",
-    border: "border-amber-500/30",
-    row: "bg-amber-500/5",
-  },
-  medium: {
-    bg: "bg-yellow-500/10",
-    text: "text-yellow-400",
-    dot: "bg-yellow-500",
-    border: "border-yellow-500/30",
-    row: "bg-yellow-500/5",
-  },
-  low: {
-    bg: "bg-green-500/10",
-    text: "text-green-400",
-    dot: "bg-green-500",
-    border: "border-green-500/30",
-    row: "bg-green-500/5",
-  },
+// Severity walks down: critical screams, high warns, medium is neutral, low stays quiet
+const RISK_STYLES: Record<string, { label: string; signal: string; daysText: string; chart: string }> = {
+  critical: { label: "Critical", signal: "fx-signal fx-signal-danger", daysText: "text-danger font-semibold", chart: "var(--danger)" },
+  high: { label: "High", signal: "fx-signal fx-signal-warning", daysText: "text-warning font-semibold", chart: "var(--warning)" },
+  medium: { label: "Medium", signal: "fx-signal", daysText: "text-secondary-foreground", chart: "#C0A46B" },
+  low: { label: "Low", signal: "fx-signal", daysText: "text-muted-foreground", chart: "#93C0B7" },
 };
+
+function RiskBadge({ level }: { level: string }) {
+  if (level === "critical") return <span className="fx-badge fx-badge-danger">Critical</span>;
+  if (level === "high") return <span className="fx-badge fx-badge-warning">High</span>;
+  if (level === "medium") return <span className="fx-badge">Medium</span>;
+  return <span className="text-xs text-muted-foreground">Low</span>;
+}
+
+// Restrained categorical ramp for the category-loss bars
+const CAT_COLORS = ["#11746A", "#579E92", "#93C0B7", "#7A7466", "#A39C8C", "#4E4A42", "#C0A46B", "#5C7A74"];
+
+const chartTooltipStyle = {
+  background: "var(--elevated)",
+  border: "1px solid var(--border-strong)",
+  borderRadius: "10px",
+  boxShadow: "var(--shadow-md)",
+  fontSize: "12px",
+  color: "var(--foreground)",
+} as const;
+
+// Skeleton mirrors the KPI strip, chart row, and ledger table
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12" aria-busy="true" aria-label="Loading expiry risk">
+      <div className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="p-5 space-y-3">
+            <div className="skeleton-shimmer h-3 w-28" />
+            <div className="skeleton-shimmer h-7 w-20" />
+            <div className="skeleton-shimmer h-3 w-24" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="fx-card p-6 space-y-3">
+            <div className="skeleton-shimmer h-3.5 w-32" />
+            <div className="skeleton-shimmer h-40 w-full" />
+          </div>
+        ))}
+      </div>
+      <div className="fx-card p-6">
+        <div className="skeleton-shimmer h-3.5 w-44 mb-5" />
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex items-center gap-4 py-3 border-b border-border last:border-b-0">
+            <div className="skeleton-shimmer h-3.5 w-1/4" />
+            <div className="skeleton-shimmer h-3.5 w-16" />
+            <div className="skeleton-shimmer h-3.5 w-14 ml-auto" />
+            <div className="skeleton-shimmer h-3.5 w-14" />
+            <div className="skeleton-shimmer h-3.5 w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function ExpiryRiskPage() {
   const { user } = useAuth();
@@ -149,28 +181,15 @@ export default function ExpiryRiskPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-          <p className="text-muted-foreground text-sm">Analyzing expiry risk...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="bg-card border border-border rounded-xl p-6 text-center max-w-md">
-          <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-          <p className="text-red-400 font-medium">{error}</p>
-          <button
-            onClick={fetchData}
-            className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm transition-colors"
-          >
-            Retry
-          </button>
+      <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+        <div role="alert" className="bg-danger/8 border border-danger/25 rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm text-danger">{error}</span>
+          <button onClick={fetchData} className="fx-btn">Retry</button>
         </div>
       </div>
     );
@@ -187,7 +206,7 @@ export default function ExpiryRiskPage() {
   const riskChartData = ["critical", "high", "medium", "low"].map((level) => ({
     name: level.charAt(0).toUpperCase() + level.slice(1),
     value: products.filter((p) => p.riskLevel === level).length,
-    color: level === "critical" ? "#ef4444" : level === "high" ? "#f59e0b" : level === "medium" ? "#eab308" : "#22c55e",
+    color: (RISK_STYLES[level] || RISK_STYLES.low).chart,
   })).filter((item) => item.value > 0);
   const categoryWasteData = Object.values(products.reduce((acc: Record<string, { category: string; loss: number; waste: number }>, item) => {
     const key = item.category || "Other";
@@ -199,157 +218,138 @@ export default function ExpiryRiskPage() {
   const urgentProducts = sortedProducts.filter((p) => p.riskLevel === "critical" || p.riskLevel === "high").slice(0, 6);
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Clock className="w-7 h-7 text-indigo-400" />
-          Expiry Risk Analysis
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Track product expiry dates and minimize waste with smart markdown suggestions
-        </p>
-      </div>
-
-      {/* Summary Cards */}
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      {/* ── Waste exposure · one ledger strip ─────────────────────── */}
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-red-500/10">
-                <AlertTriangle className="w-5 h-5 text-red-400" />
-              </div>
-              <span className="text-sm text-muted-foreground">Products at Risk</span>
-            </div>
-            <p className="text-3xl font-bold">{summary.totalAtRisk}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              out of {summary.totalProducts} with expiry dates
-            </p>
+        <section aria-label="Expiry risk summary" className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
+          <div className="p-5 sm:p-6">
+            <p className="fx-eyebrow">Products at Risk</p>
+            <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.totalAtRisk}</p>
+            <p className="text-xs text-muted-foreground mt-2.5">of {summary.totalProducts} with expiry dates</p>
           </div>
-
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-amber-500/10">
-                <DollarSign className="w-5 h-5 text-amber-400" />
-              </div>
-              <span className="text-sm text-muted-foreground">Potential Waste Loss</span>
-            </div>
-            <p className="text-3xl font-bold text-red-400">
+          <div className="p-5 sm:p-6">
+            <p className="fx-eyebrow">Potential Waste Loss</p>
+            <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">
               ₹{summary.totalPotentialLoss.toLocaleString("en-IN")}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">if no action is taken</p>
+            <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.totalPotentialLoss > 0 ? "text-danger" : "text-muted-foreground"}`}>
+              <span className={`fx-signal ${summary.totalPotentialLoss > 0 ? "fx-signal-danger" : "fx-signal-success"}`} aria-hidden="true" />
+              {summary.totalPotentialLoss > 0 ? "If no action is taken" : "No loss projected"}
+            </p>
           </div>
-
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-yellow-500/10">
-                <Percent className="w-5 h-5 text-yellow-400" />
-              </div>
-              <span className="text-sm text-muted-foreground">Average Waste %</span>
-            </div>
-            <p className="text-3xl font-bold">{summary.avgWastePercent}%</p>
-            <p className="text-xs text-muted-foreground mt-1">across all tracked products</p>
+          <div className="p-5 sm:p-6">
+            <p className="fx-eyebrow">Average Waste</p>
+            <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.avgWastePercent}%</p>
+            <p className="text-xs text-muted-foreground mt-2.5">Across all tracked products</p>
           </div>
-
-          <div className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 rounded-lg bg-indigo-500/10">
-                <Calendar className="w-5 h-5 text-indigo-400" />
-              </div>
-              <span className="text-sm text-muted-foreground">Expiring This Week</span>
-            </div>
-            <p className="text-3xl font-bold text-amber-400">{summary.expiringThisWeek}</p>
-            <p className="text-xs text-muted-foreground mt-1">products in next 7 days</p>
+          <div className="p-5 sm:p-6">
+            <p className="fx-eyebrow">Expiring This Week</p>
+            <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.expiringThisWeek}</p>
+            <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.expiringThisWeek > 0 ? "text-warning" : "text-muted-foreground"}`}>
+              <span className={`fx-signal ${summary.expiringThisWeek > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
+              {summary.expiringThisWeek > 0 ? "Products in next 7 days" : "Nothing due in 7 days"}
+            </p>
           </div>
-        </div>
+        </section>
       )}
 
       {products.length > 0 && (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-              Risk Mix
-            </h2>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Risk mix */}
+          <section aria-label="Risk mix" className="fx-card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+              <h2 className="text-sm font-semibold text-foreground">Risk Mix</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">Red and amber slices need markdown, bundling, or front-shelf placement</p>
             <ResponsiveContainer width="100%" height={230}>
               <PieChart>
                 <Pie data={riskChartData} dataKey="value" nameKey="name" outerRadius={82} label>
                   {riskChartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8 }} />
+                <Tooltip contentStyle={chartTooltipStyle} />
               </PieChart>
             </ResponsiveContainer>
-            <p className="text-xs text-muted-foreground mt-2">Meaning: red and amber slices need immediate markdown, bundling, or front-shelf placement.</p>
-          </div>
+          </section>
 
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-              <Trash2 className="w-5 h-5 text-amber-400" />
-              Loss by Category
-            </h2>
+          {/* Loss by category */}
+          <section aria-label="Loss by category" className="fx-card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Trash2 className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+              <h2 className="text-sm font-semibold text-foreground">Loss by Category</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">Where expiry waste blocks the most money</p>
             <ResponsiveContainer width="100%" height={230}>
               <BarChart data={categoryWasteData} layout="vertical" margin={{ left: 10, right: 16 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={11} />
-                <YAxis type="category" dataKey="category" width={96} stroke="var(--color-muted-foreground)" fontSize={10} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8 }} formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, "Potential loss"]} />
-                <Bar dataKey="loss" radius={[0, 6, 6, 0]}>
-                  {categoryWasteData.map((_, index) => <Cell key={index} fill={["#ef4444", "#f59e0b", "#8b5cf6", "#06b6d4", "#22c55e"][index % 5]} />)}
+                <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" horizontal={false} />
+                <XAxis type="number" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="category" width={96} stroke="var(--muted-foreground)" fontSize={10} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, "Potential loss"]} />
+                <Bar dataKey="loss" radius={[0, 4, 4, 0]} barSize={14}>
+                  {categoryWasteData.map((_, index) => <Cell key={index} fill={CAT_COLORS[index % CAT_COLORS.length]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <p className="text-xs text-muted-foreground mt-2">Meaning: this shows where expiry waste is blocking the most money.</p>
-          </div>
+          </section>
 
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-              <Percent className="w-5 h-5 text-indigo-400" />
-              Action Queue
-            </h2>
-            <div className="space-y-2">
-              {urgentProducts.map((product) => (
-                <div key={`${product.productName}-${product.expiryDate}`} className="rounded-lg border border-border bg-secondary/30 p-3">
-                  <div className="flex justify-between gap-3">
-                    <p className="text-sm font-semibold text-foreground line-clamp-1">{product.productName}</p>
-                    <span className="text-xs font-bold text-red-400">{product.daysUntilExpiry < 0 ? "Expired" : `${product.daysUntilExpiry}d`}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Waste risk: {product.wasteUnits} {product.unit || "pcs"} · Loss ₹{product.potentialLoss.toLocaleString("en-IN")}</p>
-                  <p className="text-xs text-indigo-400 mt-1">{product.suggestedMarkdown > 0 ? `Run ${product.suggestedMarkdown}% markdown` : "Move to visible shelf and monitor daily"}</p>
-                </div>
-              ))}
+          {/* Action queue */}
+          <section aria-label="Action queue" className="fx-card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Percent className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
+              <h2 className="text-sm font-semibold text-foreground">Action Queue</h2>
             </div>
-            <p className="text-xs text-muted-foreground mt-3">Meaning: handle these products before reviewing the full table.</p>
-          </div>
+            <p className="text-xs text-muted-foreground mb-3">Handle these before reviewing the full table</p>
+            <div>
+              {urgentProducts.map((product) => {
+                const style = RISK_STYLES[product.riskLevel] || RISK_STYLES.low;
+                return (
+                  <div key={`${product.productName}-${product.expiryDate}`} className="py-3 border-b border-border last:border-b-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className={style.signal} aria-hidden="true" />
+                        <span className="text-sm font-medium text-foreground truncate">{product.productName}</span>
+                      </span>
+                      <span className={`fx-num text-xs shrink-0 ${style.daysText}`}>
+                        {product.daysUntilExpiry < 0 ? "Expired" : `${product.daysUntilExpiry}d`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 pl-4">
+                      Waste risk <span className="fx-num">{product.wasteUnits}</span> {product.unit || "pcs"} · Loss <span className="fx-num">₹{product.potentialLoss.toLocaleString("en-IN")}</span>
+                    </p>
+                    <p className="text-xs font-medium mt-0.5 pl-4" style={{ color: "var(--accent)" }}>
+                      {product.suggestedMarkdown > 0 ? `Run ${product.suggestedMarkdown}% markdown` : "Move to visible shelf and monitor daily"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         </div>
       )}
 
-      {/* Risk Timeline */}
+      {/* ── Risk timeline · severity gradient the eye walks down ──── */}
       {timelineWeeks.length > 0 && (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-            <Calendar className="w-5 h-5 text-indigo-400" />
-            Risk Timeline (Next 30 Days)
-          </h2>
-          <div className="space-y-5">
-            {timelineWeeks.map((week) => (
-              <div key={week.label}>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                  {week.label}
-                </h3>
+        <section aria-label="Risk timeline" className="fx-card p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <Calendar className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+            <h2 className="fx-display text-[17px] text-foreground">Risk Timeline · Next 30 Days</h2>
+          </div>
+          <div className="space-y-0">
+            {timelineWeeks.map((week, wi) => (
+              <div key={week.label} className={`py-4 ${wi > 0 ? "fx-rule" : "pt-0"}`}>
+                <h3 className="fx-eyebrow mb-2.5">{week.label}</h3>
                 <div className="flex flex-wrap gap-2">
                   {week.products.map((product, idx) => {
-                    const colors = RISK_COLORS[product.riskLevel] || RISK_COLORS.low;
+                    const style = RISK_STYLES[product.riskLevel] || RISK_STYLES.low;
                     return (
-                      <div
+                      <span
                         key={`${product.productName}-${idx}`}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${colors.bg} ${colors.border}`}
+                        className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-[var(--radius-sm)] border border-border bg-background-subtle/60"
                       >
-                        <span className={`w-2.5 h-2.5 rounded-full ${colors.dot}`} />
-                        <span className="text-sm font-medium">{product.productName}</span>
-                        <span className={`text-xs ${colors.text}`}>
-                          {product.daysUntilExpiry}d
-                        </span>
-                      </div>
+                        <span className={style.signal} aria-hidden="true" />
+                        <span className="text-[13px] font-medium text-foreground">{product.productName}</span>
+                        <span className={`fx-num text-xs ${style.daysText}`}>{product.daysUntilExpiry}d</span>
+                      </span>
                     );
                   })}
                 </div>
@@ -357,102 +357,86 @@ export default function ExpiryRiskPage() {
             ))}
           </div>
           {/* Legend */}
-          <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
-            {Object.entries(RISK_COLORS).map(([level, colors]) => (
-              <div key={level} className="flex items-center gap-1.5">
-                <span className={`w-2.5 h-2.5 rounded-full ${colors.dot}`} />
+          <div className="flex flex-wrap gap-4 mt-1 pt-4 fx-rule">
+            {Object.entries(RISK_STYLES).map(([level, style]) => (
+              <span key={level} className="inline-flex items-center gap-1.5">
+                <span className={style.signal} aria-hidden="true" />
                 <span className="text-xs text-muted-foreground capitalize">{level}</span>
-              </div>
+              </span>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Product Risk Table */}
+      {/* ── Product risk ledger ───────────────────────────────────── */}
       {products.length > 0 && (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="p-5 border-b border-border">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Trash2 className="w-5 h-5 text-red-400" />
-                Product Risk Details
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  ["risk", "Risk first"],
-                  ["expiry", "Expiry date"],
-                  ["loss", "Loss value"],
-                  ["waste", "Waste %"],
-                ].map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setSortBy(key as typeof sortBy)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${sortBy === key ? "bg-indigo-500 text-white border-indigo-500" : "bg-secondary text-muted-foreground border-border hover:text-foreground"}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+        <section aria-label="Product risk details" className="fx-card p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <h2 className="fx-display text-[17px] text-foreground">Product Risk Details</h2>
+            <div className="flex gap-0.5 bg-secondary rounded-[var(--radius-md)] p-0.5" role="group" aria-label="Sort products">
+              {[
+                ["risk", "Risk first"],
+                ["expiry", "Expiry date"],
+                ["loss", "Loss value"],
+                ["waste", "Waste %"],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setSortBy(key as typeof sortBy)}
+                  aria-pressed={sortBy === key}
+                  className={`px-3 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-xs font-medium fx-focus ${
+                    sortBy === key ? "bg-card text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-2">
+            <table className="fx-table min-w-[960px]">
               <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="px-4 py-3 font-medium">Product</th>
-                  <th className="px-4 py-3 font-medium">Category</th>
-                  <th className="px-4 py-3 font-medium text-right">Stock</th>
-                  <th className="px-4 py-3 font-medium">Expiry Date</th>
-                  <th className="px-4 py-3 font-medium text-right">Days Left</th>
-                  <th className="px-4 py-3 font-medium text-right">Daily Demand</th>
-                  <th className="px-4 py-3 font-medium text-right">Will Sell</th>
-                  <th className="px-4 py-3 font-medium text-right">Waste Units</th>
-                  <th className="px-4 py-3 font-medium text-right">Waste %</th>
-                  <th className="px-4 py-3 font-medium text-center">Risk Level</th>
-                  <th className="px-4 py-3 font-medium text-right">Suggested Action</th>
+                <tr>
+                  <th>Product</th>
+                  <th>Category</th>
+                  <th className="text-right">Stock</th>
+                  <th>Expiry Date</th>
+                  <th className="text-right">Days Left</th>
+                  <th className="text-right">Daily Demand</th>
+                  <th className="text-right">Will Sell</th>
+                  <th className="text-right">Waste Units</th>
+                  <th className="text-right">Waste %</th>
+                  <th>Risk Level</th>
+                  <th className="text-right">Suggested Action</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedProducts.map((product, idx) => {
-                  const colors = RISK_COLORS[product.riskLevel] || RISK_COLORS.low;
+                  const style = RISK_STYLES[product.riskLevel] || RISK_STYLES.low;
                   return (
-                    <tr
-                      key={`${product.productName}-${idx}`}
-                      className={`border-b border-border/50 ${colors.row} hover:bg-white/5 transition-colors`}
-                    >
-                      <td className="px-4 py-3 font-medium">{product.productName}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{product.category}</td>
-                      <td className="px-4 py-3 text-right">{product.quantity} {product.unit || "pcs"}</td>
-                      <td className="px-4 py-3">{formatDate(product.expiryDate)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={colors.text}>
+                    <tr key={`${product.productName}-${idx}`}>
+                      <td className="font-medium text-foreground">{product.productName}</td>
+                      <td className="text-xs text-muted-foreground">{product.category}</td>
+                      <td className="text-right fx-num text-muted-foreground">{product.quantity} {product.unit || "pcs"}</td>
+                      <td className="fx-num text-secondary-foreground">{formatDate(product.expiryDate)}</td>
+                      <td className="text-right">
+                        <span className={`fx-num ${style.daysText}`}>
                           {product.daysUntilExpiry < 0 ? "Expired" : `${product.daysUntilExpiry}d`}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">{product.dailyDemand}</td>
-                      <td className="px-4 py-3 text-right">{product.unitsSelledBeforeExpiry}</td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={product.wasteUnits > 0 ? "text-red-400" : "text-green-400"}>
-                          {product.wasteUnits}
-                        </span>
+                      <td className="text-right fx-num text-secondary-foreground">{product.dailyDemand}</td>
+                      <td className="text-right fx-num text-secondary-foreground">{product.unitsSelledBeforeExpiry}</td>
+                      <td className={`text-right fx-num ${product.wasteUnits > 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                        {product.wasteUnits}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={product.wastePercentage > 30 ? "text-red-400" : "text-muted-foreground"}>
-                          {product.wastePercentage}%
-                        </span>
+                      <td className={`text-right fx-num ${product.wastePercentage > 30 ? "font-semibold text-warning" : "text-muted-foreground"}`}>
+                        {product.wastePercentage}%
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
-                          {product.riskLevel.charAt(0).toUpperCase() + product.riskLevel.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
+                      <td><RiskBadge level={product.riskLevel} /></td>
+                      <td className="text-right">
                         {product.suggestedMarkdown > 0 ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-medium">
-                            <TrendingDown className="w-3 h-3" />
+                          <span className="fx-badge fx-badge-accent">
+                            <TrendingDown className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} />
                             {product.suggestedMarkdown}% off
                           </span>
                         ) : (
@@ -465,55 +449,45 @@ export default function ExpiryRiskPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Waste Impact Summary */}
+      {/* ── Waste impact summary ──────────────────────────────────── */}
       {summary && (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-            <DollarSign className="w-5 h-5 text-green-400" />
-            Waste Impact Summary
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-red-500/5 border border-red-500/20">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Potential Loss</p>
-                  <p className="text-2xl font-bold text-red-400">
-                    ₹{summary.totalPotentialLoss.toLocaleString("en-IN")}
-                  </p>
-                </div>
-                <Trash2 className="w-8 h-8 text-red-400/40" />
-              </div>
-              <p className="text-xs text-muted-foreground px-1">
+        <section aria-label="Waste impact summary" className="fx-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+            <h2 className="fx-display text-[17px] text-foreground">Waste Impact Summary</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+            <div>
+              <p className="fx-eyebrow">Total Potential Loss</p>
+              <p className="fx-num text-[24px] font-semibold text-danger mt-2 leading-none">
+                ₹{summary.totalPotentialLoss.toLocaleString("en-IN")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
                 This is the estimated revenue loss if products expire unsold at current demand rates.
               </p>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-                <div>
-                  <p className="text-sm text-muted-foreground">Recoverable with Markdowns</p>
-                  <p className="text-2xl font-bold text-green-400">
-                    ₹{summary.potentialSavings.toLocaleString("en-IN")}
-                  </p>
-                </div>
-                <TrendingDown className="w-8 h-8 text-green-400/40" />
-              </div>
-              <p className="text-xs text-muted-foreground px-1">
+            <div className="fx-rule pt-5 md:pt-0 md:border-t-0 md:border-l md:border-[var(--border)] md:pl-8">
+              <p className="fx-eyebrow">Recoverable with Markdowns</p>
+              <p className="fx-num text-[24px] font-semibold text-success mt-2 leading-none">
+                ₹{summary.potentialSavings.toLocaleString("en-IN")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
                 Estimated revenue recoverable by applying suggested markdown discounts to at-risk products.
               </p>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Empty state */}
+      {/* ── Empty state ───────────────────────────────────────────── */}
       {products.length === 0 && !loading && (
-        <div className="bg-card border border-border rounded-xl p-12 text-center">
-          <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-40" />
-          <p className="text-lg font-medium text-muted-foreground">No products with expiry dates found</p>
-          <p className="text-sm text-muted-foreground mt-1">
+        <div className="fx-card py-10 text-center">
+          <Clock className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-50" aria-hidden="true" strokeWidth={1.8} />
+          <p className="text-sm text-secondary-foreground font-medium">No products with expiry dates found</p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-[320px] mx-auto">
             Add expiry dates to your inventory items to start tracking expiry risk.
           </p>
         </div>

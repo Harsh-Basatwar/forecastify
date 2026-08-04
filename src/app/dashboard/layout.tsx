@@ -44,7 +44,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-8 h-8 border-2 border-border-strong border-t-accent rounded-full animate-spin" aria-hidden="true" />
+          <p className="fx-eyebrow">Preparing your store</p>
+        </div>
       </div>
     );
   }
@@ -56,7 +59,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuClick={() => setMobileOpen(true)} title={pageTitles[pathname] || "Dashboard"} />
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto">{children}</main>
+        <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8 overflow-y-auto">
+          <div key={pathname} className="fx-page">{children}</div>
+        </main>
       </div>
     </div>
   );

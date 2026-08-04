@@ -11,21 +11,17 @@ interface StatCardProps {
   color: string;
 }
 
-export default function StatCard({ title, value, change, changeType, icon: Icon, color }: StatCardProps) {
+export default function StatCard({ title, value, change, changeType, icon: Icon }: StatCardProps) {
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-shadow group">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground font-medium">{title}</p>
-          <p className="text-2xl sm:text-3xl font-bold text-card-foreground">{value}</p>
-          <p className={`text-sm font-medium ${changeType === "positive" ? "text-success" : changeType === "negative" ? "text-danger" : "text-muted-foreground"}`}>
-            {change}
-          </p>
-        </div>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color} group-hover:scale-110 transition-transform`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
+    <div className="fx-card fx-card-interactive p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="fx-eyebrow">{title}</p>
+        <Icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.8} aria-hidden="true" />
       </div>
+      <p className="fx-num text-[28px] font-semibold text-card-foreground mt-3 leading-none">{value}</p>
+      <p className={`text-xs font-medium mt-2.5 ${changeType === "positive" ? "text-success" : changeType === "negative" ? "text-danger" : "text-muted-foreground"}`}>
+        {change}
+      </p>
     </div>
   );
 }

@@ -2,18 +2,74 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import {
-  ShoppingCart, Clock, AlertTriangle, Package, Truck, Calendar, DollarSign, Loader2,
-} from "lucide-react";
+import { Calendar, Package } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const urgencyConfig: Record<string, { label: string; bg: string; text: string; border: string; dot: string }> = {
-  immediate: { label: "Immediate", bg: "bg-red-500/10", text: "text-red-600", border: "border-red-500/30", dot: "bg-red-500" },
-  soon:      { label: "Soon",      bg: "bg-amber-500/10", text: "text-amber-600", border: "border-amber-500/30", dot: "bg-amber-500" },
-  upcoming:  { label: "Upcoming",  bg: "bg-blue-500/10", text: "text-blue-600", border: "border-blue-500/30", dot: "bg-blue-500" },
-  planned:   { label: "Planned",   bg: "bg-green-500/10", text: "text-green-600", border: "border-green-500/30", dot: "bg-green-500" },
+// Urgency reads as a gradient: immediate screams, soon warns, the rest stay quiet
+const urgencyConfig: Record<string, { label: string; signal: string }> = {
+  immediate: { label: "Immediate", signal: "fx-signal fx-signal-danger" },
+  soon:      { label: "Soon",      signal: "fx-signal fx-signal-warning" },
+  upcoming:  { label: "Upcoming",  signal: "fx-signal fx-signal-accent" },
+  planned:   { label: "Planned",   signal: "fx-signal" },
 };
+
+function UrgencyStatus({ urgency }: { urgency: string }) {
+  if (urgency === "immediate") return <span className="fx-badge fx-badge-danger">Immediate</span>;
+  if (urgency === "soon") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning">
+        <span className="fx-signal fx-signal-warning" aria-hidden="true" /> Soon
+      </span>
+    );
+  }
+  if (urgency === "upcoming") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-secondary-foreground">
+        <span className="fx-signal fx-signal-accent" aria-hidden="true" /> Upcoming
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">Planned</span>;
+}
+
+// Skeleton mirrors the KPI strip, timeline cards, and ledger table
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12" aria-busy="true" aria-label="Loading reorder plan">
+      <div className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="p-5 space-y-3">
+            <div className="skeleton-shimmer h-3 w-24" />
+            <div className="skeleton-shimmer h-7 w-16" />
+            <div className="skeleton-shimmer h-3 w-28" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="fx-card p-5 space-y-3">
+            <div className="skeleton-shimmer h-4 w-40" />
+            <div className="skeleton-shimmer h-2 w-full" />
+            <div className="skeleton-shimmer h-3.5 w-2/3" />
+          </div>
+        ))}
+      </div>
+      <div className="fx-card p-6">
+        <div className="skeleton-shimmer h-3.5 w-40 mb-5" />
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex items-center gap-4 py-3 border-b border-border last:border-b-0">
+            <div className="skeleton-shimmer h-3.5 w-1/4" />
+            <div className="skeleton-shimmer h-3.5 w-16" />
+            <div className="skeleton-shimmer h-3.5 w-12 ml-auto" />
+            <div className="skeleton-shimmer h-3.5 w-12" />
+            <div className="skeleton-shimmer h-3.5 w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function ReorderPlannerPage() {
   const { user } = useAuth();
@@ -50,197 +106,177 @@ export default function ReorderPlannerPage() {
   const reorderItems = items.filter((i: any) => i.needsReorder);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-        <span className="ml-3 text-gray-400 text-lg">Calculating reorder plan...</span>
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 text-red-400 max-w-md text-center">
-          <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
-          <p>{error}</p>
+      <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm">
+          {error}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <ShoppingCart className="w-7 h-7 text-indigo-400" />
-          Reorder Planner
-        </h1>
-        <p className="text-gray-400 mt-1">Smart reorder suggestions based on demand forecasts and lead times</p>
-      </div>
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      {/* ── Reorder posture · one ledger strip ────────────────────── */}
+      <section aria-label="Reorder summary" className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Reorder Now</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{urgencyCounts["immediate"] || 0}</p>
+          <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${(urgencyCounts["immediate"] || 0) > 0 ? "text-danger" : "text-muted-foreground"}`}>
+            <span className={`fx-signal ${(urgencyCounts["immediate"] || 0) > 0 ? "fx-signal-danger" : "fx-signal-success"}`} aria-hidden="true" />
+            {(urgencyCounts["immediate"] || 0) > 0 ? "Need immediate reorder" : "Nothing overdue"}
+          </p>
+        </div>
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Reorder Soon</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{reorderSoonCount}</p>
+          <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${reorderSoonCount > 0 ? "text-warning" : "text-muted-foreground"}`}>
+            <span className={`fx-signal ${reorderSoonCount > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
+            {reorderSoonCount > 0 ? "Within 3 days" : "No pressure this week"}
+          </p>
+        </div>
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Total Reorder Cost</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">₹{summary.totalCost?.toLocaleString("en-IN")}</p>
+          <p className="text-xs text-muted-foreground mt-2.5">Estimated for all reorders</p>
+        </div>
+        <div className="p-5 sm:p-6">
+          <p className="fx-eyebrow">Avg Lead Time</p>
+          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">
+            {summary.avgLeadTime}<span className="text-sm font-normal text-muted-foreground ml-1.5">days</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-2.5">Average supplier lead time</p>
+        </div>
+      </section>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-linear-to-br from-red-500/10 to-red-900/10 border border-red-500/20 rounded-2xl p-5">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-red-500/20"><AlertTriangle className="w-5 h-5 text-red-400" /></div>
-            <span className="text-sm text-gray-400">Reorder Now</span>
-          </div>
-          <p className="text-3xl font-bold text-red-400">{urgencyCounts["immediate"] || 0}</p>
-          <p className="text-xs text-gray-500 mt-1">products need immediate reorder</p>
-        </div>
-        <div className="bg-linear-to-br from-amber-500/10 to-amber-900/10 border border-amber-500/20 rounded-2xl p-5">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-amber-500/20"><Clock className="w-5 h-5 text-amber-400" /></div>
-            <span className="text-sm text-gray-400">Reorder Soon</span>
-          </div>
-          <p className="text-3xl font-bold text-amber-400">{reorderSoonCount}</p>
-          <p className="text-xs text-gray-500 mt-1">products need reorder within 3 days</p>
-        </div>
-        <div className="bg-linear-to-br from-indigo-500/10 to-indigo-900/10 border border-indigo-500/20 rounded-2xl p-5">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-indigo-500/20"><DollarSign className="w-5 h-5 text-indigo-400" /></div>
-            <span className="text-sm text-gray-400">Total Reorder Cost</span>
-          </div>
-          <p className="text-3xl font-bold text-indigo-400">{"\u20B9"}{summary.totalCost?.toLocaleString("en-IN")}</p>
-          <p className="text-xs text-gray-500 mt-1">estimated cost for all reorders</p>
-        </div>
-        <div className="bg-linear-to-br from-emerald-500/10 to-emerald-900/10 border border-emerald-500/20 rounded-2xl p-5">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-emerald-500/20"><Truck className="w-5 h-5 text-emerald-400" /></div>
-            <span className="text-sm text-gray-400">Avg Lead Time</span>
-          </div>
-          <p className="text-3xl font-bold text-emerald-400">{summary.avgLeadTime} <span className="text-lg font-normal">days</span></p>
-          <p className="text-xs text-gray-500 mt-1">average supplier lead time</p>
-        </div>
-      </div>
+      {/* ── Urgency breakdown · quiet signal strip ────────────────── */}
+      <section aria-label="Urgency breakdown" className="fx-card px-5 py-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <span className="fx-eyebrow">Urgency</span>
+        {(["immediate", "soon", "upcoming", "planned"] as const).map((u) => {
+          const cfg = urgencyConfig[u];
+          return (
+            <span key={u} className="inline-flex items-center gap-2 text-[13px]">
+              <span className={cfg.signal} aria-hidden="true" />
+              <span className="text-secondary-foreground">{cfg.label}</span>
+              <span className="fx-num font-semibold text-foreground">{urgencyCounts[u] || 0}</span>
+            </span>
+          );
+        })}
+      </section>
 
-      {/* Urgency Breakdown */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-        <h2 className="text-lg font-semibold text-white mb-3">Urgency Breakdown</h2>
-        <div className="flex flex-wrap gap-3">
-          {(["immediate", "soon", "upcoming", "planned"] as const).map((u) => {
-            const cfg = urgencyConfig[u];
-            return (
-              <div key={u} className={`flex items-center gap-2 px-4 py-2 rounded-full ${cfg.bg} border ${cfg.border}`}>
-                <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot}`} />
-                <span className={`font-medium ${cfg.text}`}>{cfg.label}</span>
-                <span className={`font-bold ${cfg.text}`}>{urgencyCounts[u] || 0}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Reorder Timeline */}
+      {/* ── Reorder timeline ──────────────────────────────────────── */}
       {reorderItems.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-indigo-400" />
-            Reorder Timeline
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <section aria-label="Reorder timeline" className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+            <h2 className="fx-display text-[19px] text-foreground">Reorder Timeline</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {reorderItems.map((item: any, idx: number) => {
-              const cfg = urgencyConfig[item.urgency] || urgencyConfig.planned;
               const stockPct = item.reorderPoint > 0 ? Math.min(100, Math.round((item.currentStock / item.reorderPoint) * 100)) : 100;
               return (
-                <div key={idx} className={`bg-white/5 border ${cfg.border} rounded-2xl p-5 space-y-3`}>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-white font-semibold">{item.productName}</h3>
-                      <p className="text-gray-400 text-sm">{item.category}</p>
+                <div key={idx} className="fx-card p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-foreground truncate">{item.productName}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.category}</p>
                     </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}>
-                      {cfg.label}
-                    </span>
+                    <UrgencyStatus urgency={item.urgency} />
                   </div>
                   {/* Stock progress */}
                   <div>
-                    <div className="flex justify-between text-xs text-gray-400 mb-1">
-                      <span>Current: {item.currentStock} {item.unit}</span>
-                      <span>Reorder Point: {item.reorderPoint}</span>
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+                      <span>Current <span className="fx-num text-foreground font-medium">{item.currentStock} {item.unit}</span></span>
+                      <span>Reorder point <span className="fx-num text-foreground font-medium">{item.reorderPoint}</span></span>
                     </div>
-                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="w-full h-1 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={stockPct} aria-valuemin={0} aria-valuemax={100} aria-label={`Stock level for ${item.productName}`}>
                       <div
-                        className={`h-full rounded-full ${stockPct <= 30 ? "bg-red-500" : stockPct <= 60 ? "bg-amber-500" : "bg-green-500"}`}
-                        style={{ width: `${stockPct}%` }}
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${stockPct}%`,
+                          background: stockPct <= 30 ? "var(--danger)" : stockPct <= 60 ? "var(--warning)" : "var(--success)",
+                        }}
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="bg-white/5 rounded-xl px-3 py-2">
-                      <p className="text-gray-500 text-xs">Order by</p>
-                      <p className="text-white font-medium">{item.reorderDate}</p>
+                  <div className="grid grid-cols-2 gap-4 fx-rule pt-3.5">
+                    <div>
+                      <p className="fx-eyebrow text-[10px]">Order by</p>
+                      <p className="fx-num text-sm font-medium text-foreground mt-1">{item.reorderDate}</p>
                     </div>
-                    <div className="bg-white/5 rounded-xl px-3 py-2">
-                      <p className="text-gray-500 text-xs">Suggested Qty</p>
-                      <p className="text-white font-medium">{item.orderQuantity} {item.unit}</p>
+                    <div>
+                      <p className="fx-eyebrow text-[10px]">Suggested Qty</p>
+                      <p className="fx-num text-sm font-medium text-foreground mt-1">{item.orderQuantity} {item.unit}</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-400">Est. Cost</span>
-                    <span className="text-white font-semibold">{"\u20B9"}{item.estimatedCost.toLocaleString("en-IN")}</span>
+                  <div className="flex items-center justify-between text-sm fx-rule pt-3.5">
+                    <span className="text-xs text-muted-foreground">Est. Cost</span>
+                    <span className="fx-num font-semibold text-foreground">₹{item.estimatedCost.toLocaleString("en-IN")}</span>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Full Product Table */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-        <div className="p-5 border-b border-white/10">
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Package className="w-5 h-5 text-indigo-400" />
-            All Products ({items.length})
-          </h2>
+      {/* ── Full product ledger ───────────────────────────────────── */}
+      <section aria-label="All products" className="fx-card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Package className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
+          <h2 className="fx-display text-[17px] text-foreground">All Products</h2>
+          <span className="fx-badge fx-num">{items.length}</span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-2">
+          <table className="fx-table min-w-[960px]">
             <thead>
-              <tr className="border-b border-white/10 text-gray-400 text-left">
-                <th className="px-4 py-3 font-medium">Product</th>
-                <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium text-right">Current Stock</th>
-                <th className="px-4 py-3 font-medium text-right">Daily Demand</th>
-                <th className="px-4 py-3 font-medium text-right">Lead Time</th>
-                <th className="px-4 py-3 font-medium text-right">Reorder Point</th>
-                <th className="px-4 py-3 font-medium text-right">Safety Stock</th>
-                <th className="px-4 py-3 font-medium text-right">Days Until</th>
-                <th className="px-4 py-3 font-medium text-right">Order Qty</th>
-                <th className="px-4 py-3 font-medium text-right">Est. Cost</th>
-                <th className="px-4 py-3 font-medium text-center">Urgency</th>
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th className="text-right">Current Stock</th>
+                <th className="text-right">Daily Demand</th>
+                <th className="text-right">Lead Time</th>
+                <th className="text-right">Reorder Point</th>
+                <th className="text-right">Safety Stock</th>
+                <th className="text-right">Days Until</th>
+                <th className="text-right">Order Qty</th>
+                <th className="text-right">Est. Cost</th>
+                <th>Urgency</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item: any, idx: number) => {
-                const cfg = urgencyConfig[item.urgency] || urgencyConfig.planned;
-                return (
-                  <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                    <td className="px-4 py-3 text-white font-medium">{item.productName}</td>
-                    <td className="px-4 py-3 text-gray-400">{item.category}</td>
-                    <td className="px-4 py-3 text-right text-white">{item.currentStock}</td>
-                    <td className="px-4 py-3 text-right text-white">{item.dailyDemand}</td>
-                    <td className="px-4 py-3 text-right text-white">{item.leadTimeDays}d</td>
-                    <td className="px-4 py-3 text-right text-white">{item.reorderPoint}</td>
-                    <td className="px-4 py-3 text-right text-white">{item.safetyStock}</td>
-                    <td className="px-4 py-3 text-right text-white">{item.daysUntilReorder}d</td>
-                    <td className="px-4 py-3 text-right text-white font-medium">{item.orderQuantity}</td>
-                    <td className="px-4 py-3 text-right text-white">{"\u20B9"}{item.estimatedCost.toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}`}>
-                        {cfg.label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {items.map((item: any, idx: number) => (
+                <tr key={idx}>
+                  <td className="font-medium text-foreground">{item.productName}</td>
+                  <td className="text-xs text-muted-foreground">{item.category}</td>
+                  <td className="text-right fx-num text-foreground">{item.currentStock}</td>
+                  <td className="text-right fx-num text-secondary-foreground">{item.dailyDemand}</td>
+                  <td className="text-right fx-num text-secondary-foreground">{item.leadTimeDays}d</td>
+                  <td className="text-right fx-num text-secondary-foreground">{item.reorderPoint}</td>
+                  <td className="text-right fx-num text-secondary-foreground">{item.safetyStock}</td>
+                  <td className="text-right fx-num text-secondary-foreground">{item.daysUntilReorder}d</td>
+                  <td className="text-right fx-num font-semibold text-foreground">{item.orderQuantity}</td>
+                  <td className="text-right fx-num text-foreground">₹{item.estimatedCost.toLocaleString("en-IN")}</td>
+                  <td><UrgencyStatus urgency={item.urgency} /></td>
+                </tr>
+              ))}
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={11} className="py-10 text-center">
+                    <Package className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-50" aria-hidden="true" strokeWidth={1.8} />
+                    <p className="text-sm text-secondary-foreground font-medium">No products to plan</p>
+                    <p className="text-xs text-muted-foreground mt-1">Add inventory to generate reorder suggestions.</p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

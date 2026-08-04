@@ -18,13 +18,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
+    // Light is the primary Forecastify experience; dark remains an explicit choice.
     const saved = localStorage.getItem("forecastify-theme") as Theme;
     if (saved) {
       setTheme(saved);
       document.documentElement.classList.toggle("dark", saved === "dark");
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      setTheme("dark");
-      document.documentElement.classList.add("dark");
     }
   }, []);
 

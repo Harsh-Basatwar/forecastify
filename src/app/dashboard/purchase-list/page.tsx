@@ -4,19 +4,32 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
   Upload, FileText, Camera, Loader2, Package, TrendingUp, ChevronDown,
-  ChevronUp, AlertTriangle, CheckCircle2, ArrowUpRight, ShoppingCart,
-  X, Zap, Star, Clipboard, DollarSign, MessageSquare, Database,
+  ChevronUp, CheckCircle2, ArrowUpRight,
+  X, Zap, Star, Clipboard, MessageSquare, Database,
   Save, Download, Edit3,
 } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const COLORS = ["#6366f1", "#a855f7", "#ec4899", "#f59e0b", "#22c55e", "#06b6d4", "#f43f5e", "#8b5cf6"];
-const priorityStyle = { High: "bg-red-500/10 text-red-600", Medium: "bg-amber-500/10 text-amber-600", Low: "bg-green-500/10 text-green-600" };
+// Priority reads quiet-first: only High earns an amber badge
+function PriorityBadge({ priority }: { priority: string }) {
+  if (priority === "High") return <span className="fx-badge fx-badge-warning">High</span>;
+  if (priority === "Medium") return <span className="fx-badge">Medium</span>;
+  return <span className="fx-badge">Low</span>;
+}
+
+const chartTooltipStyle = {
+  background: "var(--elevated)",
+  border: "1px solid var(--border-strong)",
+  borderRadius: "10px",
+  boxShadow: "var(--shadow-md)",
+  fontSize: "12px",
+  color: "var(--foreground)",
+} as const;
 
 type DbDraftRow = {
   product_name: string;
@@ -267,59 +280,65 @@ export default function PurchaseListPage() {
   const downloadDatabasePDF = () => printWindow(buildDatabaseReport());
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><ShoppingCart className="w-6 h-6 text-emerald-500" /> Smart Purchase List</h1>
-          <p className="text-muted-foreground mt-1">Upload your purchase list — get demand-based restock recommendations</p>
-        </div>
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+      {/* ── Page lead · editorial, no card ────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <p className="text-[13px] text-muted-foreground">
+          Upload your purchase list — get demand-based restock recommendations
+        </p>
         {analysis && (
-          <div className="flex gap-2">
-            <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-500/20 text-sm font-medium"><FileText className="w-4 h-4" /> Analysis PDF</button>
-            <button onClick={downloadHTML} className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-500/20 text-sm font-medium"><Download className="w-4 h-4" /> HTML</button>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={downloadPDF} className="fx-btn"><FileText className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Analysis PDF</button>
+            <button onClick={downloadHTML} className="fx-btn"><Download className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> HTML</button>
           </div>
         )}
       </div>
 
-      {/* Steps indicator */}
-      <div className="flex items-center gap-2">
+      {/* Steps indicator — quiet progress rail */}
+      <div className="flex items-center gap-2.5" aria-label="Workflow steps">
         {["Upload", "Review", "Analysis"].map((s, i) => {
           const stages = ["upload", "review", "analysis"];
           const current = stages.indexOf(step);
+          const reached = i <= current;
           return (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${i <= current ? "bg-emerald-500 text-white" : "bg-secondary text-muted-foreground"}`}>{i + 1}</div>
-              <span className={`text-sm font-medium ${i <= current ? "text-foreground" : "text-muted-foreground"}`}>{s}</span>
-              {i < 2 && <div className={`w-12 h-0.5 ${i < current ? "bg-emerald-500" : "bg-border"}`} />}
+            <div key={s} className="flex items-center gap-2.5">
+              <span
+                aria-current={i === current ? "step" : undefined}
+                className={`fx-num w-6 h-6 rounded-[var(--radius-sm)] flex items-center justify-center text-[11px] font-semibold ${
+                  reached ? "text-[var(--accent-foreground)]" : "bg-secondary text-muted-foreground"
+                }`}
+                style={reached ? { background: "var(--accent)" } : undefined}
+              >
+                {i + 1}
+              </span>
+              <span className={`text-[13px] ${reached ? "font-semibold text-foreground" : "font-medium text-muted-foreground"}`}>{s}</span>
+              {i < 2 && <span aria-hidden="true" className={`w-10 h-px ${i < current ? "bg-[var(--accent)]" : "bg-border"}`} />}
             </div>
           );
         })}
       </div>
 
-      {error && <div className="bg-danger/10 border border-danger/20 text-danger rounded-xl px-4 py-3 text-sm">{error}</div>}
+      {error && (
+        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm">{error}</div>
+      )}
 
       {/* Step 1: Upload */}
       {step === "upload" && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Upload zone */}
-          <div className="bg-card border-2 border-dashed border-border rounded-2xl p-8 sm:p-12 text-center hover:border-emerald-500/50 transition-colors">
-            <div className="w-16 h-16 mx-auto mb-4 bg-emerald-500/10 rounded-2xl flex items-center justify-center">
-              <Upload className="w-8 h-8 text-emerald-500" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground mb-2">Upload your purchase list</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+          <div className="fx-card border-dashed border-border-strong p-8 sm:p-12 text-center">
+            <Upload className="w-5 h-5 text-muted-foreground mx-auto mb-4" aria-hidden="true" strokeWidth={1.8} />
+            <h3 className="fx-display text-[17px] text-foreground mb-2">Upload your purchase list</h3>
+            <p className="text-[13px] text-muted-foreground mb-6 max-w-md mx-auto">
               Drop a photo of your handwritten list, a PDF, or type it below. We&apos;ll extract products and analyze demand.
             </p>
-            <div className="flex flex-wrap justify-center gap-3 mb-6">
-              <button onClick={() => fileRef.current?.click()} disabled={extracting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 disabled:opacity-50">
-                {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+            <div className="flex flex-wrap justify-center gap-2 mb-5">
+              <button onClick={() => fileRef.current?.click()} disabled={extracting} className="fx-btn fx-btn-accent">
+                {extracting ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Camera className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
                 Photo / PDF
               </button>
-              <button onClick={() => fileRef.current?.click()} disabled={extracting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-secondary text-foreground rounded-xl font-semibold hover:bg-muted">
-                <FileText className="w-4 h-4" /> Text File
+              <button onClick={() => fileRef.current?.click()} disabled={extracting} className="fx-btn">
+                <FileText className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Text File
               </button>
             </div>
             <input ref={fileRef} type="file" accept="image/*,.pdf,.txt" onChange={handleFileChange} className="hidden" />
@@ -327,29 +346,35 @@ export default function PurchaseListPage() {
           </div>
 
           {/* Or type manually */}
-          <div className="bg-card border border-border rounded-2xl p-5">
-            <h4 className="font-semibold text-foreground flex items-center gap-2 mb-3"><Clipboard className="w-4 h-4 text-emerald-500" /> Or type / paste your list</h4>
-            <textarea value={textInput} onChange={(e) => setTextInput(e.target.value)}
+          <div className="fx-card p-6">
+            <h4 className="fx-display text-[17px] text-foreground flex items-center gap-2 mb-3">
+              <Clipboard className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} /> Or type / paste your list
+            </h4>
+            <textarea
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              aria-label="Type or paste your purchase list"
               placeholder={"Maggi 50 packets ₹14 each\nAmul Butter 20 pcs ₹56\nBisleri 1L 100 bottles ₹20\nTata Salt 30 kg ₹28\nLays 40 packets ₹10"}
-              rows={6} className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm font-mono resize-none" />
-            <button onClick={() => handleExtract()} disabled={extracting || !textInput.trim()}
-              className="mt-3 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-2">
-              {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              rows={6}
+              className="fx-input font-mono resize-none"
+            />
+            <button onClick={() => handleExtract()} disabled={extracting || !textInput.trim()} className="fx-btn fx-btn-accent mt-3">
+              {extracting ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Zap className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
               Extract Products
             </button>
           </div>
 
-          {/* Features */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Features — one sheet, hairline-divided */}
+          <div className="fx-card grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border)] overflow-hidden">
             {[
-              { icon: Camera, color: "text-emerald-500", bg: "bg-emerald-500/10", title: "OCR Recognition", desc: "Reads handwritten lists from photos using optical character recognition" },
-              { icon: TrendingUp, color: "text-purple-500", bg: "bg-purple-500/10", title: "Demand Analysis", desc: "7-day forecast for each product using historic sales and weather data" },
-              { icon: Star, color: "text-amber-500", bg: "bg-amber-500/10", title: "Smart Priority", desc: "Tells you what to buy first based on stock urgency and demand level" },
+              { icon: Camera, title: "OCR Recognition", desc: "Reads handwritten lists from photos using optical character recognition" },
+              { icon: TrendingUp, title: "Demand Analysis", desc: "7-day forecast for each product using historic sales and weather data" },
+              { icon: Star, title: "Smart Priority", desc: "Tells you what to buy first based on stock urgency and demand level" },
             ].map(f => (
-              <div key={f.title} className="bg-card border border-border rounded-xl p-4">
-                <div className={`w-9 h-9 rounded-lg ${f.bg} flex items-center justify-center mb-2`}><f.icon className={`w-4 h-4 ${f.color}`} /></div>
+              <div key={f.title} className="p-5">
+                <f.icon className="w-4 h-4 text-accent mb-2.5" aria-hidden="true" strokeWidth={1.8} />
                 <p className="text-sm font-semibold text-foreground">{f.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -358,66 +383,72 @@ export default function PurchaseListPage() {
 
       {/* Step 2: Review extracted products */}
       {step === "review" && (
-        <div className="space-y-4">
-          <div className="bg-card border border-border rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-foreground flex items-center gap-2"><Package className="w-4 h-4 text-emerald-500" /> Extracted Products ({products.length})</h3>
+        <div className="space-y-6">
+          <div className="fx-card p-6">
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+              <h3 className="fx-display text-[17px] text-foreground flex items-center gap-2">
+                <Package className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} /> Extracted Products
+                <span className="fx-badge fx-num">{products.length}</span>
+              </h3>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">From: {fileName}</span>
-                <button onClick={downloadExtractPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-foreground rounded-lg text-xs font-medium hover:bg-muted"><Download className="w-3.5 h-3.5" /> Step PDF</button>
+                <button onClick={downloadExtractPDF} className="fx-btn"><Download className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Step PDF</button>
               </div>
             </div>
             {rawText && (
-              <div className="mb-4 rounded-xl border border-border bg-secondary/30 p-3">
-                <p className="text-xs font-semibold text-muted-foreground mb-1">Extracted text</p>
-                <p className="text-xs text-foreground/80 whitespace-pre-wrap line-clamp-4">{rawText}</p>
+              <div className="mb-4 rounded-[var(--radius-md)] border border-border bg-background-subtle/60 p-3">
+                <p className="fx-eyebrow mb-1.5">Extracted text</p>
+                <p className="text-xs text-secondary-foreground whitespace-pre-wrap line-clamp-4">{rawText}</p>
               </div>
             )}
             {unrecognized.length > 0 && (
-              <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-                <p className="text-xs font-semibold text-amber-600 mb-1">Needs attention</p>
-                <p className="text-xs text-foreground/80">{unrecognized.join(", ")}</p>
+              <div className="mb-4 rounded-[var(--radius-md)] border border-warning/25 bg-warning/8 p-3">
+                <p className="text-xs font-semibold text-warning mb-1 inline-flex items-center gap-1.5">
+                  <span className="fx-signal fx-signal-warning" aria-hidden="true" /> Needs attention
+                </p>
+                <p className="text-xs text-secondary-foreground">{unrecognized.join(", ")}</p>
               </div>
             )}
-            <div className="space-y-3">
+            <div>
               {products.map((p, i) => (
-                <div key={i} className="p-3 bg-secondary/50 rounded-xl border border-border/60">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-xs font-bold text-emerald-600">{i + 1}</div>
-                    <div className="flex-1">
-                      <p className="text-xs text-muted-foreground">{p.originalText || "Extracted row"}</p>
-                    </div>
-                    <button onClick={() => removeProduct(i)} className="text-muted-foreground hover:text-red-500"><X className="w-4 h-4" /></button>
+                <div key={i} className="py-4 border-b border-border last:border-b-0">
+                  <div className="flex items-start justify-between gap-3 mb-2.5">
+                    <span className="fx-num w-6 h-6 rounded-[var(--radius-sm)] bg-secondary flex items-center justify-center text-[11px] font-semibold text-secondary-foreground shrink-0">{i + 1}</span>
+                    <p className="flex-1 text-xs text-muted-foreground pt-1">{p.originalText || "Extracted row"}</p>
+                    <button onClick={() => removeProduct(i)} aria-label={`Remove ${p.name || "product"}`} className="fx-btn-ghost fx-focus rounded-[var(--radius-sm)] p-1 text-muted-foreground hover:text-danger">
+                      <X className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />
+                    </button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
-                    <input value={p.name || ""} onChange={(e) => updateProduct(i, "name", e.target.value)} placeholder="Product name" className="md:col-span-2 px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
-                    <input value={p.category || ""} onChange={(e) => updateProduct(i, "category", e.target.value)} placeholder="Category" className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
-                    <input value={p.brand || ""} onChange={(e) => updateProduct(i, "brand", e.target.value)} placeholder="Brand" className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+                    <input value={p.name || ""} onChange={(e) => updateProduct(i, "name", e.target.value)} placeholder="Product name" aria-label="Product name" className="fx-input md:col-span-2" />
+                    <input value={p.category || ""} onChange={(e) => updateProduct(i, "category", e.target.value)} placeholder="Category" aria-label="Category" className="fx-input" />
+                    <input value={p.brand || ""} onChange={(e) => updateProduct(i, "brand", e.target.value)} placeholder="Brand" aria-label="Brand" className="fx-input" />
                     <div className="grid grid-cols-2 gap-2">
-                      <input type="number" value={p.quantity || ""} onChange={(e) => updateProduct(i, "quantity", e.target.value)} placeholder="Qty" className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
-                      <input value={p.unit || ""} onChange={(e) => updateProduct(i, "unit", e.target.value)} placeholder="Unit" className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+                      <input type="number" value={p.quantity || ""} onChange={(e) => updateProduct(i, "quantity", e.target.value)} placeholder="Qty" aria-label="Quantity" className="fx-input" />
+                      <input value={p.unit || ""} onChange={(e) => updateProduct(i, "unit", e.target.value)} placeholder="Unit" aria-label="Unit" className="fx-input" />
                     </div>
-                    <input type="number" value={p.price || ""} onChange={(e) => updateProduct(i, "price", e.target.value)} placeholder="Price" className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+                    <input type="number" value={p.price || ""} onChange={(e) => updateProduct(i, "price", e.target.value)} placeholder="Price" aria-label="Price" className="fx-input" />
                   </div>
                 </div>
               ))}
             </div>
-            <div className="mt-4 border border-border rounded-xl p-4 bg-background/40">
-              <label className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2"><MessageSquare className="w-4 h-4 text-emerald-500" /> Extra prompt for analysis</label>
+            <div className="fx-rule mt-4 pt-4">
+              <label htmlFor="extra-prompt" className="text-sm font-semibold text-foreground flex items-center gap-2 mb-2">
+                <MessageSquare className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} /> Extra prompt for analysis
+              </label>
               <textarea
+                id="extra-prompt"
                 value={extraPrompt}
                 onChange={(e) => setExtraPrompt(e.target.value)}
                 rows={3}
                 placeholder="Example: Supplier has only 20 cartons today, prioritize fast-moving snacks, avoid items expiring soon, add festival demand context..."
-                className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm resize-none"
+                className="fx-input resize-none"
               />
             </div>
-            <div className="flex gap-3 mt-4">
-              <button onClick={() => { setStep("upload"); setProducts([]); }}
-                className="px-4 py-2 bg-secondary text-foreground rounded-xl text-sm font-medium">Back</button>
-              <button onClick={runAnalysis} disabled={analyzing || !products.length}
-                className="flex-1 px-6 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2">
-                {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => { setStep("upload"); setProducts([]); }} className="fx-btn">Back</button>
+              <button onClick={runAnalysis} disabled={analyzing || !products.length} className="fx-btn fx-btn-accent flex-1">
+                {analyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
                 {analyzing ? "Analyzing..." : "Analyze Demand"}
               </button>
             </div>
@@ -427,44 +458,47 @@ export default function PurchaseListPage() {
 
       {/* Step 3: Analysis results */}
       {step === "analysis" && analysis && (
-        <div className="space-y-6">
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-card border border-border rounded-xl p-4 text-center">
-              <Package className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-foreground">{analysis.analysis?.length || 0}</p>
-              <p className="text-xs text-muted-foreground">Products</p>
+        <div className="space-y-8">
+          {/* Stats — one ledger strip */}
+          <section aria-label="Analysis summary" className="fx-card grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-[var(--border)] overflow-hidden">
+            <div className="p-5">
+              <p className="fx-eyebrow">Products</p>
+              <p className="fx-num text-[26px] font-semibold text-foreground mt-2 leading-none">{analysis.analysis?.length || 0}</p>
             </div>
-            <div className="bg-card border border-border rounded-xl p-4 text-center">
-              <AlertTriangle className="w-5 h-5 text-red-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-red-500">{analysis.analysis?.filter((p: any) => p.priority === "High").length || 0}</p>
-              <p className="text-xs text-muted-foreground">High Priority</p>
+            <div className="p-5">
+              <p className="fx-eyebrow">High Priority</p>
+              <p className="fx-num text-[26px] font-semibold text-foreground mt-2 leading-none">{analysis.analysis?.filter((p: any) => p.priority === "High").length || 0}</p>
+              <p className={`inline-flex items-center gap-1.5 text-xs mt-2 font-medium ${(analysis.analysis?.filter((p: any) => p.priority === "High").length || 0) > 0 ? "text-warning" : "text-muted-foreground"}`}>
+                <span className={`fx-signal ${(analysis.analysis?.filter((p: any) => p.priority === "High").length || 0) > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
+                {(analysis.analysis?.filter((p: any) => p.priority === "High").length || 0) > 0 ? "Buy these first" : "No urgent buys"}
+              </p>
             </div>
-            <div className="bg-card border border-border rounded-xl p-4 text-center">
-              <DollarSign className="w-5 h-5 text-green-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-foreground">₹{analysis.totalEstimatedCost || 0}</p>
-              <p className="text-xs text-muted-foreground">Est. Total Cost</p>
+            <div className="p-5">
+              <p className="fx-eyebrow">Est. Total Cost</p>
+              <p className="fx-num text-[26px] font-semibold text-foreground mt-2 leading-none">₹{analysis.totalEstimatedCost || 0}</p>
             </div>
-            <div className="bg-card border border-border rounded-xl p-4 text-center">
-              <ArrowUpRight className="w-5 h-5 text-amber-500 mx-auto mb-1" />
-              <p className="text-2xl font-bold text-amber-500">{analysis.analysis?.filter((p: any) => p.recommendedQty > p.requestedQty).length || 0}</p>
-              <p className="text-xs text-muted-foreground">Qty Increased</p>
+            <div className="p-5">
+              <p className="fx-eyebrow">Qty Increased</p>
+              <p className="fx-num text-[26px] font-semibold text-foreground mt-2 leading-none">{analysis.analysis?.filter((p: any) => p.recommendedQty > p.requestedQty).length || 0}</p>
+              <p className="text-xs text-muted-foreground mt-2">Raised above requested</p>
             </div>
-          </div>
+          </section>
 
           {/* Buy first */}
           {analysis.buyFirstList?.length > 0 && (
-            <div className="bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-teal-500/10 border border-emerald-500/20 rounded-xl p-5">
-              <h3 className="font-bold text-foreground flex items-center gap-2 mb-3"><Star className="w-4 h-4 text-amber-500" /> Buy These First</h3>
-              <ol className="space-y-2">
+            <section aria-label="Buy these first" className="fx-card p-6">
+              <h3 className="fx-display text-[17px] text-foreground flex items-center gap-2 mb-3">
+                <Star className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} /> Buy These First
+              </h3>
+              <ol>
                 {analysis.buyFirstList.map((item: string, i: number) => (
-                  <li key={i} className="flex items-start gap-3 text-sm text-foreground/80">
-                    <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
+                  <li key={i} className="flex items-start gap-3 text-sm text-secondary-foreground py-2.5 border-b border-border last:border-b-0">
+                    <span className="fx-num text-xs font-semibold shrink-0 mt-0.5" style={{ color: "var(--accent)" }}>{String(i + 1).padStart(2, "0")}</span>
                     {item}
                   </li>
                 ))}
               </ol>
-            </div>
+            </section>
           )}
 
           {/* Product cards with expandable 7-day forecast */}
@@ -473,75 +507,73 @@ export default function PurchaseListPage() {
               const isExpanded = expandedIdx === idx;
               const chartData = p.dailyForecast?.map((d: any) => ({ name: d.day?.slice(0, 3), sales: d.sales })) || [];
               return (
-                <div key={idx} className="bg-card border border-border rounded-xl overflow-hidden">
-                  <button onClick={() => setExpandedIdx(isExpanded ? null : idx)} className="w-full text-left p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm text-white" style={{ background: COLORS[idx % COLORS.length] }}>{idx + 1}</div>
-                        <div>
-                          <p className="font-semibold text-foreground">{p.name}</p>
+                <div key={idx} className="fx-card fx-card-interactive overflow-hidden">
+                  <button onClick={() => setExpandedIdx(isExpanded ? null : idx)} aria-expanded={isExpanded} className="w-full text-left p-4 sm:p-5 fx-focus">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="fx-num w-7 h-7 rounded-[var(--radius-sm)] bg-secondary flex items-center justify-center text-xs font-semibold text-secondary-foreground shrink-0">{idx + 1}</span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
                           <p className="text-xs text-muted-foreground">{p.category}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4 shrink-0">
                         <div className="text-right">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">{p.requestedQty}</span>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span className="fx-num text-sm text-muted-foreground">{p.requestedQty}</span>
                             {p.recommendedQty !== p.requestedQty && (
-                              <><span className="text-muted-foreground">→</span>
-                              <span className={`text-sm font-bold ${p.recommendedQty > p.requestedQty ? "text-red-500" : "text-green-500"}`}>{p.recommendedQty}</span></>
+                              <><span className="text-muted-foreground" aria-hidden="true">→</span>
+                              <span className="fx-num text-sm font-semibold" style={{ color: "var(--accent)" }}>{p.recommendedQty}</span></>
                             )}
                             <span className="text-xs text-muted-foreground">{p.unit}</span>
                           </div>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${priorityStyle[p.priority as keyof typeof priorityStyle] || priorityStyle.Low}`}>{p.priority}</span>
+                          <div className="mt-1"><PriorityBadge priority={p.priority} /></div>
                         </div>
-                        {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} /> : <ChevronDown className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />}
                       </div>
                     </div>
                   </button>
 
                   {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-border pt-4 space-y-4">
-                      {/* Stats row */}
-                      <div className="grid grid-cols-4 gap-3">
-                        <div className="bg-secondary/50 rounded-lg p-3 text-center">
-                          <p className="text-lg font-bold text-foreground">{p.currentInventory}</p>
-                          <p className="text-[10px] text-muted-foreground">In Stock</p>
+                    <div className="px-4 sm:px-5 pb-5 border-t border-border pt-4 space-y-4">
+                      {/* Stats row — plain cells, no boxes */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div>
+                          <p className="fx-eyebrow text-[10px]">In Stock</p>
+                          <p className="fx-num text-lg font-semibold text-foreground mt-1">{p.currentInventory}</p>
                         </div>
-                        <div className="bg-secondary/50 rounded-lg p-3 text-center">
-                          <p className="text-lg font-bold text-foreground">{p.weeklyDemand}</p>
-                          <p className="text-[10px] text-muted-foreground">7-Day Need</p>
+                        <div>
+                          <p className="fx-eyebrow text-[10px]">7-Day Need</p>
+                          <p className="fx-num text-lg font-semibold text-foreground mt-1">{p.weeklyDemand}</p>
                         </div>
-                        <div className="bg-secondary/50 rounded-lg p-3 text-center">
-                          <p className="text-lg font-bold text-emerald-500">{p.recommendedQty}</p>
-                          <p className="text-[10px] text-muted-foreground">Recommended</p>
+                        <div>
+                          <p className="fx-eyebrow text-[10px]">Recommended</p>
+                          <p className="fx-num text-lg font-semibold mt-1" style={{ color: "var(--accent)" }}>{p.recommendedQty}</p>
                         </div>
-                        <div className="bg-secondary/50 rounded-lg p-3 text-center">
-                          <p className="text-lg font-bold text-foreground">₹{p.estimatedCost}</p>
-                          <p className="text-[10px] text-muted-foreground">Est. Cost</p>
+                        <div>
+                          <p className="fx-eyebrow text-[10px]">Est. Cost</p>
+                          <p className="fx-num text-lg font-semibold text-foreground mt-1">₹{p.estimatedCost}</p>
                         </div>
                       </div>
 
                       {/* 7-day chart */}
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-2">7-Day Demand Forecast</p>
+                      <div className="fx-rule pt-4">
+                        <p className="fx-eyebrow mb-2">7-Day Demand Forecast</p>
                         <ResponsiveContainer width="100%" height={160}>
                           <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                            <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={11} />
-                            <YAxis stroke="var(--color-muted-foreground)" fontSize={11} />
-                            <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "8px" }} />
-                            <Bar dataKey="sales" name="Sales" radius={[4, 4, 0, 0]}>
-                              {chartData.map((_: any, i: number) => <Cell key={i} fill={COLORS[idx % COLORS.length]} fillOpacity={0.6 + (i * 0.05)} />)}
-                            </Bar>
+                            <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
+                            <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                            <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                            <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
+                            <Bar dataKey="sales" name="Sales" radius={[3, 3, 0, 0]} barSize={14} fill="var(--accent)" />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
 
                       {/* Adjustment reason */}
-                      <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-start gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {p.adjustmentReason}
+                      <div className="rounded-[var(--radius-md)] p-3 border" style={{ background: "var(--accent-soft)", borderColor: "var(--accent-border)" }}>
+                        <p className="text-xs text-foreground flex items-start gap-1.5 leading-relaxed">
+                          <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" strokeWidth={1.8} style={{ color: "var(--accent)" }} /> {p.adjustmentReason}
                         </p>
                       </div>
                     </div>
@@ -553,55 +585,61 @@ export default function PurchaseListPage() {
 
           {/* Suggestions */}
           {analysis.suggestions?.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-5">
-              <h3 className="font-semibold text-foreground flex items-center gap-2 mb-3"><Zap className="w-4 h-4 text-indigo-500" /> Smart Suggestions</h3>
-              <ul className="space-y-2">
+            <section aria-label="Smart suggestions" className="fx-card p-6">
+              <h3 className="fx-display text-[17px] text-foreground flex items-center gap-2 mb-2">
+                <Zap className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} /> Smart Suggestions
+              </h3>
+              <ul>
                 {analysis.suggestions.map((s: string, i: number) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-foreground/80"><ArrowUpRight className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />{s}</li>
+                  <li key={i} className="flex items-start gap-2 text-sm text-secondary-foreground py-2.5 border-b border-border last:border-b-0">
+                    <ArrowUpRight className="w-4 h-4 text-accent shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />{s}
+                  </li>
                 ))}
               </ul>
-            </div>
+            </section>
           )}
 
-          <div className="bg-card border border-border rounded-xl p-5">
+          <section aria-label="Add analyzed products to inventory" className="fx-card p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
-                <h3 className="font-semibold text-foreground flex items-center gap-2"><Database className="w-4 h-4 text-emerald-500" /> Add analyzed products to inventory</h3>
+                <h3 className="fx-display text-[17px] text-foreground flex items-center gap-2">
+                  <Database className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} /> Add analyzed products to inventory
+                </h3>
                 <p className="text-xs text-muted-foreground mt-1">Review required database fields before inserting. Empty rows will be skipped.</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={prepareDatabaseDraft} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-sm font-semibold hover:bg-emerald-600"><Edit3 className="w-4 h-4" /> Add this to database</button>
-                {draftRows.length > 0 && <button onClick={downloadDatabasePDF} className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-xl text-sm font-medium hover:bg-muted"><Download className="w-4 h-4" /> Database PDF</button>}
+                <button onClick={prepareDatabaseDraft} className="fx-btn fx-btn-accent"><Edit3 className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Add this to database</button>
+                {draftRows.length > 0 && <button onClick={downloadDatabasePDF} className="fx-btn"><Download className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Database PDF</button>}
               </div>
             </div>
 
             {showAddForm && (
-              <div className="space-y-3">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+              <div className="space-y-4">
+                <div className="overflow-x-auto -mx-2">
+                  <table className="fx-table min-w-[880px]">
                     <thead>
-                      <tr className="text-left text-xs text-muted-foreground border-b border-border">
-                        <th className="py-2 pr-2">Product</th>
-                        <th className="py-2 px-2">Brand</th>
-                        <th className="py-2 px-2">Category*</th>
-                        <th className="py-2 px-2">Stock*</th>
-                        <th className="py-2 px-2">Unit*</th>
-                        <th className="py-2 px-2">Price*</th>
-                        <th className="py-2 px-2">SKU</th>
-                        <th className="py-2 pl-2">Expiry</th>
+                      <tr>
+                        <th>Product</th>
+                        <th>Brand</th>
+                        <th>Category*</th>
+                        <th>Stock*</th>
+                        <th>Unit*</th>
+                        <th>Price*</th>
+                        <th>SKU</th>
+                        <th>Expiry</th>
                       </tr>
                     </thead>
                     <tbody>
                       {draftRows.map((row, i) => (
-                        <tr key={i} className="border-b border-border/60">
-                          <td className="py-2 pr-2 min-w-56"><input value={row.product_name} onChange={(e) => updateDraftRow(i, "product_name", e.target.value)} className="w-full px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground" /></td>
-                          <td className="py-2 px-2 min-w-32"><input value={row.brand} onChange={(e) => updateDraftRow(i, "brand", e.target.value)} className="w-full px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground" /></td>
-                          <td className="py-2 px-2 min-w-40"><input value={row.category} onChange={(e) => updateDraftRow(i, "category", e.target.value)} className="w-full px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground" /></td>
-                          <td className="py-2 px-2 min-w-24"><input type="number" value={row.current_stock} onChange={(e) => updateDraftRow(i, "current_stock", e.target.value)} className="w-full px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground" /></td>
-                          <td className="py-2 px-2 min-w-24"><input value={row.unit} onChange={(e) => updateDraftRow(i, "unit", e.target.value)} className="w-full px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground" /></td>
-                          <td className="py-2 px-2 min-w-24"><input type="number" value={row.price} onChange={(e) => updateDraftRow(i, "price", e.target.value)} className="w-full px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground" /></td>
-                          <td className="py-2 px-2 min-w-28"><input value={row.sku} onChange={(e) => updateDraftRow(i, "sku", e.target.value)} placeholder="optional" className="w-full px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground" /></td>
-                          <td className="py-2 pl-2 min-w-36"><input type="date" value={row.expiry_date} onChange={(e) => updateDraftRow(i, "expiry_date", e.target.value)} className="w-full px-2 py-1.5 bg-secondary border border-border rounded-lg text-foreground" /></td>
+                        <tr key={i}>
+                          <td className="min-w-56"><input value={row.product_name} onChange={(e) => updateDraftRow(i, "product_name", e.target.value)} aria-label="Product name" className="fx-input px-2 py-1.5 text-sm" /></td>
+                          <td className="min-w-32"><input value={row.brand} onChange={(e) => updateDraftRow(i, "brand", e.target.value)} aria-label="Brand" className="fx-input px-2 py-1.5 text-sm" /></td>
+                          <td className="min-w-40"><input value={row.category} onChange={(e) => updateDraftRow(i, "category", e.target.value)} aria-label="Category" className="fx-input px-2 py-1.5 text-sm" /></td>
+                          <td className="min-w-24"><input type="number" value={row.current_stock} onChange={(e) => updateDraftRow(i, "current_stock", e.target.value)} aria-label="Stock" className="fx-input px-2 py-1.5 text-sm" /></td>
+                          <td className="min-w-24"><input value={row.unit} onChange={(e) => updateDraftRow(i, "unit", e.target.value)} aria-label="Unit" className="fx-input px-2 py-1.5 text-sm" /></td>
+                          <td className="min-w-24"><input type="number" value={row.price} onChange={(e) => updateDraftRow(i, "price", e.target.value)} aria-label="Price" className="fx-input px-2 py-1.5 text-sm" /></td>
+                          <td className="min-w-28"><input value={row.sku} onChange={(e) => updateDraftRow(i, "sku", e.target.value)} placeholder="optional" aria-label="SKU" className="fx-input px-2 py-1.5 text-sm" /></td>
+                          <td className="min-w-36"><input type="date" value={row.expiry_date} onChange={(e) => updateDraftRow(i, "expiry_date", e.target.value)} aria-label="Expiry date" className="fx-input px-2 py-1.5 text-sm" /></td>
                         </tr>
                       ))}
                     </tbody>
@@ -609,25 +647,25 @@ export default function PurchaseListPage() {
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <p className="text-xs text-muted-foreground">Required fields: product name, category, stock, unit, and price. Brand, SKU, and expiry are optional.</p>
-                  <button onClick={saveDraftToDatabase} disabled={savingToDb} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 disabled:opacity-50">
-                    {savingToDb ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <button onClick={saveDraftToDatabase} disabled={savingToDb} className="fx-btn fx-btn-accent">
+                    {savingToDb ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Save className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
                     {savingToDb ? "Adding..." : "Confirm add to inventory"}
                   </button>
                 </div>
                 {dbResult && (
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+                  <div className="rounded-[var(--radius-md)] border border-success/25 bg-success/8 px-4 py-3 text-sm text-success">
                     {dbResult.message} Inserted {dbResult.inserted} row{dbResult.inserted === 1 ? "" : "s"}{dbResult.skipped ? `, skipped ${dbResult.skipped}.` : "."}
                   </div>
                 )}
               </div>
             )}
-          </div>
+          </section>
 
           {/* New analysis button */}
           <div className="text-center">
             <button onClick={() => { setStep("upload"); setProducts([]); setAnalysis(null); setTextInput(""); setFileName(""); setRawText(""); setUnrecognized([]); setExtraPrompt(""); setShowAddForm(false); setDraftRows([]); setDbResult(null); }}
-              className="px-6 py-2.5 bg-secondary text-foreground rounded-xl font-medium hover:bg-muted flex items-center gap-2 mx-auto">
-              <Upload className="w-4 h-4" /> Upload Another List
+              className="fx-btn mx-auto">
+              <Upload className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Upload Another List
             </button>
           </div>
         </div>
@@ -635,10 +673,10 @@ export default function PurchaseListPage() {
 
       {/* Loading overlay */}
       {analyzing && (
-        <div className="bg-card border border-border rounded-xl p-12 flex flex-col items-center gap-4">
-          <div className="relative"><div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" /><ShoppingCart className="w-6 h-6 text-emerald-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" /></div>
-          <p className="font-semibold text-foreground">Analyzing {products.length} products...</p>
-          <p className="text-sm text-muted-foreground">Checking inventory, historic sales, weather, and upcoming events</p>
+        <div className="fx-card p-10 flex flex-col items-center gap-4" aria-busy="true">
+          <div className="w-8 h-8 border-2 border-border-strong border-t-accent rounded-full animate-spin" aria-hidden="true" />
+          <p className="text-sm font-semibold text-foreground">Analyzing {products.length} products...</p>
+          <p className="text-xs text-muted-foreground">Checking inventory, historic sales, weather, and upcoming events</p>
         </div>
       )}
     </div>

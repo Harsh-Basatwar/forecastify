@@ -16,44 +16,54 @@ export default function Header({ onMenuClick, title }: HeaderProps) {
   const { lang, setLang } = useLang();
   const router = useRouter();
 
-  const currentLang = LANGUAGES.find(l => l.code === lang);
-
   return (
-    <header className="h-16 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 shrink-0 sticky top-0 z-30">
-      <div className="flex items-center gap-3">
-        <button onClick={onMenuClick} className="lg:hidden text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-secondary">
+    <header className="h-16 border-b border-border glass flex items-center justify-between px-4 sm:px-8 shrink-0 sticky top-0 z-30">
+      <div className="flex items-center gap-3 min-w-0">
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary fx-focus"
+          aria-label="Open navigation"
+        >
           <Menu className="w-5 h-5" />
         </button>
-        <h1 className="text-lg sm:text-xl font-bold text-foreground">{title}</h1>
+        <h1 className="fx-display text-lg sm:text-[21px] text-foreground truncate">{title}</h1>
       </div>
-      <div className="flex items-center gap-1.5">
-        {/* Language Selector */}
-        <div className="relative">
+
+      <div className="flex items-center gap-1">
+        {/* Language */}
+        <div className="relative hidden sm:block">
+          <label htmlFor="lang-select" className="sr-only">Language</label>
           <select
+            id="lang-select"
             value={lang}
-            onChange={e => setLang(e.target.value as any)}
-            className="appearance-none pl-8 pr-3 py-1.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
+            onChange={e => setLang(e.target.value as never)}
+            className="appearance-none pl-7.5 pr-2.5 py-1.5 bg-transparent border border-transparent hover:border-border hover:bg-secondary rounded-md text-[13px] font-medium text-secondary-foreground focus:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25 cursor-pointer transition-colors max-w-[132px]"
           >
             {LANGUAGES.map(l => (
-              <option key={l.code} value={l.code}>{l.flag} {l.nativeName}</option>
+              <option key={l.code} value={l.code}>{l.nativeName}</option>
             ))}
           </select>
-          <Globe className="w-4 h-4 text-muted-foreground absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Globe className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
 
         {/* Alerts */}
         <button
           onClick={() => router.push("/dashboard/alerts")}
-          className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary"
+          className="relative p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors fx-focus"
           title="Alerts"
+          aria-label="View alerts"
         >
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger rounded-full" />
+          <Bell className="w-[18px] h-[18px]" strokeWidth={1.8} />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-danger rounded-full ring-2 ring-background" aria-hidden="true" />
         </button>
 
-        {/* Theme Toggle */}
-        <button onClick={toggleTheme} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary" aria-label="Toggle theme">
-          {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        {/* Theme */}
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors fx-focus"
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="w-[18px] h-[18px]" strokeWidth={1.8} /> : <Moon className="w-[18px] h-[18px]" strokeWidth={1.8} />}
         </button>
       </div>
     </header>

@@ -23,9 +23,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-muted-foreground text-sm">Loading Forecastify...</p>
+      <div className="flex flex-col items-center gap-5">
+        <div className="w-8 h-8 border-2 border-border-strong border-t-accent rounded-full animate-spin" aria-hidden="true" />
+        <p className="fx-eyebrow">Loading Forecastify</p>
       </div>
     </div>
   );

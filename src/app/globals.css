@@ -2,79 +2,119 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Forecastify Production Design System Variables */
-:root {
-  --background: #FAF8F5;            /* Warm Alabaster Canvas */
-  --foreground: #0F172A;            /* Deep Slate Text */
-  --card: #FFFFFF;                  /* Crisp White Surface */
-  --card-foreground: #0F172A;
-  --primary: #0F172A;
-  --primary-foreground: #FFFFFF;
-  --secondary: #F1F5F9;
-  --secondary-foreground: #334155;
-  --muted: #E2E8F0;
-  --muted-foreground: #64748B;
-  
-  /* Brand Saffron & Telemetry State Palette */
-  --saffron: #D97706;               /* Forecastify Saffron Accent */
-  --accent: #D97706;
-  --accent-foreground: #FFFFFF;
-  --border: rgba(15, 23, 42, 0.08);
-  --ring: #D97706;
-  --sidebar: #F5F2EB;
-  --sidebar-foreground: #334155;
-  
-  --success: #059669;
-  --warning: #D97706;
-  --danger: #E11D48;
-  --info: #0284C7;
+/* ══════════════════════════════════════════════════════════════
+   FORECASTIFY — "Ledger" Design System
+   Editorial operational minimalism · Warm paper + ink + forecast teal
+   Light mode is the primary experience. Dark is soft warm charcoal.
+   ══════════════════════════════════════════════════════════════ */
 
-  /* Spatial & Elevation Tokens */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  
-  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.03);
+:root {
+  /* ── Surfaces · warm paper ─────────────────────────────── */
+  --background: #F5F4F0;             /* warm paper canvas */
+  --background-subtle: #EDEBE5;      /* recessed wells / rails */
+  --foreground: #201E1B;             /* warm ink */
+  --card: #FDFDFB;                   /* sheet — just off pure white */
+  --card-foreground: #201E1B;
+  --elevated: #FFFFFF;               /* popover / modal */
+
+  --primary: #201E1B;                /* ink actions */
+  --primary-foreground: #F8F7F4;
+  --secondary: #ECEAE3;              /* quiet fills, chips */
+  --secondary-foreground: #45423C;
+  --muted: #E5E2DA;
+  --muted-foreground: #6F6B62;       /* secondary text — 5.5:1 on paper */
+
+  /* ── Accent · Forecast Teal (the one Forecastify color) ── */
+  --accent: #0B6E62;
+  --accent-hover: #095A50;
+  --accent-soft: rgba(11, 110, 98, 0.09);
+  --accent-border: rgba(11, 110, 98, 0.28);
+  --accent-foreground: #FFFFFF;
+
+  --border: rgba(32, 30, 27, 0.10);        /* hairline */
+  --border-strong: rgba(32, 30, 27, 0.18);
+  --ring: #0B6E62;
+
+  --sidebar: #F0EEE8;
+  --sidebar-foreground: #4B4841;
+
+  /* ── Status · quiet until it matters ─────────────────────── */
+  --success: #2F7D4F;
+  --success-soft: rgba(47, 125, 79, 0.10);
+  --warning: #A16107;
+  --warning-soft: rgba(161, 97, 7, 0.10);
+  --danger: #B93A34;
+  --danger-soft: rgba(185, 58, 52, 0.09);
+  --info: #0B6E62;
+  --info-soft: rgba(11, 110, 98, 0.09);
+
+  /* ── Radius · intentional, restrained ────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;                  /* small controls */
+  --radius-md: 10px;                 /* inputs, buttons */
+  --radius-lg: 14px;                 /* cards, modals */
+  --radius-xl: 18px;                 /* page-level panels only */
+
+  /* ── Elevation · almost invisible; real only when floating ─ */
+  --shadow-xs: 0 1px 2px rgba(32, 30, 27, 0.04);
+  --shadow-sm: 0 1px 3px rgba(32, 30, 27, 0.05);
+  --shadow-md: 0 10px 24px -12px rgba(32, 30, 27, 0.18), 0 2px 6px -2px rgba(32, 30, 27, 0.06);
+  --shadow-lg: 0 24px 48px -16px rgba(32, 30, 27, 0.22), 0 4px 12px -6px rgba(32, 30, 27, 0.08);
+  --shadow-accent: 0 6px 20px -6px rgba(11, 110, 98, 0.35);
 }
 
 .dark {
-  --background: #0B0F17;            /* Deep Obsidian Slate */
-  --foreground: #F8FAFC;            /* Crisp Slate Text */
-  --card: #131924;                  /* Layer 1 Dark Surface */
-  --card-foreground: #F8FAFC;
-  --primary: #F8FAFC;
-  --primary-foreground: #0F172A;
-  --secondary: #1E293B;
-  --secondary-foreground: #CBD5E1;
-  --muted: #1F2937;
-  --muted-foreground: #94A3B8;
-  
-  --saffron: #F59E0B;               /* Radiant Saffron Amber */
-  --accent: #F59E0B;
-  --accent-foreground: #0F172A;
-  --border: rgba(255, 255, 255, 0.08);/* Hairline 1px Luminance Border */
-  --ring: #F59E0B;
-  --sidebar: #0E131F;
-  --sidebar-foreground: #CBD5E1;
-  
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #F43F5E;
-  --info: #38BDF8;
+  /* ── Surfaces · soft warm charcoal (never black graphite) ── */
+  --background: #1C1B19;
+  --background-subtle: #191816;
+  --foreground: #EAE8E3;
+  --card: #242320;
+  --card-foreground: #EAE8E3;
+  --elevated: #2B2A26;
 
-  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 6px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 12px 28px rgba(0, 0, 0, 0.60);
+  --primary: #EAE8E3;
+  --primary-foreground: #1C1B19;
+  --secondary: #2E2C28;
+  --secondary-foreground: #C9C6BE;
+  --muted: #2E2C28;
+  --muted-foreground: #9B978D;
+
+  --accent: #3BB8A5;
+  --accent-hover: #52CCB9;
+  --accent-soft: rgba(59, 184, 165, 0.13);
+  --accent-border: rgba(59, 184, 165, 0.34);
+  --accent-foreground: #10201C;
+
+  --border: rgba(234, 232, 227, 0.09);
+  --border-strong: rgba(234, 232, 227, 0.16);
+  --ring: #3BB8A5;
+
+  --sidebar: #191816;
+  --sidebar-foreground: #ABA79D;
+
+  --success: #58B57F;
+  --success-soft: rgba(88, 181, 127, 0.13);
+  --warning: #D9A03E;
+  --warning-soft: rgba(217, 160, 62, 0.13);
+  --danger: #E06C64;
+  --danger-soft: rgba(224, 108, 100, 0.12);
+  --info: #3BB8A5;
+  --info-soft: rgba(59, 184, 165, 0.13);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 12px 28px -12px rgba(0, 0, 0, 0.55), 0 2px 8px -2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 26px 52px -18px rgba(0, 0, 0, 0.65), 0 6px 16px -8px rgba(0, 0, 0, 0.40);
+  --shadow-accent: 0 6px 20px -6px rgba(59, 184, 165, 0.35);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-background-subtle: var(--background-subtle);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-elevated: var(--elevated);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
@@ -82,17 +122,40 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-saffron: var(--saffron);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
   --color-info: var(--info);
+  /* Legacy alias — old saffron accent now resolves to the teal accent */
+  --color-saffron: var(--accent);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 body {
@@ -100,80 +163,251 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Tabular Numerics Utilities */
-.tabular-nums {
+/* ══════════════════════════════════════════════════════════════
+   TYPOGRAPHY — editorial hierarchy
+   ══════════════════════════════════════════════════════════════ */
+
+h1, h2, h3, h4 { letter-spacing: -0.015em; }
+
+/* Editorial display — page titles, section leads */
+.fx-display {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+/* Overline label — quiet, structural */
+.fx-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Metric numerals — precise, tabular */
+.fx-num {
+  font-family: var(--font-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
-/* Density Tiers */
-.density-compact {
-  --table-row-height: 34px;
-  --table-cell-padding-y: 4px;
+.tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
+
+/* ══════════════════════════════════════════════════════════════
+   PRIMITIVES
+   ══════════════════════════════════════════════════════════════ */
+
+/* Sheet — the standard surface. Hairline border, no shadow. */
+.fx-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
-.density-standard {
-  --table-row-height: 48px;
-  --table-cell-padding-y: 10px;
+/* Interactive surfaces earn a whisper of lift */
+.fx-card-interactive {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fx-card-interactive:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
 }
 
-.density-comfortable {
-  --table-row-height: 64px;
-  --table-cell-padding-y: 16px;
+/* Ledger section — hairline-ruled header inside a sheet */
+.fx-rule { border-top: 1px solid var(--border); }
+
+/* Signal dot — Forecastify's status language */
+.fx-signal {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--muted-foreground);
+  flex-shrink: 0;
+}
+.fx-signal-success { background: var(--success); }
+.fx-signal-warning { background: var(--warning); }
+.fx-signal-danger  { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+.fx-signal-accent  { background: var(--accent); }
+
+/* Buttons */
+.fx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  line-height: 1;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  color: var(--foreground);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 140ms ease, border-color 140ms ease, transform 100ms ease, box-shadow 140ms ease;
+}
+.fx-btn:hover { background: var(--secondary); }
+.fx-btn:active { transform: scale(0.98); }
+.fx-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
+.fx-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.fx-btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.fx-btn-primary:hover { background: color-mix(in srgb, var(--primary) 88%, var(--background)); }
+
+.fx-btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-foreground);
+}
+.fx-btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+.fx-btn-ghost { background: transparent; border-color: transparent; color: var(--muted-foreground); }
+.fx-btn-ghost:hover { background: var(--secondary); color: var(--foreground); }
+
+/* Badges — reserved for genuine status, not decoration */
+.fx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.14rem 0.5rem;
+  border-radius: var(--radius-xs);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+.fx-badge-accent  { background: var(--accent-soft);  color: var(--accent); }
+.fx-badge-success { background: var(--success-soft); color: var(--success); }
+.fx-badge-warning { background: var(--warning-soft); color: var(--warning); }
+.fx-badge-danger  { background: var(--danger-soft);  color: var(--danger); }
+
+/* Inputs */
+.fx-input {
+  width: 100%;
+  padding: 0.62rem 0.8rem;
+  font-size: 0.875rem;
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--foreground);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.fx-input::placeholder { color: var(--muted-foreground); opacity: 0.75; }
+.fx-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* Custom Telemetry Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--background); }
-::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
+.fx-focus:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
 
-/* Glass Surfaces */
+/* Tables — the ledger */
+.fx-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.fx-table thead th {
+  text-align: left;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+.fx-table tbody td { padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--border); }
+.fx-table tbody tr:last-child td { border-bottom: 0; }
+.fx-table tbody tr { transition: background 100ms ease; }
+.fx-table tbody tr:hover { background: color-mix(in srgb, var(--secondary) 45%, transparent); }
+
+/* Glass — retained for sticky chrome only, theme-aware */
 .glass {
-  background: rgba(250, 248, 245, 0.80);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-}
-.dark .glass {
-  background: rgba(19, 25, 36, 0.75);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--background) 82%, transparent);
+  backdrop-filter: blur(12px) saturate(120%);
+  border: 1px solid var(--border);
 }
 
-/* Skeleton Shimmer Animation */
+/* ══════════════════════════════════════════════════════════════
+   MOTION — state, not spectacle · 120–240ms
+   ══════════════════════════════════════════════════════════════ */
+
+@keyframes fx-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fx-page { animation: fx-fade-up 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+@keyframes fx-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.fx-fade-in { animation: fx-fade-in 180ms ease; }
+
+/* Density tiers (preserved) */
+.density-compact     { --table-row-height: 34px; --table-cell-padding-y: 4px; }
+.density-standard    { --table-row-height: 48px; --table-cell-padding-y: 10px; }
+.density-comfortable { --table-row-height: 64px; --table-cell-padding-y: 16px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+  background-clip: padding-box;
+}
+
+/* Skeletons */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
-
 .skeleton-shimmer {
   position: relative;
   overflow: hidden;
   background-color: var(--muted);
   border-radius: var(--radius-sm);
 }
-
 .skeleton-shimmer::after {
   position: absolute;
-  top: 0; right: 0; bottom: 0; left: 0;
+  inset: 0;
   transform: translateX(-100%);
   background-image: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0) 0,
-    rgba(255, 255, 255, 0.08) 20%,
-    rgba(255, 255, 255, 0.15) 60%,
-    rgba(255, 255, 255, 0)
+    transparent 0,
+    color-mix(in srgb, var(--foreground) 4%, transparent) 40%,
+    color-mix(in srgb, var(--foreground) 7%, transparent) 60%,
+    transparent
   );
-  animation: shimmer 1.8s infinite ease-in-out;
+  animation: shimmer 1.6s infinite ease-in-out;
   content: '';
 }
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+@keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin-slow { animation: spin-slow 15s linear infinite; }
 
-.animate-spin-slow {
-  animation: spin-slow 15s linear infinite;
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
