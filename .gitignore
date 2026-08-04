@@ -40,4 +40,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# MCP configurations
+.mcp/
+.mcp.json
+*.mcp.json
+mcp.json
+**/.mcp.json
+.claude/mcp.json
+.vscode/mcp.json
+.cursor/mcp.json
+.windsurf/mcp.json
+
+# Skills & Agent configurations
 .agents/
+.skills/
+skills/
+skills-lock.json
+
