@@ -2,424 +2,267 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Package, Search, ArrowUpDown, ChevronUp } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { Package, Layers, AlertTriangle, Barcode, FileText, GitMerge, History, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { ProductCatalogItem, DashboardMetricsSummary } from "@/lib/inventory/types";
+import { InventoryKpiCards } from "@/components/inventory/InventoryKpiCards";
+import { ProductTable } from "@/components/inventory/ProductTable";
+import { ProductFormDrawer } from "@/components/inventory/ProductFormDrawer";
+import { StockAdjustmentModal } from "@/components/inventory/StockAdjustmentModal";
+import { BatchExpiryManager } from "@/components/inventory/BatchExpiryManager";
+import { CsvImportExportModal } from "@/components/inventory/CsvImportExportModal";
+import { BarcodeScannerModal } from "@/components/inventory/BarcodeScannerModal";
+import { ProductMergeModal } from "@/components/inventory/ProductMergeModal";
+import { InventoryLedgerView } from "@/components/inventory/InventoryLedgerView";
 
-type Status = "critical" | "low" | "optimal" | "overstock";
-type Trend = "rising" | "falling" | "stable";
-
-/** Where a row's daily demand came from — surfaced so an estimate is never
-    mistaken for a measurement. */
-type DemandSource = "forecast" | "historic" | "estimate";
-
-interface InventoryItem {
-  id: number;
-  product: string;
-  sku: string;
-  category: string;
-  currentStock: number;
-  recommendedStock: number;
-  dailyDemand: number;
-  daysOfStock: number;
-  demandSource: DemandSource;
-  status: Status;
-  trend: Trend;
-}
-
-/**
- * `demand` comes from /api/reorder-planner, which derives it from the demand
- * forecast or the last 14 days of sales. Without it we fall back to a
- * stock-based guess — which cannot produce a meaningful days-of-cover number,
- * so status then keys off raw stock counts instead.
- */
-function transformItem(row: any, demand?: { dailyDemand: number; demandSource: DemandSource }): InventoryItem {
-  const currentStock = row.current_stock ?? 0;
-  const hasRealDemand = !!demand && demand.demandSource !== "estimate" && demand.dailyDemand > 0;
-
-  const dailyDemand = hasRealDemand
-    ? demand!.dailyDemand
-    : Math.max(1, Math.round(currentStock / 14));
-  const daysOfStock = Math.round((currentStock / dailyDemand) * 10) / 10;
-
-  let status: Status = "optimal";
-  if (hasRealDemand) {
-    // Days of cover: critical < 3 days, low < 7 days, overstock > 30 days.
-    if (daysOfStock < 3) status = "critical";
-    else if (daysOfStock < 7) status = "low";
-    else if (daysOfStock > 30) status = "overstock";
-  } else if (currentStock <= 5) status = "critical";
-  else if (currentStock <= 15) status = "low";
-  else if (currentStock >= 150) status = "overstock";
-
-  return {
-    id: row.id,
-    product: row.product_name ?? "Unknown",
-    sku: row.sku ?? "—",
-    category: row.category ?? "General",
-    currentStock,
-    recommendedStock: Math.ceil(dailyDemand * 14),
-    dailyDemand: Math.round(dailyDemand * 10) / 10,
-    daysOfStock,
-    demandSource: hasRealDemand ? demand!.demandSource : "estimate",
-    status,
-    trend: "stable" as Trend,
-  };
-}
-
-// Severity language: critical screams, low warns, optimal stays quiet
-function StatusCell({ status }: { status: Status }) {
-  if (status === "critical") {
-    return <span className="fx-badge fx-badge-danger">Critical</span>;
-  }
-  if (status === "low") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning">
-        <span className="fx-signal fx-signal-warning" aria-hidden="true" /> Low Stock
-      </span>
-    );
-  }
-  if (status === "overstock") {
-    return <span className="fx-badge">Overstock</span>;
-  }
-  return <span className="text-xs text-muted-foreground">Optimal</span>;
-}
-
-const barColor: Record<Status, string> = {
-  critical: "var(--danger)",
-  low: "var(--warning)",
-  optimal: "var(--success)",
-  overstock: "var(--muted-foreground)",
-};
-
-// Skeleton mirrors the KPI strip + ledger table to prevent shift
-function LoadingSkeleton() {
-  return (
-    <div className="space-y-8 max-w-[1400px] mx-auto pb-12" aria-busy="true" aria-label="Loading inventory">
-      <div className="fx-card grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-[var(--border)] overflow-hidden">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="p-5 space-y-3">
-            <div className="skeleton-shimmer h-3 w-24" />
-            <div className="skeleton-shimmer h-7 w-14" />
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="skeleton-shimmer h-10 flex-1" />
-        <div className="skeleton-shimmer h-10 w-full sm:w-36" />
-        <div className="skeleton-shimmer h-10 w-full sm:w-36" />
-      </div>
-      <div className="fx-card p-6 space-y-0">
-        <div className="skeleton-shimmer h-3.5 w-40 mb-5" />
-        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="flex items-center gap-4 py-3 border-b border-border last:border-b-0">
-            <div className="skeleton-shimmer h-3.5 w-1/3" />
-            <div className="skeleton-shimmer h-3.5 w-16" />
-            <div className="skeleton-shimmer h-3.5 w-12 ml-auto" />
-            <div className="skeleton-shimmer h-3.5 w-12" />
-            <div className="skeleton-shimmer h-3.5 w-20" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+type ActiveTab = "products" | "expiry" | "barcodes" | "csv" | "merger" | "ledger";
 
 export default function InventoryPage() {
   const { user } = useAuth();
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sortBy, setSortBy] = useState<"daysOfStock" | "product">("daysOfStock");
-  const [inventoryData, setInventoryData] = useState<InventoryItem[]>([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("products");
+
+  // State
+  const [products, setProducts] = useState<ProductCatalogItem[]>([]);
+  const [metrics, setMetrics] = useState<DashboardMetricsSummary | null>(null);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(25);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedBulkIds, setSelectedBulkIds] = useState<string[]>([]);
 
-  const fetchInventory = useCallback(async () => {
-      if (!user) return;
-      setLoading(true);
-      setError(null);
+  // Modals state
+  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
+  const [selectedEditProduct, setSelectedEditProduct] = useState<ProductCatalogItem | null>(null);
 
-      /* Stock comes straight from the table; real daily demand comes from the
-         reorder planner. It is fetched alongside rather than blocking — if it
-         fails, rows fall back to a labelled estimate. */
-      const [{ data, error: fetchError }, demandByProduct] = await Promise.all([
-        supabase
-          .from("inventory")
-          .select("*")
-          .eq("store_id", user.id)
-          .order("created_at", { ascending: false }),
-        fetch("/api/reorder-planner", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.id }),
-        })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((json) => {
-            const map = new Map<string, { dailyDemand: number; demandSource: DemandSource }>();
-            for (const item of json?.items ?? []) {
-              map.set(String(item.productName).trim().toLowerCase(), {
-                dailyDemand: item.dailyDemand,
-                demandSource: item.demandSource,
-              });
-            }
-            return map;
-          })
-          .catch(() => new Map<string, { dailyDemand: number; demandSource: DemandSource }>()),
-      ]);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [selectedAdjustProduct, setSelectedAdjustProduct] = useState<ProductCatalogItem | null>(null);
 
-      if (fetchError) {
-        setError(fetchError.message);
-      } else {
-        setInventoryData(
-          (data ?? []).map((row) =>
-            transformItem(row, demandByProduct.get(String(row.product_name ?? "").trim().toLowerCase()))
-          )
-        );
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+
+  const storeId = user?.id || "";
+
+  // Fetch KPI Metrics
+  const fetchMetrics = useCallback(async () => {
+    if (!storeId) return;
+    try {
+      const res = await fetch(`/api/inventory/dashboard-summary?storeId=${storeId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMetrics(data);
       }
+    } catch (err) {
+      console.error("Error fetching inventory metrics:", err);
+    }
+  }, [storeId]);
+
+  // Fetch Products List
+  const fetchProducts = useCallback(async () => {
+    if (!storeId) return;
+    setLoading(true);
+    try {
+      const url = `/api/inventory?storeId=${storeId}&page=${page}&limit=${limit}&query=${encodeURIComponent(
+        searchQuery
+      )}&status=${statusFilter}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data.items || []);
+        setTotalProducts(data.total || 0);
+      }
+    } catch (err) {
+      console.error("Error fetching products:", err);
+    } finally {
       setLoading(false);
-  }, [user]);
+    }
+  }, [storeId, page, limit, searchQuery, statusFilter]);
 
   useEffect(() => {
-    if (!user) return;
-    fetchInventory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    if (storeId) {
+      fetchMetrics();
+      fetchProducts();
+    }
+  }, [storeId, fetchMetrics, fetchProducts]);
 
-  // The sidebar's Add Product modal announces new rows; without this the page
-  // kept showing a stale ledger until a manual refresh.
-  useEffect(() => {
-    window.addEventListener("products_updated", fetchInventory);
-    return () => window.removeEventListener("products_updated", fetchInventory);
-  }, [fetchInventory]);
-
-  const filtered = inventoryData
-    .filter((item: InventoryItem) => {
-      const matchesSearch = item.product.toLowerCase().includes(search.toLowerCase()) || item.sku.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a: InventoryItem, b: InventoryItem) => sortBy === "daysOfStock" ? a.daysOfStock - b.daysOfStock : a.product.localeCompare(b.product));
-
-  const measuredCount = inventoryData.filter((i: InventoryItem) => i.demandSource !== "estimate").length;
-
-  const summary = {
-    total: inventoryData.length,
-    critical: inventoryData.filter((i: InventoryItem) => i.status === "critical").length,
-    low: inventoryData.filter((i: InventoryItem) => i.status === "low").length,
-    overstock: inventoryData.filter((i: InventoryItem) => i.status === "overstock").length,
+  const handleArchiveProduct = async (id: string) => {
+    if (!confirm("Are you sure you want to archive this product?")) return;
+    try {
+      await fetch(`/api/inventory/${id}?storeId=${storeId}`, { method: "DELETE" });
+      fetchProducts();
+      fetchMetrics();
+    } catch (err) {
+      alert("Error archiving product.");
+    }
   };
 
-  if (loading) {
-    return <LoadingSkeleton />;
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
-        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <span className="text-sm">Failed to load inventory: {error}</span>
-          <button onClick={fetchInventory} className="fx-btn">Retry</button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
-      <div>
-        <h1 className="fx-display text-[24px] text-foreground">Inventory Management</h1>
-        <p className="text-[13px] text-muted-foreground mt-1.5">
-          {measuredCount > 0
-            ? `Stock levels and days of cover — demand measured from sales data for ${measuredCount} of ${summary.total} products.`
-            : "Stock levels and days of cover. No sales history yet, so daily demand is estimated from stock on hand."}
-        </p>
+    <div className="space-y-6 max-w-[1500px] mx-auto pb-12">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Package className="w-6 h-6 text-accent" /> Inventory Management 2.0
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Enterprise Single Source of Truth for Catalog, Stock Balances, FEFO Batches, Multi-Outlet Storage & Audit Ledger.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setIsCsvModalOpen(true)}
+            className="fx-btn fx-btn-outline text-xs flex items-center gap-1.5"
+          >
+            <FileText className="w-4 h-4" /> CSV Data Hub
+          </button>
+          <button
+            onClick={() => setIsBarcodeModalOpen(true)}
+            className="fx-btn fx-btn-outline text-xs flex items-center gap-1.5"
+          >
+            <Barcode className="w-4 h-4" /> Barcode Reader
+          </button>
+          <button
+            onClick={() => setIsMergeModalOpen(true)}
+            className="fx-btn fx-btn-outline text-xs flex items-center gap-1.5"
+          >
+            <GitMerge className="w-4 h-4" /> Product Merger
+          </button>
+          <button
+            onClick={() => {
+              setSelectedEditProduct(null);
+              setIsFormDrawerOpen(true);
+            }}
+            className="fx-btn fx-btn-primary text-xs flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> Create Product
+          </button>
+        </div>
       </div>
 
-      {/* ── Stock posture · one ledger strip ─────────────────────── */}
-      <section aria-label="Inventory summary" className="fx-card grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-[var(--border)] overflow-hidden">
-        <div className="p-5 sm:p-6">
-          <p className="fx-eyebrow">Total Products</p>
-          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.total}</p>
-          <p className="text-xs text-muted-foreground mt-2.5">Tracked SKUs</p>
-        </div>
-        <div className="p-5 sm:p-6">
-          <p className="fx-eyebrow">Critical</p>
-          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.critical}</p>
-          <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.critical > 0 ? "text-danger" : "text-muted-foreground"}`}>
-            <span className={`fx-signal ${summary.critical > 0 ? "fx-signal-danger" : "fx-signal-success"}`} aria-hidden="true" />
-            {summary.critical > 0 ? "Under 3 days supply" : "None at risk"}
-          </p>
-        </div>
-        <div className="p-5 sm:p-6">
-          <p className="fx-eyebrow">Low Stock</p>
-          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.low}</p>
-          <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.low > 0 ? "text-warning" : "text-muted-foreground"}`}>
-            <span className={`fx-signal ${summary.low > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
-            {summary.low > 0 ? "Reorder this week" : "All above threshold"}
-          </p>
-        </div>
-        <div className="p-5 sm:p-6">
-          <p className="fx-eyebrow">Overstock</p>
-          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.overstock}</p>
-          <p className="text-xs text-muted-foreground mt-2.5">Over 30 days supply</p>
-        </div>
-      </section>
+      {/* KPI Cards Strip */}
+      <InventoryKpiCards metrics={metrics} loading={loading && !metrics} />
 
-      {/* ── Controls · quiet toolbar, no card ─────────────────────── */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
-          <input
-            type="text"
-            placeholder="Search products or SKU..."
-            aria-label="Search products or SKU"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="fx-input pl-9"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          aria-label="Filter by status"
-          className="fx-input sm:w-44"
+      {/* Module Navigation Tabs */}
+      <div className="flex border-b border-border text-xs font-semibold overflow-x-auto">
+        <button
+          onClick={() => setActiveTab("products")}
+          className={`py-3 px-5 border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+            activeTab === "products" ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
         >
-          <option value="all">All Status</option>
-          <option value="critical">Critical</option>
-          <option value="low">Low Stock</option>
-          <option value="optimal">Optimal</option>
-          <option value="overstock">Overstock</option>
-        </select>
-        <button onClick={() => setSortBy(sortBy === "daysOfStock" ? "product" : "daysOfStock")} className="fx-btn">
-          <ArrowUpDown className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />
-          {sortBy === "daysOfStock" ? "Days of Stock" : "Name"}
+          <Package className="w-4 h-4" /> Products Catalog & Stock
+        </button>
+
+        <button
+          onClick={() => setActiveTab("expiry")}
+          className={`py-3 px-5 border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+            activeTab === "expiry" ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4" /> FEFO Expiry & Markdowns
+        </button>
+
+        <button
+          onClick={() => setActiveTab("ledger")}
+          className={`py-3 px-5 border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+            activeTab === "ledger" ? "border-accent text-accent" : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <History className="w-4 h-4" /> Stock Audit Ledger
         </button>
       </div>
 
-      {/* ── Ledger · desktop ──────────────────────────────────────── */}
-      <section aria-label="Inventory ledger" className="hidden md:block fx-card p-6">
-        <div className="flex items-baseline justify-between gap-3 mb-4">
-          <h2 className="fx-display text-[17px] text-foreground">Stock Ledger</h2>
-          <p className="text-xs text-muted-foreground fx-num">{filtered.length} of {inventoryData.length} products</p>
-        </div>
-        <div className="fx-table-scroll -mx-2">
-          <table className="fx-table min-w-[720px]">
-            <caption className="fx-sr-only">
-              Stock ledger: product and SKU, category, current stock against the recommended level, daily demand, days of cover left, and stock status. Product and Days Left are sortable.
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col" aria-sort={sortBy === "product" ? "ascending" : "none"}>
-                  <button type="button" className="fx-sort" onClick={() => setSortBy("product")}>
-                    Product
-                    {sortBy === "product"
-                      ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={2} />
-                      : <ArrowUpDown className="w-3.5 h-3.5 opacity-60" aria-hidden="true" strokeWidth={2} />}
-                  </button>
-                </th>
-                <th scope="col">Category</th>
-                <th scope="col" className="text-right">Current Stock</th>
-                <th scope="col" className="text-right">Recommended</th>
-                <th scope="col" className="text-right">Daily Demand</th>
-                <th scope="col" className="text-right" aria-sort={sortBy === "daysOfStock" ? "ascending" : "none"}>
-                  <button type="button" className="fx-sort" onClick={() => setSortBy("daysOfStock")}>
-                    Days Left
-                    {sortBy === "daysOfStock"
-                      ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={2} />
-                      : <ArrowUpDown className="w-3.5 h-3.5 opacity-60" aria-hidden="true" strokeWidth={2} />}
-                  </button>
-                </th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item) => {
-                const stockPercent = Math.min(100, (item.currentStock / item.recommendedStock) * 100);
-                return (
-                  <tr key={item.id}>
-                    <td>
-                      <p className="text-sm font-medium text-foreground">{item.product}</p>
-                      <p className="fx-num text-xs text-muted-foreground mt-0.5">{item.sku}</p>
-                    </td>
-                    <td className="text-xs text-muted-foreground">{item.category}</td>
-                    <td className="text-right">
-                      <p className="fx-num text-sm font-semibold text-foreground">{item.currentStock}</p>
-                      <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-1.5" aria-hidden="true">
-                        <div className="h-full rounded-full" style={{ width: `${stockPercent}%`, background: barColor[item.status] }} />
-                      </div>
-                    </td>
-                    <td className="text-right fx-num text-muted-foreground">{item.recommendedStock}</td>
-                    <td className="text-right fx-num text-secondary-foreground">{item.dailyDemand}</td>
-                    <td className="text-right">
-                      <span className={`fx-num font-semibold inline-flex items-center gap-1.5 ${item.daysOfStock <= 2 ? "text-danger" : item.daysOfStock <= 4 ? "text-warning" : "text-foreground"}`}>
-                        {item.daysOfStock <= 2 && <span className="fx-signal fx-signal-danger" aria-hidden="true" />}
-                        {item.daysOfStock > 2 && item.daysOfStock <= 4 && <span className="fx-signal fx-signal-warning" aria-hidden="true" />}
-                        {item.daysOfStock}d
-                      </span>
-                    </td>
-                    <td><StatusCell status={item.status} /></td>
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="py-10 text-center">
-                    <Package className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-50" aria-hidden="true" strokeWidth={1.8} />
-                    <p className="text-sm text-secondary-foreground font-medium">No products match</p>
-                    <p className="text-xs text-muted-foreground mt-1">Adjust the search or status filter to see inventory.</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {/* Tab Views */}
+      {activeTab === "products" && (
+        <ProductTable
+          products={products}
+          total={totalProducts}
+          page={page}
+          limit={limit}
+          loading={loading}
+          onPageChange={(p) => setPage(p)}
+          onSearchChange={(q) => {
+            setSearchQuery(q);
+            setPage(1);
+          }}
+          onStatusFilterChange={(s) => {
+            setStatusFilter(s);
+            setPage(1);
+          }}
+          onCategoryFilterChange={() => {}}
+          onEditProduct={(prod) => {
+            setSelectedEditProduct(prod);
+            setIsFormDrawerOpen(true);
+          }}
+          onAdjustStock={(prod) => {
+            setSelectedAdjustProduct(prod);
+            setIsAdjustModalOpen(true);
+          }}
+          onArchiveProduct={handleArchiveProduct}
+          onSelectBulk={(ids) => setSelectedBulkIds(ids)}
+          onOpenCreateModal={() => {
+            setSelectedEditProduct(null);
+            setIsFormDrawerOpen(true);
+          }}
+        />
+      )}
 
-      {/* ── Mobile · hairline-divided rows ────────────────────────── */}
-      <section aria-label="Inventory list" className="md:hidden fx-card px-5">
-        {filtered.map((item) => {
-          const stockPercent = Math.min(100, (item.currentStock / item.recommendedStock) * 100);
-          return (
-            <div key={item.id} className="py-4 border-b border-border last:border-b-0">
-              <div className="flex items-start justify-between gap-3 mb-2.5">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{item.product}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.category} · <span className="fx-num">{item.sku}</span></p>
-                </div>
-                <StatusCell status={item.status} />
-              </div>
-              <div className="w-full h-1 bg-muted rounded-full overflow-hidden mb-2.5" aria-hidden="true">
-                <div className="h-full rounded-full" style={{ width: `${stockPercent}%`, background: barColor[item.status] }} />
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <p className="fx-eyebrow">Stock</p>
-                  <p className="fx-num fx-metric-sm text-foreground mt-0.5">{item.currentStock}</p>
-                </div>
-                <div>
-                  <p className="fx-eyebrow">Demand /day</p>
-                  <p className="fx-num fx-metric-sm text-foreground mt-0.5">{item.dailyDemand}</p>
-                </div>
-                <div>
-                  <p className="fx-eyebrow">Days Left</p>
-                  <p className={`fx-num fx-metric-sm mt-0.5 inline-flex items-center gap-1.5 ${item.daysOfStock <= 2 ? "text-danger" : item.daysOfStock <= 4 ? "text-warning" : "text-foreground"}`}>
-                    {item.daysOfStock <= 2 && <span className="fx-signal fx-signal-danger" aria-hidden="true" />}
-                    {item.daysOfStock > 2 && item.daysOfStock <= 4 && <span className="fx-signal fx-signal-warning" aria-hidden="true" />}
-                    {item.daysOfStock}d
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="py-10 text-center">
-            <Package className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-50" aria-hidden="true" strokeWidth={1.8} />
-            <p className="text-sm text-secondary-foreground font-medium">No products match</p>
-            <p className="text-xs text-muted-foreground mt-1">Adjust the search or status filter to see inventory.</p>
-          </div>
-        )}
-      </section>
+      {activeTab === "expiry" && <BatchExpiryManager storeId={storeId} />}
+
+      {activeTab === "ledger" && <InventoryLedgerView storeId={storeId} />}
+
+      {/* Modals & Drawers */}
+      <ProductFormDrawer
+        isOpen={isFormDrawerOpen}
+        onClose={() => setIsFormDrawerOpen(false)}
+        product={selectedEditProduct}
+        storeId={storeId}
+        onSaved={() => {
+          fetchProducts();
+          fetchMetrics();
+        }}
+      />
+
+      <StockAdjustmentModal
+        isOpen={isAdjustModalOpen}
+        onClose={() => setIsAdjustModalOpen(false)}
+        product={selectedAdjustProduct}
+        storeId={storeId}
+        onAdjusted={() => {
+          fetchProducts();
+          fetchMetrics();
+        }}
+      />
+
+      <CsvImportExportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        storeId={storeId}
+        onImportCompleted={() => {
+          fetchProducts();
+          fetchMetrics();
+        }}
+      />
+
+      <BarcodeScannerModal
+        isOpen={isBarcodeModalOpen}
+        onClose={() => setIsBarcodeModalOpen(false)}
+        products={products}
+      />
+
+      <ProductMergeModal
+        isOpen={isMergeModalOpen}
+        onClose={() => setIsMergeModalOpen(false)}
+        products={products}
+        storeId={storeId}
+        onMerged={() => {
+          fetchProducts();
+          fetchMetrics();
+        }}
+      />
     </div>
   );
 }
