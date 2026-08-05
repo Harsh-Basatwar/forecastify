@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings } from "lucide-react";
+import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { supabase } from "@/lib/supabase";
@@ -17,6 +17,7 @@ const navSections = [
     titleKey: "nav.section.command",
     items: [
       { href: "/dashboard", labelKey: "nav.overview", icon: LayoutDashboard },
+      { href: "/dashboard/billing", labelKey: "nav.billing", icon: Receipt },
       { href: "/dashboard/jarvis", labelKey: "nav.jarvis", icon: Bot },
     ],
   },
@@ -49,6 +50,7 @@ const navSections = [
   {
     titleKey: "nav.section.operations",
     items: [
+      { href: "/dashboard/sales", labelKey: "nav.sales", icon: DollarSign },
       { href: "/dashboard/purchase-list", labelKey: "nav.purchaseList", icon: ShoppingCart },
       { href: "/dashboard/inventory", labelKey: "nav.inventory", icon: Package },
       { href: "/dashboard/expiry-risk", labelKey: "nav.expiryRisk", icon: Clock },

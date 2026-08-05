@@ -1,5 +1,5 @@
 const hi: Record<string, string> = {
-  "nav.overview": "ओवरव्यू", "nav.jarvis": "जार्विस", "nav.demandSpikes": "डिमांड स्पाइक्स",
+  "nav.overview": "ओवरव्यू", "nav.billing": "बिलिंग (POS)", "nav.sales": "बिक्री और रसीद", "nav.jarvis": "जार्विस", "nav.demandSpikes": "डिमांड स्पाइक्स",
   "nav.productAnalysis": "प्रोडक्ट एनालिसिस", "nav.categoryAnalysis": "कैटेगरी एनालिसिस",
   "nav.purchaseList": "खरीदारी लिस्ट", "nav.marketInsights": "मार्केट इनसाइट्स", "nav.whatIf": "क्या-अगर सिम्युलेटर", "nav.federated": "पीयर इंटेलिजेंस",
   "nav.modelAccuracy": "मॉडल एक्यूरेसी", "nav.expiryRisk": "एक्सपायरी रिस्क", "nav.inventoryHealth": "हेल्थ स्कोर", "nav.reorderPlanner": "रीऑर्डर प्लानर",

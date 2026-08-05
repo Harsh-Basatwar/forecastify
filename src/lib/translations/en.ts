@@ -7,6 +7,8 @@ const en: Record<string, string> = {
   "nav.section.operations": "Operations",
   // Nav
   "nav.overview": "Overview",
+  "nav.billing": "POS & Billing",
+  "nav.sales": "Sales & Invoices",
   "nav.jarvis": "Jarvis",
   "nav.demandSpikes": "Demand Spikes",
   "nav.productAnalysis": "Product Analysis",

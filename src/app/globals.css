@@ -506,28 +506,6 @@
   }
   .fx-sort:hover { color: var(--foreground); }
 
-  /* ── Skeletons ───────────────────────────────────────────── */
-  .skeleton-shimmer {
-    position: relative;
-    overflow: hidden;
-    background-color: var(--muted);
-    border-radius: var(--radius-sm);
-  }
-  .skeleton-shimmer::after {
-    position: absolute;
-    inset: 0;
-    transform: translateX(-100%);
-    background-image: linear-gradient(
-      90deg,
-      transparent 0,
-      color-mix(in srgb, var(--foreground) 4%, transparent) 40%,
-      color-mix(in srgb, var(--foreground) 7%, transparent) 60%,
-      transparent
-    );
-    animation: shimmer 1.6s infinite ease-in-out;
-    content: '';
-  }
-
   /* Elevation classes — warm-tinted, unlike Tailwind's black shadow-* */
   .fx-elev-xs { box-shadow: var(--shadow-xs); }
   .fx-elev-sm { box-shadow: var(--shadow-sm); }
@@ -562,6 +540,28 @@
     transition: transform var(--t-fast) var(--ease-out);
   }
   .fx-skip-link:focus { transform: translateY(0); }
+
+  /* ── Skeletons ───────────────────────────────────────────── */
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--muted);
+    border-radius: var(--radius-sm);
+  }
+  .skeleton-shimmer::after {
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0,
+      color-mix(in srgb, var(--foreground) 4%, transparent) 40%,
+      color-mix(in srgb, var(--foreground) 7%, transparent) 60%,
+      transparent
+    );
+    animation: shimmer 1.6s infinite ease-in-out;
+    content: '';
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
