@@ -41,11 +41,218 @@ export interface StockTransferInput {
   userId?: string;
 }
 
+export interface ReceiveStockItemInput {
+  poItemId?: string;
+  productId: string;
+  variantId?: string;
+  supplierId?: string;
+  batchNumber: string;
+  mfgDate?: string;
+  expiryDate: string;
+  qtyReceived: number;
+  qtyAccepted: number;
+  qtyRejected: number;
+  rejectionReason?: string;
+  qualityStatus: 'pass' | 'partial_pass' | 'fail' | 'damaged' | 'expired' | 'wrong_product' | 'wrong_quantity' | 'quarantine';
+  costPrice: number;
+  gstRate?: number;
+  notes?: string;
+}
+
+export interface ReceiveStockInput {
+  storeId: string;
+  grnId: string;
+  grnNumber: string;
+  poId: string;
+  supplierId: string;
+  locationId?: string;
+  inspectorId?: string;
+  invoiceNumber?: string;
+  items: ReceiveStockItemInput[];
+  userId?: string;
+}
+
 export class InventoryDomainService {
   private client: SupabaseClient;
 
   constructor(customClient?: SupabaseClient) {
     this.client = customClient || createClient(supabaseUrl, supabaseAnonKey);
+  }
+
+  /**
+   * Centralized Authority: Update Incoming (On-Order) Stock
+   */
+  public async updateIncomingStock(storeId: string, productId: string, qtyChange: number) {
+    const { data: inv } = await this.client
+      .from("inventory")
+      .select("id, incoming_stock, on_order_stock")
+      .eq("id", productId)
+      .eq("store_id", storeId)
+      .single();
+
+    if (inv) {
+      const newIncoming = Math.max(0, (inv.incoming_stock || inv.on_order_stock || 0) + qtyChange);
+      await this.client
+        .from("inventory")
+        .update({
+          incoming_stock: newIncoming,
+          on_order_stock: newIncoming,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", productId)
+        .eq("store_id", storeId);
+    }
+  }
+
+  /**
+   * Central Authority method: Receive Inventory via GRN Quality Check
+   * Rejection inventory does NOT update current inventory stock.
+   */
+  public async receiveStock(input: ReceiveStockInput) {
+    if (!input.storeId || !input.grnId || !input.items || input.items.length === 0) {
+      throw new Error("Invalid GRN stock receive payload.");
+    }
+
+    const processedItems = [];
+
+    for (const item of input.items) {
+      // Fetch current product & stock
+      const { data: product } = await this.client
+        .from("products")
+        .select("name")
+        .eq("id", item.productId)
+        .single();
+
+      let productName = product?.name;
+      if (!productName) {
+        const { data: invLegacy } = await this.client
+          .from("inventory")
+          .select("product_name")
+          .eq("id", item.productId)
+          .single();
+        productName = invLegacy?.product_name || "Product";
+      }
+
+      const { data: inv } = await this.client
+        .from("inventory")
+        .select("*")
+        .eq("id", item.productId)
+        .eq("store_id", input.storeId)
+        .single();
+
+      const previousStock = inv?.current_stock ?? inv?.available_stock ?? 0;
+      const acceptedQty = Math.max(0, item.qtyAccepted);
+      const newStock = previousStock + acceptedQty;
+
+      // 1. Update Inventory Table ONLY if acceptedQty > 0
+      if (inv) {
+        const currentIncoming = inv.incoming_stock || 0;
+        const newIncoming = Math.max(0, currentIncoming - item.qtyReceived);
+
+        await this.client
+          .from("inventory")
+          .update({
+            current_stock: newStock,
+            available_stock: (inv.available_stock || previousStock) + acceptedQty,
+            incoming_stock: newIncoming,
+            on_order_stock: newIncoming,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", item.productId)
+          .eq("store_id", input.storeId);
+      }
+
+      // 2. Batch Creation / Update (FEFO tracking) if acceptedQty > 0
+      if (acceptedQty > 0) {
+        const { data: existingBatch } = await this.client
+          .from("product_batches")
+          .select("id, current_quantity")
+          .eq("store_id", input.storeId)
+          .eq("product_id", item.productId)
+          .eq("batch_number", item.batchNumber)
+          .maybeSingle();
+
+        if (existingBatch) {
+          await this.client
+            .from("product_batches")
+            .update({
+              current_quantity: existingBatch.current_quantity + acceptedQty,
+              status: "active",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", existingBatch.id);
+        } else {
+          await this.client.from("product_batches").insert({
+            store_id: input.storeId,
+            product_id: item.productId,
+            variant_id: item.variantId || null,
+            supplier_id: input.supplierId,
+            batch_number: item.batchNumber,
+            mfg_date: item.mfgDate || null,
+            expiry_date: item.expiryDate,
+            received_date: new Date().toISOString().split("T")[0],
+            cost_price: item.costPrice,
+            purchase_price: item.costPrice,
+            initial_quantity: acceptedQty,
+            current_quantity: acceptedQty,
+            status: "active",
+            invoice_ref: input.invoiceNumber || input.grnNumber,
+          });
+        }
+      }
+
+      // 3. Write Immutable Ledger Record
+      await this.createLedgerEntry({
+        storeId: input.storeId,
+        productId: item.productId,
+        productName: productName || "Product",
+        previousStock,
+        changeAmount: acceptedQty,
+        newStock,
+        transactionType: "GRN_RECEIPT",
+        referenceId: input.grnNumber,
+        notes: `GRN Receipt (${item.qualityStatus}): Accepted ${acceptedQty}, Rejected ${item.qtyRejected}. ${item.rejectionReason || ""}`,
+        batchId: item.batchNumber,
+      });
+
+      // 4. Record Supplier Price History
+      if (input.supplierId && item.costPrice > 0) {
+        await this.client.from("supplier_price_history").insert({
+          store_id: input.storeId,
+          supplier_id: input.supplierId,
+          product_id: item.productId,
+          variant_id: item.variantId || null,
+          purchase_price: item.costPrice,
+          gst_rate: item.gstRate || 0,
+          date: new Date().toISOString().split("T")[0],
+          invoice_ref: input.invoiceNumber || input.grnNumber,
+        });
+      }
+
+      processedItems.push({
+        productId: item.productId,
+        productName,
+        previousStock,
+        newStock,
+        acceptedQty,
+        rejectedQty: item.qtyRejected,
+      });
+    }
+
+    // 5. Emit Granular Events
+    await InventoryEventBus.emit({
+      event: "inventory.stock.adjusted",
+      product_id: input.grnId,
+      product_name: `GRN Received ${input.grnNumber}`,
+      quantity: processedItems.reduce((acc, i) => acc + i.acceptedQty, 0),
+      reason: `Goods Received Note Inspection completed`,
+      store_id: input.storeId,
+      user_id: input.userId,
+      timestamp: new Date().toISOString(),
+      metadata: { grnNumber: input.grnNumber, poId: input.poId, items: processedItems },
+    });
+
+    return { success: true, processedItems };
   }
 
   /**

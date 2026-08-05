@@ -51,7 +51,8 @@ const navSections = [
     titleKey: "nav.section.operations",
     items: [
       { href: "/dashboard/sales", labelKey: "nav.sales", icon: DollarSign },
-      { href: "/dashboard/purchase-list", labelKey: "nav.purchaseList", icon: ShoppingCart },
+      { href: "/dashboard/procurement", labelKey: "Procurement Hub", icon: ShoppingCart },
+      { href: "/dashboard/purchase-list", labelKey: "nav.purchaseList", icon: ClipboardList },
       { href: "/dashboard/inventory", labelKey: "nav.inventory", icon: Package },
       { href: "/dashboard/expiry-risk", labelKey: "nav.expiryRisk", icon: Clock },
       { href: "/dashboard/alerts", labelKey: "nav.alerts", icon: AlertTriangle },
