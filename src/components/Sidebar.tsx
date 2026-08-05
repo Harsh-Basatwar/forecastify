@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff } from "lucide-react";
+import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { supabase } from "@/lib/supabase";
@@ -30,6 +30,15 @@ const navSections = [
     ],
   },
   {
+    titleKey: "nav.section.planning",
+    items: [
+      { href: "/dashboard/forecasts", labelKey: "nav.forecasts", icon: TrendingUp },
+      { href: "/dashboard/reorder-planner", labelKey: "nav.reorderPlanner", icon: ClipboardList },
+      { href: "/dashboard/inventory-health", labelKey: "nav.inventoryHealth", icon: HeartPulse },
+      { href: "/dashboard/model-accuracy", labelKey: "nav.modelAccuracy", icon: Target },
+    ],
+  },
+  {
     titleKey: "nav.section.market",
     items: [
       { href: "/dashboard/news", labelKey: "nav.news", icon: Newspaper },
@@ -44,6 +53,7 @@ const navSections = [
       { href: "/dashboard/inventory", labelKey: "nav.inventory", icon: Package },
       { href: "/dashboard/expiry-risk", labelKey: "nav.expiryRisk", icon: Clock },
       { href: "/dashboard/alerts", labelKey: "nav.alerts", icon: AlertTriangle },
+      { href: "/dashboard/federated-intelligence", labelKey: "nav.federated", icon: Users },
       { href: "/dashboard/extension", labelKey: "nav.extension", icon: Puzzle },
     ],
   },
@@ -281,6 +291,15 @@ export default function Sidebar() {
                 <p className="text-[13.5px] font-semibold text-foreground truncate leading-tight">{userName}</p>
                 <p className="text-[11.5px] text-muted-foreground truncate leading-tight mt-0.5">{storeName}</p>
               </div>
+              <Link
+                href="/dashboard/settings"
+                onClick={onMobileClose}
+                aria-label={t("nav.settings")}
+                aria-current={pathname === "/dashboard/settings" ? "page" : undefined}
+                className="fx-icon-btn shrink-0"
+              >
+                <Settings className="w-4 h-4" aria-hidden="true" />
+              </Link>
               <button
                 onClick={signOut}
                 aria-label={t("nav.signOut")}

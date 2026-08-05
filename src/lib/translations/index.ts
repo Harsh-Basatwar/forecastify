@@ -51,7 +51,7 @@ export const LANGUAGES: { code: LangCode; name: string; nativeName: string; flag
   { code: "hr", name: "Croatian", nativeName: "Hrvatski", flag: "🇭🇷" },
   { code: "lt", name: "Lithuanian", nativeName: "Lietuvių", flag: "🇱🇹" },
   { code: "sr", name: "Serbian", nativeName: "Српски", flag: "🇷🇸" },
-  { code: "sl", name: "Slovenian", nativeName: "Slovenščিনা", flag: "🇸🇮" },
+  { code: "sl", name: "Slovenian", nativeName: "Slovenščina", flag: "🇸🇮" },
   { code: "et", name: "Estonian", nativeName: "Eesti", flag: "🇪🇪" },
   { code: "lv", name: "Latvian", nativeName: "Latviešu", flag: "🇱🇻" },
   { code: "sw", name: "Swahili", nativeName: "Kiswahili", flag: "🇰🇪" },

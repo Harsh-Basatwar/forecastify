@@ -9,6 +9,10 @@ import { useAuth } from "@/lib/auth-context";
 type Status = "critical" | "low" | "optimal" | "overstock";
 type Trend = "rising" | "falling" | "stable";
 
+/** Where a row's daily demand came from — surfaced so an estimate is never
+    mistaken for a measurement. */
+type DemandSource = "forecast" | "historic" | "estimate";
+
 interface InventoryItem {
   id: number;
   product: string;
@@ -18,19 +22,33 @@ interface InventoryItem {
   recommendedStock: number;
   dailyDemand: number;
   daysOfStock: number;
+  demandSource: DemandSource;
   status: Status;
   trend: Trend;
 }
 
-function transformItem(row: any): InventoryItem {
+/**
+ * `demand` comes from /api/reorder-planner, which derives it from the demand
+ * forecast or the last 14 days of sales. Without it we fall back to a
+ * stock-based guess — which cannot produce a meaningful days-of-cover number,
+ * so status then keys off raw stock counts instead.
+ */
+function transformItem(row: any, demand?: { dailyDemand: number; demandSource: DemandSource }): InventoryItem {
   const currentStock = row.current_stock ?? 0;
-  // Status based on AI-driven daily demand from historic sales
-  // critical: < 3 days supply, low: < 7 days, overstock: > 30 days
-  const dailyDemand = Math.max(1, Math.round(currentStock / 14));
-  const daysOfStock = dailyDemand > 0 ? Math.round(currentStock / dailyDemand) : 0;
+  const hasRealDemand = !!demand && demand.demandSource !== "estimate" && demand.dailyDemand > 0;
+
+  const dailyDemand = hasRealDemand
+    ? demand!.dailyDemand
+    : Math.max(1, Math.round(currentStock / 14));
+  const daysOfStock = Math.round((currentStock / dailyDemand) * 10) / 10;
 
   let status: Status = "optimal";
-  if (currentStock <= 5) status = "critical";
+  if (hasRealDemand) {
+    // Days of cover: critical < 3 days, low < 7 days, overstock > 30 days.
+    if (daysOfStock < 3) status = "critical";
+    else if (daysOfStock < 7) status = "low";
+    else if (daysOfStock > 30) status = "overstock";
+  } else if (currentStock <= 5) status = "critical";
   else if (currentStock <= 15) status = "low";
   else if (currentStock >= 150) status = "overstock";
 
@@ -41,8 +59,9 @@ function transformItem(row: any): InventoryItem {
     category: row.category ?? "General",
     currentStock,
     recommendedStock: Math.ceil(dailyDemand * 14),
-    dailyDemand,
+    dailyDemand: Math.round(dailyDemand * 10) / 10,
     daysOfStock,
+    demandSource: hasRealDemand ? demand!.demandSource : "estimate",
     status,
     trend: "stable" as Trend,
   };
@@ -119,16 +138,43 @@ export default function InventoryPage() {
       if (!user) return;
       setLoading(true);
       setError(null);
-      const { data, error: fetchError } = await supabase
-        .from("inventory")
-        .select("*")
-        .eq("store_id", user.id)
-        .order("created_at", { ascending: false });
+
+      /* Stock comes straight from the table; real daily demand comes from the
+         reorder planner. It is fetched alongside rather than blocking — if it
+         fails, rows fall back to a labelled estimate. */
+      const [{ data, error: fetchError }, demandByProduct] = await Promise.all([
+        supabase
+          .from("inventory")
+          .select("*")
+          .eq("store_id", user.id)
+          .order("created_at", { ascending: false }),
+        fetch("/api/reorder-planner", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((json) => {
+            const map = new Map<string, { dailyDemand: number; demandSource: DemandSource }>();
+            for (const item of json?.items ?? []) {
+              map.set(String(item.productName).trim().toLowerCase(), {
+                dailyDemand: item.dailyDemand,
+                demandSource: item.demandSource,
+              });
+            }
+            return map;
+          })
+          .catch(() => new Map<string, { dailyDemand: number; demandSource: DemandSource }>()),
+      ]);
 
       if (fetchError) {
         setError(fetchError.message);
       } else {
-        setInventoryData((data ?? []).map(transformItem));
+        setInventoryData(
+          (data ?? []).map((row) =>
+            transformItem(row, demandByProduct.get(String(row.product_name ?? "").trim().toLowerCase()))
+          )
+        );
       }
       setLoading(false);
   }, [user]);
@@ -139,6 +185,13 @@ export default function InventoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // The sidebar's Add Product modal announces new rows; without this the page
+  // kept showing a stale ledger until a manual refresh.
+  useEffect(() => {
+    window.addEventListener("products_updated", fetchInventory);
+    return () => window.removeEventListener("products_updated", fetchInventory);
+  }, [fetchInventory]);
+
   const filtered = inventoryData
     .filter((item: InventoryItem) => {
       const matchesSearch = item.product.toLowerCase().includes(search.toLowerCase()) || item.sku.toLowerCase().includes(search.toLowerCase());
@@ -146,6 +199,8 @@ export default function InventoryPage() {
       return matchesSearch && matchesStatus;
     })
     .sort((a: InventoryItem, b: InventoryItem) => sortBy === "daysOfStock" ? a.daysOfStock - b.daysOfStock : a.product.localeCompare(b.product));
+
+  const measuredCount = inventoryData.filter((i: InventoryItem) => i.demandSource !== "estimate").length;
 
   const summary = {
     total: inventoryData.length,
@@ -174,7 +229,9 @@ export default function InventoryPage() {
       <div>
         <h1 className="fx-display text-[24px] text-foreground">Inventory Management</h1>
         <p className="text-[13px] text-muted-foreground mt-1.5">
-          Monitor stock levels, daily demand, and AI restock recommendations
+          {measuredCount > 0
+            ? `Stock levels and days of cover — demand measured from sales data for ${measuredCount} of ${summary.total} products.`
+            : "Stock levels and days of cover. No sales history yet, so daily demand is estimated from stock on hand."}
         </p>
       </div>
 

@@ -162,7 +162,7 @@ export default function ModelAccuracyPage() {
       {/* Page lead — editorial, no card */}
       <div>
         <h1 className="fx-display text-[24px] text-foreground">
-          {t("modelAccuracy") || "Model Accuracy"}
+          {t("nav.modelAccuracy")}
         </h1>
         <p className="text-[13px] text-muted-foreground mt-1.5">
           How well our demand forecasts match actual sales

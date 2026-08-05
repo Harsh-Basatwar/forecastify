@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
+import { validateGstin } from "@/lib/gstin";
 import AuthBackground from "@/components/auth/AuthBackground";
 import AuthLeftPanel from "@/components/auth/AuthLeftPanel";
 import AuthCard from "@/components/auth/AuthCard";
@@ -57,6 +58,7 @@ interface SignupFieldErrors {
   storeName?: string;
   storeCategory?: string;
   storeSize?: string;
+  gstNumber?: string;
 }
 
 export default function SignupPage() {
@@ -119,6 +121,14 @@ export default function SignupPage() {
         storeCategory: formData.storeCategory ? undefined : "Store category is required",
         storeSize: formData.storeSize ? undefined : "Store size is required",
       });
+      return;
+    }
+    // GST is optional, but a malformed one must not reach the profile — it
+    // ends up on tax documents.
+    const gstError = validateGstin(formData.gstNumber);
+    if (gstError) {
+      setError(gstError);
+      setFieldErrors({ gstNumber: gstError });
       return;
     }
     setError(""); setFieldErrors({}); setLoading(true);
@@ -437,9 +447,14 @@ export default function SignupPage() {
                     id="su-gst"
                     label="GST Number"
                     type="text"
+                    maxLength={15}
+                    spellCheck={false}
                     value={formData.gstNumber}
-                    onChange={(e) => updateField("gstNumber", e.target.value)}
-                    placeholder="22AAAAA0000A1Z5"
+                    onChange={(e) => updateField("gstNumber", e.target.value.toUpperCase())}
+                    placeholder="27AAPFU0939F1ZV"
+                    hint="Optional — leave blank if not GST registered"
+                    error={fieldErrors.gstNumber}
+                    className="uppercase"
                   />
                   <AnimatedInput
                     id="su-outlets"

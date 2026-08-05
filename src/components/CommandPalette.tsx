@@ -13,6 +13,10 @@ const DESTINATIONS: { href: string; labelKey: string; group: string }[] = [
   { href: "/dashboard/product-analysis", labelKey: "nav.productAnalysis", group: "nav.section.intelligence" },
   { href: "/dashboard/category-analysis", labelKey: "nav.categoryAnalysis", group: "nav.section.intelligence" },
   { href: "/dashboard/what-if", labelKey: "nav.whatIf", group: "nav.section.intelligence" },
+  { href: "/dashboard/forecasts", labelKey: "nav.forecasts", group: "nav.section.planning" },
+  { href: "/dashboard/reorder-planner", labelKey: "nav.reorderPlanner", group: "nav.section.planning" },
+  { href: "/dashboard/inventory-health", labelKey: "nav.inventoryHealth", group: "nav.section.planning" },
+  { href: "/dashboard/model-accuracy", labelKey: "nav.modelAccuracy", group: "nav.section.planning" },
   { href: "/dashboard/news", labelKey: "nav.news", group: "nav.section.market" },
   { href: "/dashboard/promotions", labelKey: "nav.promotions", group: "nav.section.market" },
   { href: "/dashboard/market-insights", labelKey: "nav.marketInsights", group: "nav.section.market" },
@@ -20,6 +24,7 @@ const DESTINATIONS: { href: string; labelKey: string; group: string }[] = [
   { href: "/dashboard/inventory", labelKey: "nav.inventory", group: "nav.section.operations" },
   { href: "/dashboard/expiry-risk", labelKey: "nav.expiryRisk", group: "nav.section.operations" },
   { href: "/dashboard/alerts", labelKey: "nav.alerts", group: "nav.section.operations" },
+  { href: "/dashboard/federated-intelligence", labelKey: "nav.federated", group: "nav.section.operations" },
   { href: "/dashboard/extension", labelKey: "nav.extension", group: "nav.section.operations" },
   { href: "/dashboard/settings", labelKey: "nav.settings", group: "nav.section.operations" },
 ];

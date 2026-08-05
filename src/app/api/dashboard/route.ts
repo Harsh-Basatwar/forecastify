@@ -650,7 +650,10 @@ export async function POST(request: Request) {
       externalSummary,
       signalSummary,
       lang,
-      true
+      /* Use the once-a-day cache in ai_narratives. Forcing a refresh here made
+         every dashboard load pay for a Groq call and insert a duplicate row,
+         which is also why the narrative changed on every navigation. */
+      false
     );
 
     const sinceOneHour = new Date(now);

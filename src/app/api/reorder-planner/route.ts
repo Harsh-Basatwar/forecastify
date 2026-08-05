@@ -40,15 +40,16 @@ export async function POST(request: Request) {
 
     const { data: forecasts } = await supabase
       .from("demand_forecast")
-      .select("product_name, predicted_units_sold, forecast_date")
+      .select("product_id, predicted_units_sold, date")
       .eq("store_id", 1)
-      .gte("forecast_date", todayStr)
-      .lte("forecast_date", next7Str);
+      .gte("date", todayStr)
+      .lte("date", next7Str);
 
-    // Get products table for lead_time_days
+    // Get products table for lead_time_days. `product_id` also resolves the
+    // forecast rows above, which are keyed by id rather than name.
     const { data: products } = await supabase
       .from("products")
-      .select("name, lead_time_days, category");
+      .select("product_id, product_name, lead_time_days, category");
 
     // Get historic sales (last 14 days, matched by city)
     const past14 = new Date(today);
@@ -57,42 +58,60 @@ export async function POST(request: Request) {
 
     const { data: historicSales } = await supabase
       .from("historic_sales")
-      .select("product_name, units_sold, date")
+      .select("product_name, quantity_sold, date")
       .eq("city", city)
       .gte("date", past14Str)
       .lte("date", todayStr);
 
+    /* Inventory names are user-typed and rarely match the catalog casing, so
+       every lookup below is keyed on a normalized name. */
+    const key = (name: unknown) => String(name ?? "").trim().toLowerCase();
+
+    // product_id -> catalog name, so forecast rows can be matched by name.
+    const productNameById: Record<string, string> = {};
+    const leadTimeMap: Record<string, number> = {};
+    products?.forEach((p: any) => {
+      productNameById[String(p.product_id)] = key(p.product_name);
+      leadTimeMap[key(p.product_name)] = p.lead_time_days || 3;
+    });
+
     // Build lookup maps
     const forecastMap: Record<string, number> = {};
     forecasts?.forEach((f: any) => {
-      forecastMap[f.product_name] = (forecastMap[f.product_name] || 0) + (f.predicted_units_sold || 0);
+      const name = productNameById[String(f.product_id)];
+      if (!name) return;
+      forecastMap[name] = (forecastMap[name] || 0) + (f.predicted_units_sold || 0);
     });
 
     const historicMap: Record<string, number[]> = {};
     historicSales?.forEach((s: any) => {
-      if (!historicMap[s.product_name]) historicMap[s.product_name] = [];
-      historicMap[s.product_name].push(s.units_sold || 0);
-    });
-
-    const leadTimeMap: Record<string, number> = {};
-    products?.forEach((p: any) => {
-      leadTimeMap[p.name] = p.lead_time_days || 3;
+      const name = key(s.product_name);
+      if (!historicMap[name]) historicMap[name] = [];
+      historicMap[name].push(s.quantity_sold || 0);
     });
 
     // Calculate reorder data for each inventory product
     const items = inventory.map((item: any) => {
+      const name = key(item.product_name);
+
       // Daily demand: forecast sum / 7, or historic average
       let dailyDemand = 0;
-      if (forecastMap[item.product_name]) {
-        dailyDemand = forecastMap[item.product_name] / 7;
-      } else if (historicMap[item.product_name]?.length) {
-        const total = historicMap[item.product_name].reduce((a: number, b: number) => a + b, 0);
-        dailyDemand = total / historicMap[item.product_name].length;
+      let demandSource: "forecast" | "historic" | "estimate";
+      if (forecastMap[name]) {
+        dailyDemand = forecastMap[name] / 7;
+        demandSource = "forecast";
+      } else if (historicMap[name]?.length) {
+        const total = historicMap[name].reduce((a: number, b: number) => a + b, 0);
+        dailyDemand = total / historicMap[name].length;
+        demandSource = "historic";
       } else {
         dailyDemand = Math.max(1, Math.round(item.current_stock * 0.05)); // fallback
+        demandSource = "estimate";
       }
+      // A zero average would make daysUntilReorder divide by zero below.
+      dailyDemand = Math.max(dailyDemand, 0.1);
 
-      const leadTimeDays = leadTimeMap[item.product_name] || 3;
+      const leadTimeDays = leadTimeMap[name] || 3;
       const safetyStock = dailyDemand * 2;
       const reorderPoint = (dailyDemand * leadTimeDays) + safetyStock;
       const currentStock = item.current_stock || 0;
@@ -116,6 +135,7 @@ export async function POST(request: Request) {
         category: item.category,
         currentStock,
         dailyDemand: Math.round(dailyDemand * 10) / 10,
+        demandSource,
         leadTimeDays,
         reorderPoint: Math.round(reorderPoint),
         safetyStock: Math.round(safetyStock),
@@ -141,9 +161,14 @@ export async function POST(request: Request) {
       ? Math.round((items.reduce((s: number, i: any) => s + i.leadTimeDays, 0) / items.length) * 10) / 10
       : 0;
 
+    /* How many rows are backed by real demand data vs. a stock-based guess —
+       the page shows this so the numbers are never mistaken for measured. */
+    const demandSources = { forecast: 0, historic: 0, estimate: 0 };
+    items.forEach((i: any) => { demandSources[i.demandSource as keyof typeof demandSources]++; });
+
     return Response.json({
       items,
-      summary: { reorderNow, totalCost, avgLeadTime },
+      summary: { reorderNow, totalCost, avgLeadTime, demandSources },
     });
   } catch (err: any) {
     console.error("Reorder planner error:", err);

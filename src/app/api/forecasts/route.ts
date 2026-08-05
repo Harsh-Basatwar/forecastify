@@ -109,10 +109,14 @@ export async function POST(request: Request) {
       const daysOfStock = avgDemand > 0 ? Math.round((currentStock / avgDemand) * 10) / 10 : 999;
 
       // Status
+      /* Overstock is measured in days of cover, not against the stock figure
+         itself — the previous `currentStock > inv.current_stock * 2` compared
+         a value to itself and could never be true. Demand must be known:
+         daysOfStock is a placeholder 999 when there is no forecast. */
       let status: string;
       if (daysOfStock < 2) status = "critical";
       else if (daysOfStock < 5) status = "low";
-      else if (inv && currentStock > inv.current_stock * 2) status = "overstock";
+      else if (avgDemand > 0 && daysOfStock > 30) status = "overstock";
       else status = "optimal";
 
       // Trend

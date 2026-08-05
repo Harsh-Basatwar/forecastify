@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { User, Store, Bell, Shield, Save, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { validateGstin } from "@/lib/gstin";
 import { createClient } from "@supabase/supabase-js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -11,6 +12,11 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+/** PostgREST reports an unknown column as PGRST204 rather than a PG error code. */
+function isMissingColumn(error: any, column: string): boolean {
+  return error?.code === "PGRST204" || String(error?.message || "").includes(`'${column}' column`);
+}
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -23,14 +29,29 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState({ fullName: "", email: "", phone: "" });
   const [store, setStore] = useState({ storeName: "", storeCategory: "", storeSize: "", address: "", city: "", state: "", gstNumber: "" });
   const [notifications, setNotifications] = useState({ emailAlerts: true, criticalOnly: false, dailyDigest: true, weeklyReport: true });
+  // Validate GSTIN on blur rather than per keystroke, so a half-typed number
+  // is not flagged as wrong while the user is still entering it.
+  const [gstTouched, setGstTouched] = useState(false);
+  const gstFieldError = validateGstin(store.gstNumber);
+  /* Profiles created before validation existed can hold a malformed GSTIN.
+     Blocking on that would hold the whole form hostage over a field the user
+     did not touch, so only a value they actually edited stops the save. */
+  const [initialGst, setInitialGst] = useState("");
+  const gstBlocksSave = !!gstFieldError && store.gstNumber.trim() !== initialGst.trim();
+  // Set when the save succeeded but notification prefs could not be stored.
+  const [notifyWarning, setNotifyWarning] = useState("");
 
   // Load profile from Supabase on mount
   useEffect(() => {
     if (!user) return;
     (async () => {
       try {
+        /* Select every column rather than an explicit list: naming a column
+           the database does not have yet fails the whole read, which would
+           silently fall back to user_metadata and then overwrite the stored
+           profile on the next save. */
         const { data } = await supabase.from("profiles")
-          .select("full_name, phone, store_name, store_category, store_size, store_address, city, state, gst_number")
+          .select("*")
           .eq("id", user.id).single();
 
         if (data) {
@@ -48,6 +69,11 @@ export default function SettingsPage() {
             state: data.state || "",
             gstNumber: data.gst_number || "",
           });
+          setInitialGst(data.gst_number || "");
+          // Column is nullable for rows created before it existed.
+          if (data.notifications) {
+            setNotifications((prev) => ({ ...prev, ...data.notifications }));
+          }
         } else {
           // Fallback to user_metadata
           const meta = user.user_metadata || {};
@@ -64,11 +90,22 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     if (!user || saving) return;
+
+    // Reject a newly-entered malformed GSTIN before it reaches the database —
+    // it is used on tax documents, where a wrong number is worse than a
+    // missing one.
+    if (gstBlocksSave) {
+      setActiveTab("store");
+      setGstTouched(true);
+      setSaveError(gstFieldError!);
+      return;
+    }
+
     setSaving(true);
     setSaveError("");
+    setNotifyWarning("");
     try {
-      // Upsert into profiles table
-      const { error } = await supabase.from("profiles").upsert({
+      const base = {
         id: user.id,
         full_name: profile.fullName,
         phone: profile.phone,
@@ -78,9 +115,25 @@ export default function SettingsPage() {
         store_address: store.address,
         city: store.city,
         state: store.state,
-        gst_number: store.gstNumber,
+        gst_number: store.gstNumber.toUpperCase().trim(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: "id" });
+      };
+
+      // Upsert into profiles table
+      let { error } = await supabase.from("profiles")
+        .upsert({ ...base, notifications }, { onConflict: "id" });
+
+      /* profiles.notifications arrived in a later migration. Where that has
+         not been applied yet, save everything else rather than losing the
+         whole form, and say plainly that the toggles did not persist. */
+      if (error && isMissingColumn(error, "notifications")) {
+        ({ error } = await supabase.from("profiles").upsert(base, { onConflict: "id" }));
+        if (!error) {
+          setNotifyWarning(
+            "Profile and store details saved. Notification preferences were not stored — the database is missing the 'notifications' column; apply the latest migration in supabase/migrations."
+          );
+        }
+      }
 
       if (error) throw error;
       setSaved(true);
@@ -222,7 +275,34 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <label htmlFor="settings-store-gst" className="fx-eyebrow block mb-1.5">GST Number</label>
-                  <input id="settings-store-gst" type="text" autoComplete="off" value={store.gstNumber} onChange={(e) => setStore({ ...store, gstNumber: e.target.value })} className="fx-input" />
+                  <input
+                    id="settings-store-gst"
+                    type="text"
+                    autoComplete="off"
+                    inputMode="text"
+                    maxLength={15}
+                    spellCheck={false}
+                    placeholder="27AAPFU0939F1ZV"
+                    value={store.gstNumber}
+                    /* Stored and validated uppercase; typing lowercase is common. */
+                    onChange={(e) => setStore({ ...store, gstNumber: e.target.value.toUpperCase() })}
+                    onBlur={() => setGstTouched(true)}
+                    aria-invalid={!!gstFieldError}
+                    aria-describedby={gstFieldError ? "settings-store-gst-error" : "settings-store-gst-hint"}
+                    className="fx-input uppercase"
+                  />
+                  {gstFieldError && (gstTouched || store.gstNumber.trim() === initialGst.trim()) ? (
+                    <p id="settings-store-gst-error" role="alert" className="text-xs text-danger mt-1.5">
+                      {gstFieldError}
+                      {!gstBlocksSave && " This was already on your profile — correct it or clear the field."}
+                    </p>
+                  ) : (
+                    <p id="settings-store-gst-hint" className="text-xs text-muted-foreground mt-1.5">
+                      {store.gstNumber.trim()
+                        ? "Checksum verified."
+                        : "Optional — leave blank if your store is not GST registered."}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -271,9 +351,15 @@ export default function SettingsPage() {
                 <button type="button" onClick={handleSave} className="fx-btn">Retry</button>
               </div>
             )}
+            {/* A partial save must not read as a clean one. */}
+            {notifyWarning && !saveError && (
+              <div role="status" className="bg-warning-soft border border-warning/25 rounded-[var(--radius-md)] px-4 py-3">
+                <span className="text-sm text-warning">{notifyWarning}</span>
+              </div>
+            )}
             <div className="flex items-center justify-end gap-3">
               <p role="status" aria-live="polite" className="text-sm font-medium text-success">
-                {saved && (
+                {saved && !notifyWarning && (
                   <span className="inline-flex items-center gap-1.5">
                     <span className="fx-signal fx-signal-success" aria-hidden="true" /> Settings saved to database!
                   </span>
