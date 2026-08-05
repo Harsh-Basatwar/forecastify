@@ -11,12 +11,15 @@ import {
   ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import {
-  MapPin, Cloud, TrendingUp, ShoppingBag, Download,
+  MapPin, Cloud, ShoppingBag, Download,
   FileText, Code, Loader2, RefreshCw, Zap, Thermometer, Droplets,
   Wind, Calendar, Tag, Package, ShieldAlert, ArrowUpRight, ArrowDownRight,
   ChevronDown, ChevronUp, Star, Clock, Brain, Lightbulb,
 } from "lucide-react";
 import { ChartLine } from "@/components/animate-ui/icons/chart-line";
+import {
+  chartColor, tooltipStyle, tooltipLabelStyle, gridProps, axisProps, CHART_H,
+} from "@/lib/chart-theme";
 
 interface WeatherData {
   current: {
@@ -87,18 +90,7 @@ interface UpcomingOffer {
   groqInsight?: string; offerLink?: string;
 }
 
-// Restrained categorical ramp — teal + warm neutrals
-const SPIKE_COLORS = ["#11746A", "#579E92", "#93C0B7", "#7A7466", "#A39C8C", "#4E4A42", "#C0A46B"];
 const STORE_PROFILE_SELECT = "id, store_name, store_category, store_size, city, state, store_address";
-
-const chartTooltipStyle = {
-  background: "var(--elevated)",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "10px",
-  boxShadow: "var(--shadow-md)",
-  fontSize: "12px",
-  color: "var(--foreground)",
-} as const;
 
 interface StoreProfile {
   id?: string;
@@ -140,13 +132,13 @@ function DemandSpikeTooltip({ active, payload }: any) {
       </div>
       {data.primaryProduct && (
         <div className="mt-2">
-          <p className="fx-eyebrow text-[10px]">Primary product</p>
+          <p className="fx-eyebrow">Primary product</p>
           <p className="text-xs font-medium text-foreground mt-0.5">{data.primaryProduct}</p>
         </div>
       )}
       {data.supportingProducts?.length > 0 && (
         <div className="mt-2">
-          <p className="fx-eyebrow text-[10px]">Supporting demand</p>
+          <p className="fx-eyebrow">Supporting demand</p>
           <p className="text-xs text-muted-foreground mt-0.5">{data.supportingProducts.join(", ")}</p>
         </div>
       )}
@@ -811,7 +803,15 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
       </div>
 
       {error && (
-        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm">{error}</div>
+        <div
+          role="alert"
+          className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-3"
+        >
+          <span>{error}</span>
+          <button onClick={runAnalysis} disabled={loading} className="fx-btn shrink-0">
+            <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Retry
+          </button>
+        </div>
       )}
 
       {/* Store & Location Info — one ledger strip */}
@@ -852,7 +852,6 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
         <div className="space-y-6" aria-busy="true" aria-label="Running demand analysis">
           <div className="fx-card p-6 space-y-4">
             <div className="flex items-center gap-2.5 text-sm text-secondary-foreground font-medium">
-              <span className="w-4 h-4 border-2 border-border-strong border-t-accent rounded-full animate-spin" aria-hidden="true" />
               {step}
             </div>
             <p className="text-xs text-muted-foreground">This may take a few seconds...</p>
@@ -871,14 +870,14 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
               })}
             </div>
           </div>
-          <div className="fx-card p-6 space-y-3">
+          <div className="fx-card p-6 space-y-3" aria-busy="true">
             <div className="skeleton-shimmer h-5 w-56" />
             <div className="skeleton-shimmer h-3.5 w-full" />
             <div className="skeleton-shimmer h-3.5 w-2/3" />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[0, 1].map((i) => (
-              <div key={i} className="fx-card p-6 space-y-3">
+              <div key={i} className="fx-card p-6 space-y-3" aria-busy="true">
                 <div className="skeleton-shimmer h-4 w-48" />
                 <div className="skeleton-shimmer h-52 w-full" />
               </div>
@@ -913,26 +912,26 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
             {analysis.analysisMeta && (
               <div className="fx-rule mt-4 grid grid-cols-1 sm:grid-cols-4 gap-x-8 gap-y-0">
                 <div className="py-4">
-                  <p className="fx-eyebrow text-[10px]">Inventory Scanned</p>
-                  <p className="fx-num text-lg font-semibold text-foreground mt-1">{analysis.analysisMeta.inventoryCount}</p>
+                  <p className="fx-eyebrow">Inventory Scanned</p>
+                  <p className="fx-num fx-metric-md font-semibold text-foreground mt-1">{analysis.analysisMeta.inventoryCount}</p>
                 </div>
                 <div className="py-4">
-                  <p className="fx-eyebrow text-[10px]">Real Demand Candidates</p>
-                  <p className="fx-num text-lg font-semibold text-foreground mt-1">{analysis.analysisMeta.candidateCount}</p>
+                  <p className="fx-eyebrow">Real Demand Candidates</p>
+                  <p className="fx-num fx-metric-md font-semibold text-foreground mt-1">{analysis.analysisMeta.candidateCount}</p>
                 </div>
                 <div className="py-4">
-                  <p className="fx-eyebrow text-[10px]">Scope</p>
+                  <p className="fx-eyebrow">Scope</p>
                   <p className="text-xs font-medium text-foreground line-clamp-2 mt-1.5">{analysis.analysisMeta.location}</p>
                 </div>
                 <div className="py-4">
-                  <p className="fx-eyebrow text-[10px]">Analysis Method</p>
+                  <p className="fx-eyebrow">Analysis Method</p>
                   <p className="text-xs font-medium text-foreground line-clamp-2 mt-1.5">Live stock, weather, events, movement, and risk signals</p>
                 </div>
               </div>
             )}
             {analysis.analysisMeta?.modelSignals?.length ? (
               <div className="fx-rule pt-3">
-                <p className="fx-eyebrow text-[10px] mb-1.5">Data Quality Notes</p>
+                <p className="fx-eyebrow mb-1.5">Data Quality Notes</p>
                 <div className="space-y-1">
                   {analysis.analysisMeta.modelSignals.map((signal, index) => (
                     <p key={index} className="text-xs text-secondary-foreground">
@@ -967,6 +966,9 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                     </div>
                   ))}
                 </div>
+                {(analysis.trendingProducts?.length || 0) > 5 && (
+                  <p className="text-xs text-muted-foreground mt-2">Showing top 5 of {analysis.trendingProducts.length} — the full list is in the Trending Products table below.</p>
+                )}
                 <p className="text-xs text-muted-foreground mt-3">Higher score means the item is more likely to sell faster in this forecast window. “High” means keep stock ready before the spike starts.</p>
               </div>
 
@@ -996,6 +998,9 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                     </div>
                   ))}
                 </div>
+                {analysis.upcomingOffers.length > 4 && (
+                  <p className="text-xs text-muted-foreground mt-2">Showing top 4 of {analysis.upcomingOffers.length} — all events are listed in the Upcoming Offers &amp; Events section below.</p>
+                )}
                 <p className="text-xs text-muted-foreground mt-3">This shows events that can change buying behavior near your store. Stock the listed categories only when the event matches your actual inventory.</p>
               </div>
               )}
@@ -1014,6 +1019,9 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                     <span key={category} className="fx-badge">{category}</span>
                   ))}
                 </div>
+                {(analysis.weatherImpact?.affectedCategories?.length || 0) > 6 && (
+                  <p className="text-xs text-muted-foreground mt-2">Showing top 6 of {analysis.weatherImpact.affectedCategories.length} — every category is listed in Weather Impact Analysis below.</p>
+                )}
                 <p className="text-xs text-muted-foreground mt-3">Use this to connect today’s weather with categories people usually buy quickly, such as cold drinks, snacks, tea, or essentials.</p>
               </div>
 
@@ -1024,13 +1032,16 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                   {stockoutPredictions.slice(0, 4).map((item) => (
                     <div key={item.product} className="grid grid-cols-[1fr_auto_auto] gap-3 text-xs py-1.5 border-b border-border last:border-b-0 items-center">
                       <span className="font-medium text-foreground truncate">{item.product}</span>
-                      <span className="fx-num text-muted-foreground">{item.daysLeft} days</span>
+                      <span className="fx-num text-muted-foreground">{item.daysLeft}d</span>
                       <span className="fx-num font-semibold text-danger inline-flex items-center gap-1.5">
                         <span className="fx-signal fx-signal-danger" aria-hidden="true" />{item.probability}%
                       </span>
                     </div>
                   ))}
                 </div>
+                {stockoutPredictions.length > 4 && (
+                  <p className="text-xs text-muted-foreground mt-2">Showing top 4 of {stockoutPredictions.length} — every alert is listed in Risk Alerts below.</p>
+                )}
                 <p className="text-xs text-muted-foreground mt-3">These items can lose sales if not replenished. Prioritize products with fewer days left and higher risk percentage.</p>
               </div>
               )}
@@ -1046,6 +1057,9 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                     </div>
                   ))}
                 </div>
+                {overstockAnalysis.length > 4 && (
+                  <p className="text-xs text-muted-foreground mt-2">Showing top 4 of {overstockAnalysis.length} — every row is listed in Inventory Recommendations below.</p>
+                )}
                 <p className="text-xs text-muted-foreground mt-3">These rows point to cash stuck in slow or excess inventory. Consider reducing reorder quantity or running a small offer.</p>
               </div>
               )}
@@ -1058,6 +1072,9 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                     <p key={item.product} className="text-xs"><span className="font-medium text-foreground">{item.product}</span> → <span className="text-muted-foreground">{item.related.join(", ")}</span></p>
                   ))}
                 </div>
+                {visibleProductSimilarity.length > 4 && (
+                  <p className="text-xs text-muted-foreground mt-2">Showing top 4 of {visibleProductSimilarity.length}</p>
+                )}
                 <p className="text-xs text-muted-foreground mt-3">Related products are useful for basket planning. If one product spikes, place its companions nearby or check their stock too.</p>
               </div>
               )}
@@ -1068,8 +1085,8 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-3">
                   {visibleDemandClusters.map((cluster) => (
                     <div key={cluster.label}>
-                      <p className="text-[11px] font-semibold text-foreground">{cluster.label}</p>
-                      <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{cluster.products.join(", ")}</p>
+                      <p className="text-xs font-semibold text-foreground">{cluster.label}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{cluster.products.join(", ")}</p>
                     </div>
                   ))}
                 </div>
@@ -1126,20 +1143,25 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                 <h3 className="text-sm font-semibold text-foreground">Demand Spike Probability</h3>
               </div>
               <p className="text-xs text-muted-foreground mb-4">Day-level chance of a demand jump this week</p>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={spikeChartData} margin={{ top: 8, right: 12, left: -8, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} dy={6} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} domain={[0, 100]} />
-                  <Tooltip content={<DemandSpikeTooltip />} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
-                  <Bar dataKey="probability" name="Spike %" radius={[3, 3, 0, 0]} barSize={18}>
-                    {spikeChartData.map((_, i) => (
-                      <Cell key={i} fill={SPIKE_COLORS[i % SPIKE_COLORS.length]} />
-                    ))}
-                    <LabelList dataKey="probability" position="top" formatter={(value) => `${Number(value ?? 0)}%`} style={{ fontSize: 10, fill: "var(--muted-foreground)", fontWeight: 600 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div
+                role="img"
+                aria-label={`Bar chart of daily demand spike probability for the next ${spikeChartData.length} days${highestSpike ? `. Highest is ${highestSpike.fullDay} at ${highestSpike.probability} percent` : ""}.`}
+              >
+                <ResponsiveContainer width="100%" height={CHART_H.standard}>
+                  <BarChart data={spikeChartData} margin={{ top: 8, right: 12, left: -8, bottom: 4 }}>
+                    <CartesianGrid {...gridProps} />
+                    <XAxis {...axisProps} dataKey="name" dy={6} />
+                    <YAxis {...axisProps} domain={[0, 100]} />
+                    <Tooltip content={<DemandSpikeTooltip />} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
+                    <Bar dataKey="probability" name="Spike %" radius={[3, 3, 0, 0]} barSize={18}>
+                      {spikeChartData.map((_, i) => (
+                        <Cell key={i} fill={chartColor(i)} />
+                      ))}
+                      <LabelList dataKey="probability" position="top" formatter={(value) => `${Number(value ?? 0)}%`} style={{ fontSize: 10, fill: "var(--muted-foreground)", fontWeight: 600 }} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
               {highestSpike && (
                 <div className="fx-rule mt-3 pt-3">
                   <p className="text-xs font-semibold text-foreground inline-flex items-center gap-1.5">
@@ -1196,7 +1218,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                   {expandedSpike === i && (
                     <div className="px-1 pb-4 pt-1 space-y-3">
                       <div>
-                        <p className="fx-eyebrow text-[10px] mb-2">Daily demand basket</p>
+                        <p className="fx-eyebrow mb-2">Daily demand basket</p>
                         <div className="flex flex-wrap gap-1.5">
                           {(spike.primaryProduct || spike.topProducts?.[0]) && (
                             <span className="fx-badge fx-badge-accent">
@@ -1210,7 +1232,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                       </div>
                       {spike.groqInsight && (
                         <div className="fx-rule pt-3">
-                          <p className="fx-eyebrow text-[10px] flex items-center gap-1.5 mb-1">
+                          <p className="fx-eyebrow flex items-center gap-1.5 mb-1">
                             <Brain className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} /> Why this matters
                           </p>
                           <p className="text-xs text-secondary-foreground leading-relaxed">{spike.groqInsight}</p>
@@ -1236,15 +1258,18 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                   {showAllProducts ? "Show Less" : "Show All"}
                 </button>
               </div>
-              <div className="overflow-x-auto -mx-2">
+              <div className="fx-table-scroll -mx-2">
                 <table className="fx-table min-w-[560px]">
+                  <caption className="fx-sr-only">
+                    Trending products with category, demand score, recommended stock level, and price range.
+                  </caption>
                   <thead>
                     <tr>
-                      <th>Product</th>
-                      <th>Category</th>
-                      <th>Demand</th>
-                      <th>Stock Rec.</th>
-                      <th>Price</th>
+                      <th scope="col">Product</th>
+                      <th scope="col">Category</th>
+                      <th scope="col">Demand</th>
+                      <th scope="col">Stock Rec.</th>
+                      <th scope="col">Price</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1292,29 +1317,38 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
             <section aria-label="Product demand scores" className="fx-card p-6">
               <h3 className="text-sm font-semibold text-foreground mb-1">Product Demand Scores</h3>
               <p className="text-xs text-muted-foreground mb-4">Top real inventory drivers scored from stock, weather, events, expiry, and price</p>
-              <ResponsiveContainer width="100%" height={productChartHeight}>
-                <BarChart data={productBarData} layout="vertical" margin={{ top: 4, right: 28, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={10} tickLine={false} axisLine={false} tickCount={5} />
-                  <YAxis type="category" dataKey="name" stroke="var(--muted-foreground)" fontSize={10} tickLine={false} axisLine={false} width={110} />
-                  <Tooltip
-                    contentStyle={chartTooltipStyle}
-                    cursor={{ fill: "var(--secondary)", opacity: 0.5 }}
-                    formatter={(val, _name, entry) => [`${Number(val ?? 0)} / 100`, entry.payload?.fullName || "Product"]}
-                  />
-                  <Bar dataKey="score" radius={[0, 4, 4, 0]} maxBarSize={14}>
-                    {productBarData.map((entry, i) => (
-                      <Cell key={i} fill={entry.score >= 85 ? "var(--danger)" : entry.score >= 65 ? "var(--warning)" : "var(--accent)"} />
-                    ))}
-                    <LabelList dataKey="score" position="insideRight" style={{ fontSize: "10px", fill: "var(--accent-foreground)", fontWeight: 600 }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div
+                role="img"
+                aria-label={`Horizontal bar chart of demand scores out of 100 for the top ${productBarData.length} products.`}
+              >
+                <ResponsiveContainer width="100%" height={productChartHeight}>
+                  <BarChart data={productBarData} layout="vertical" margin={{ top: 4, right: 28, left: 0, bottom: 4 }}>
+                    <CartesianGrid {...gridProps} vertical horizontal={false} />
+                    <XAxis {...axisProps} type="number" domain={[0, 100]} fontSize={10} tickCount={5} />
+                    <YAxis {...axisProps} type="category" dataKey="name" fontSize={10} width={110} />
+                    <Tooltip
+                      contentStyle={tooltipStyle}
+                      labelStyle={tooltipLabelStyle}
+                      cursor={{ fill: "var(--secondary)", opacity: 0.5 }}
+                      formatter={(val, _name, entry) => [`${Number(val ?? 0)} / 100`, entry.payload?.fullName || "Product"]}
+                    />
+                    <Bar dataKey="score" radius={[0, 4, 4, 0]} maxBarSize={14}>
+                      {productBarData.map((entry, i) => (
+                        <Cell key={i} fill={entry.score >= 85 ? "var(--danger)" : entry.score >= 65 ? "var(--warning)" : "var(--accent)"} />
+                      ))}
+                      <LabelList dataKey="score" position="insideRight" style={{ fontSize: "10px", fill: "var(--accent-foreground)", fontWeight: 600 }} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
               <div className="flex gap-3 mt-2 justify-center flex-wrap">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="fx-signal fx-signal-danger" aria-hidden="true" /> High (&ge;85)</span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="fx-signal fx-signal-warning" aria-hidden="true" /> Medium (65-84)</span>
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="fx-signal fx-signal-accent" aria-hidden="true" /> Low (&lt;65)</span>
               </div>
+              {(analysis.trendingProducts?.length || 0) > 8 && (
+                <p className="text-xs text-muted-foreground mt-2 text-center">Showing top 8 of {analysis.trendingProducts.length} — use Show All on the Trending Products table for the rest.</p>
+              )}
               <p className="text-xs text-muted-foreground mt-3 text-center">Meaning: red bars need attention today; amber bars should be watched; teal bars are normal unless stock is very low.</p>
             </section>
           </div>
@@ -1335,7 +1369,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                   }`}>{analysis.weatherImpact.severity} Impact</span>
                   <p className="text-sm text-secondary-foreground mt-2 leading-relaxed">{analysis.weatherImpact.description}</p>
                   <div className="mt-3">
-                    <p className="fx-eyebrow text-[10px] mb-1.5">Affected Categories</p>
+                    <p className="fx-eyebrow mb-1.5">Affected Categories</p>
                     <div className="flex flex-wrap gap-1.5">
                       {analysis.weatherImpact.affectedCategories?.map((c, i) => (
                         <span key={i} className="fx-badge">{c}</span>
@@ -1344,7 +1378,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                   </div>
                 </div>
                 <div>
-                  <p className="fx-eyebrow text-[10px] mb-2">Specific Recommendations</p>
+                  <p className="fx-eyebrow mb-2">Specific Recommendations</p>
                   <ul>
                     {analysis.weatherImpact.recommendations?.map((r, i) => (
                       <li key={i} className="flex items-start gap-2.5 py-2 border-b border-border last:border-b-0 text-[13px] text-secondary-foreground leading-snug">
@@ -1356,7 +1390,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
               </div>
               {analysis.weatherImpact.groqInsight && (
                 <div className="fx-rule mt-4 pt-3">
-                  <p className="fx-eyebrow text-[10px] flex items-center gap-1.5 mb-1">
+                  <p className="fx-eyebrow flex items-center gap-1.5 mb-1">
                     <Brain className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} /> Weather Impact Analysis
                   </p>
                   <p className="text-xs text-secondary-foreground leading-relaxed">{analysis.weatherImpact.groqInsight}</p>
@@ -1400,7 +1434,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                     )}
                     {o.groqInsight && (
                       <div className="fx-rule pt-2.5">
-                        <p className="fx-eyebrow text-[10px] flex items-center gap-1.5 mb-1">
+                        <p className="fx-eyebrow flex items-center gap-1.5 mb-1">
                           <Brain className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} /> Why this matters for your store
                         </p>
                         <p className="text-xs text-secondary-foreground leading-relaxed">{o.groqInsight}</p>
@@ -1459,7 +1493,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                     <p className="text-xs text-muted-foreground leading-relaxed">{r.currentAdvice}</p>
                     {r.groqInsight && (
                       <div className="fx-rule pt-2">
-                        <p className="fx-eyebrow text-[10px] flex items-center gap-1 mb-0.5">
+                        <p className="fx-eyebrow flex items-center gap-1 mb-0.5">
                           <Brain className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} /> Stocking Insight
                         </p>
                         <p className="text-xs text-secondary-foreground leading-relaxed">{r.groqInsight}</p>
@@ -1506,7 +1540,7 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                     </p>
                     {r.groqInsight && (
                       <div className="pl-[17px]">
-                        <p className="fx-eyebrow text-[10px] flex items-center gap-1 mb-0.5 mt-1">
+                        <p className="fx-eyebrow flex items-center gap-1 mb-0.5 mt-1">
                           <Brain className="w-3 h-3" aria-hidden="true" strokeWidth={1.8} /> Risk Impact
                         </p>
                         <p className="text-xs text-secondary-foreground leading-relaxed">{r.groqInsight}</p>
@@ -1538,6 +1572,9 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                         </li>
                       ))}
                     </ul>
+                    {news.offers.length > 4 && (
+                      <p className="text-xs text-muted-foreground mt-2">Showing top 4 of {news.offers.length}</p>
+                    )}
                   </div>
                 )}
                 {news.trending?.length > 0 && (
@@ -1551,6 +1588,9 @@ ${analysis?.riskAlerts?.length ? `<div class="section">
                         </li>
                       ))}
                     </ul>
+                    {news.trending.length > 4 && (
+                      <p className="text-xs text-muted-foreground mt-2">Showing top 4 of {news.trending.length}</p>
+                    )}
                   </div>
                 )}
               </div>

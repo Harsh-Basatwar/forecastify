@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
-import { Package, Search, ArrowUpDown } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Package, Search, ArrowUpDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 
@@ -114,10 +115,10 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchInventory() {
+  const fetchInventory = useCallback(async () => {
       if (!user) return;
       setLoading(true);
+      setError(null);
       const { data, error: fetchError } = await supabase
         .from("inventory")
         .select("*")
@@ -130,8 +131,12 @@ export default function InventoryPage() {
         setInventoryData((data ?? []).map(transformItem));
       }
       setLoading(false);
-    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
     fetchInventory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const filtered = inventoryData
@@ -156,8 +161,9 @@ export default function InventoryPage() {
   if (error) {
     return (
       <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
-        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm">
-          Failed to load inventory: {error}
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">Failed to load inventory: {error}</span>
+          <button onClick={fetchInventory} className="fx-btn">Retry</button>
         </div>
       </div>
     );
@@ -176,12 +182,12 @@ export default function InventoryPage() {
       <section aria-label="Inventory summary" className="fx-card grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-[var(--border)] overflow-hidden">
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Total Products</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.total}</p>
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.total}</p>
           <p className="text-xs text-muted-foreground mt-2.5">Tracked SKUs</p>
         </div>
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Critical</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold mt-2.5 leading-none text-foreground">{summary.critical}</p>
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.critical}</p>
           <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.critical > 0 ? "text-danger" : "text-muted-foreground"}`}>
             <span className={`fx-signal ${summary.critical > 0 ? "fx-signal-danger" : "fx-signal-success"}`} aria-hidden="true" />
             {summary.critical > 0 ? "Under 3 days supply" : "None at risk"}
@@ -189,7 +195,7 @@ export default function InventoryPage() {
         </div>
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Low Stock</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold mt-2.5 leading-none text-foreground">{summary.low}</p>
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.low}</p>
           <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.low > 0 ? "text-warning" : "text-muted-foreground"}`}>
             <span className={`fx-signal ${summary.low > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
             {summary.low > 0 ? "Reorder this week" : "All above threshold"}
@@ -197,7 +203,7 @@ export default function InventoryPage() {
         </div>
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Overstock</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.overstock}</p>
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.overstock}</p>
           <p className="text-xs text-muted-foreground mt-2.5">Over 30 days supply</p>
         </div>
       </section>
@@ -239,17 +245,34 @@ export default function InventoryPage() {
           <h2 className="fx-display text-[17px] text-foreground">Stock Ledger</h2>
           <p className="text-xs text-muted-foreground fx-num">{filtered.length} of {inventoryData.length} products</p>
         </div>
-        <div className="overflow-x-auto -mx-2">
+        <div className="fx-table-scroll -mx-2">
           <table className="fx-table min-w-[720px]">
+            <caption className="fx-sr-only">
+              Stock ledger: product and SKU, category, current stock against the recommended level, daily demand, days of cover left, and stock status. Product and Days Left are sortable.
+            </caption>
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Category</th>
-                <th className="text-right">Current Stock</th>
-                <th className="text-right">Recommended</th>
-                <th className="text-right">Daily Demand</th>
-                <th className="text-right">Days Left</th>
-                <th>Status</th>
+                <th scope="col" aria-sort={sortBy === "product" ? "ascending" : "none"}>
+                  <button type="button" className="fx-sort" onClick={() => setSortBy("product")}>
+                    Product
+                    {sortBy === "product"
+                      ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={2} />
+                      : <ArrowUpDown className="w-3.5 h-3.5 opacity-60" aria-hidden="true" strokeWidth={2} />}
+                  </button>
+                </th>
+                <th scope="col">Category</th>
+                <th scope="col" className="text-right">Current Stock</th>
+                <th scope="col" className="text-right">Recommended</th>
+                <th scope="col" className="text-right">Daily Demand</th>
+                <th scope="col" className="text-right" aria-sort={sortBy === "daysOfStock" ? "ascending" : "none"}>
+                  <button type="button" className="fx-sort" onClick={() => setSortBy("daysOfStock")}>
+                    Days Left
+                    {sortBy === "daysOfStock"
+                      ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={2} />
+                      : <ArrowUpDown className="w-3.5 h-3.5 opacity-60" aria-hidden="true" strokeWidth={2} />}
+                  </button>
+                </th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -259,7 +282,7 @@ export default function InventoryPage() {
                   <tr key={item.id}>
                     <td>
                       <p className="text-sm font-medium text-foreground">{item.product}</p>
-                      <p className="fx-num text-[11px] text-muted-foreground mt-0.5">{item.sku}</p>
+                      <p className="fx-num text-xs text-muted-foreground mt-0.5">{item.sku}</p>
                     </td>
                     <td className="text-xs text-muted-foreground">{item.category}</td>
                     <td className="text-right">
@@ -273,6 +296,7 @@ export default function InventoryPage() {
                     <td className="text-right">
                       <span className={`fx-num font-semibold inline-flex items-center gap-1.5 ${item.daysOfStock <= 2 ? "text-danger" : item.daysOfStock <= 4 ? "text-warning" : "text-foreground"}`}>
                         {item.daysOfStock <= 2 && <span className="fx-signal fx-signal-danger" aria-hidden="true" />}
+                        {item.daysOfStock > 2 && item.daysOfStock <= 4 && <span className="fx-signal fx-signal-warning" aria-hidden="true" />}
                         {item.daysOfStock}d
                       </span>
                     </td>
@@ -312,16 +336,20 @@ export default function InventoryPage() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <p className="fx-eyebrow text-[10px]">Stock</p>
-                  <p className="fx-num text-sm font-semibold text-foreground mt-0.5">{item.currentStock}</p>
+                  <p className="fx-eyebrow">Stock</p>
+                  <p className="fx-num fx-metric-sm text-foreground mt-0.5">{item.currentStock}</p>
                 </div>
                 <div>
-                  <p className="fx-eyebrow text-[10px]">Demand/Day</p>
-                  <p className="fx-num text-sm font-semibold text-foreground mt-0.5">{item.dailyDemand}</p>
+                  <p className="fx-eyebrow">Demand /day</p>
+                  <p className="fx-num fx-metric-sm text-foreground mt-0.5">{item.dailyDemand}</p>
                 </div>
                 <div>
-                  <p className="fx-eyebrow text-[10px]">Days Left</p>
-                  <p className={`fx-num text-sm font-semibold mt-0.5 ${item.daysOfStock <= 2 ? "text-danger" : "text-foreground"}`}>{item.daysOfStock}</p>
+                  <p className="fx-eyebrow">Days Left</p>
+                  <p className={`fx-num fx-metric-sm mt-0.5 inline-flex items-center gap-1.5 ${item.daysOfStock <= 2 ? "text-danger" : item.daysOfStock <= 4 ? "text-warning" : "text-foreground"}`}>
+                    {item.daysOfStock <= 2 && <span className="fx-signal fx-signal-danger" aria-hidden="true" />}
+                    {item.daysOfStock > 2 && item.daysOfStock <= 4 && <span className="fx-signal fx-signal-warning" aria-hidden="true" />}
+                    {item.daysOfStock}d
+                  </p>
                 </div>
               </div>
             </div>

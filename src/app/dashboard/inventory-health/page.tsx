@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -9,13 +9,15 @@ import {
 } from "recharts";
 import {
   Shield, TrendingUp, Activity, BarChart3, Package,
+  ArrowUpDown, ChevronUp, ChevronDown,
 } from "lucide-react";
+import { tooltipStyle, tooltipLabelStyle, gridProps, axisProps } from "@/lib/chart-theme";
 
 // Grade ramp walks from healthy-quiet to critical: A calm, F loud
 const GRADE_COLORS: Record<string, string> = {
   A: "var(--success)",
   B: "var(--accent)",
-  C: "#C0A46B",
+  C: "var(--chart-3)",
   D: "var(--warning)",
   F: "var(--danger)",
 };
@@ -45,15 +47,6 @@ function getCategoryBarColor(score: number): string {
   if (score >= 60) return "var(--warning)";
   return "var(--danger)";
 }
-
-const chartTooltipStyle = {
-  background: "var(--elevated)",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "10px",
-  boxShadow: "var(--shadow-md)",
-  fontSize: "12px",
-  color: "var(--foreground)",
-} as const;
 
 // Skeleton mirrors score ring, factor grid, charts, and the ledger table
 function LoadingSkeleton() {
@@ -104,11 +97,12 @@ export default function InventoryHealthPage() {
   const [data, setData] = useState<any>(null);
   const [sortKey, setSortKey] = useState<string>("healthScore");
   const [sortAsc, setSortAsc] = useState(true);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
+  const loadHealth = useCallback(async () => {
+      if (!user) return;
       setLoading(true);
+      setError("");
       try {
         const res = await fetch("/api/inventory-health", {
           method: "POST",
@@ -117,14 +111,21 @@ export default function InventoryHealthPage() {
         });
         if (res.ok) {
           setData(await res.json());
+        } else {
+          setError("Could not load the inventory health analysis.");
         }
       } catch (err) {
         console.error("Failed to fetch inventory health:", err);
+        setError("Could not load the inventory health analysis.");
       } finally {
         setLoading(false);
       }
-    })();
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadHealth();
+  }, [user, loadHealth]);
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -144,6 +145,17 @@ export default function InventoryHealthPage() {
 
   if (loading) {
     return <LoadingSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">{error}</span>
+          <button onClick={loadHealth} className="fx-btn">Retry</button>
+        </div>
+      </div>
+    );
   }
 
   if (!data || !data.products?.length) {
@@ -187,7 +199,7 @@ export default function InventoryHealthPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Overall score ring */}
         <section aria-label="Store health score" className="fx-card p-6 flex flex-col items-center justify-center">
-          <div className="relative w-40 h-40 flex items-center justify-center">
+          <div className="relative w-40 h-40 flex items-center justify-center" role="img" aria-label={"Store health score " + overallScore + " out of 100"}>
             <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160" aria-hidden="true">
               <circle cx="80" cy="80" r="70" fill="none" stroke="var(--muted)" strokeWidth="7" />
               <circle
@@ -198,8 +210,8 @@ export default function InventoryHealthPage() {
               />
             </svg>
             <div className="absolute flex flex-col items-center">
-              <span className="fx-num text-[34px] font-semibold text-foreground leading-none">{overallScore}</span>
-              <span className="fx-eyebrow mt-1.5 text-[9px]">of 100</span>
+              <span className="fx-num fx-metric-xl text-foreground">{overallScore}</span>
+              <span className="fx-eyebrow mt-1.5">of 100</span>
             </div>
           </div>
           <p className="mt-3 text-sm font-medium text-secondary-foreground">Store Health Score</p>
@@ -218,11 +230,11 @@ export default function InventoryHealthPage() {
                   <f.icon className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> {f.label}
                 </p>
                 <p className="mt-2.5">
-                  <span className="fx-num text-[24px] font-semibold text-foreground leading-none">{f.value}</span>
+                  <span className="fx-num fx-metric-lg text-foreground">{f.value}</span>
                   <span className="text-sm text-muted-foreground ml-1">/ {f.max}</span>
                 </p>
-                <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-3" role="progressbar" aria-valuenow={f.value} aria-valuemin={0} aria-valuemax={f.max} aria-label={f.label}>
-                  <div className="h-full rounded-full" style={{ width: `${(f.value / f.max) * 100}%`, background: "var(--accent)", transition: "width 700ms cubic-bezier(0.16, 1, 0.3, 1)" }} />
+                <div className="fx-meter w-full h-1 mt-3" role="progressbar" aria-valuenow={f.value} aria-valuemin={0} aria-valuemax={f.max} aria-label={f.label}>
+                  <div className="fx-meter-fill" style={{ "--v": f.value / f.max } as React.CSSProperties} />
                 </div>
               </div>
             ))}
@@ -234,11 +246,11 @@ export default function InventoryHealthPage() {
                   <f.icon className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> {f.label}
                 </p>
                 <p className="mt-2.5">
-                  <span className="fx-num text-[24px] font-semibold text-foreground leading-none">{f.value}</span>
+                  <span className="fx-num fx-metric-lg text-foreground">{f.value}</span>
                   <span className="text-sm text-muted-foreground ml-1">/ {f.max}</span>
                 </p>
-                <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-3" role="progressbar" aria-valuenow={f.value} aria-valuemin={0} aria-valuemax={f.max} aria-label={f.label}>
-                  <div className="h-full rounded-full" style={{ width: `${(f.value / f.max) * 100}%`, background: "var(--accent)", transition: "width 700ms cubic-bezier(0.16, 1, 0.3, 1)" }} />
+                <div className="fx-meter w-full h-1 mt-3" role="progressbar" aria-valuenow={f.value} aria-valuemin={0} aria-valuemax={f.max} aria-label={f.label}>
+                  <div className="fx-meter-fill" style={{ "--v": f.value / f.max } as React.CSSProperties} />
                 </div>
               </div>
             ))}
@@ -259,14 +271,13 @@ export default function InventoryHealthPage() {
             {gradeData.map((g) => (
               <div key={g.grade} className="flex items-center gap-3">
                 <span className="fx-num w-6 text-sm font-semibold text-foreground">{g.grade}</span>
-                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden" aria-hidden="true">
+                <div className="fx-meter flex-1 h-1.5" aria-hidden="true">
                   <div
-                    className="h-full rounded-full"
+                    className="fx-meter-fill"
                     style={{
-                      width: totalProducts > 0 ? `${Math.max((g.count / totalProducts) * 100, g.count > 0 ? 4 : 0)}%` : "0%",
+                      "--v": totalProducts > 0 ? Math.max(g.count / totalProducts, g.count > 0 ? 0.04 : 0) : 0,
                       background: GRADE_COLORS[g.grade],
-                      transition: "width 700ms cubic-bezier(0.16, 1, 0.3, 1)",
-                    }}
+                    } as React.CSSProperties}
                   />
                 </div>
                 <span className="fx-num text-xs text-muted-foreground w-20 text-right">
@@ -284,23 +295,26 @@ export default function InventoryHealthPage() {
             <h2 className="text-sm font-semibold text-foreground">Category Health</h2>
           </div>
           <p className="text-xs text-muted-foreground mb-4">Average health score per category</p>
-          <ResponsiveContainer width="100%" height={Math.max(categoryScores.length * 40, 200)}>
-            <BarChart data={categoryScores} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="4 6" horizontal={false} stroke="var(--border)" />
-              <XAxis type="number" domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis type="category" dataKey="category" width={100} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-              <Tooltip
-                contentStyle={chartTooltipStyle}
-                cursor={{ fill: "var(--secondary)", opacity: 0.5 }}
-                formatter={(value: any) => [`${value}`, "Health Score"]}
-              />
-              <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={14}>
-                {categoryScores.map((entry: any, idx: number) => (
-                  <Cell key={idx} fill={getCategoryBarColor(entry.score)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div role="img" aria-label="Horizontal bar chart of the average inventory health score out of 100 for each product category">
+            <ResponsiveContainer width="100%" height={Math.max(categoryScores.length * 40, 200)}>
+              <BarChart data={categoryScores} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                <CartesianGrid {...gridProps} vertical horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} {...axisProps} />
+                <YAxis type="category" dataKey="category" width={100} {...axisProps} />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  labelStyle={tooltipLabelStyle}
+                  cursor={{ fill: "var(--secondary)", opacity: 0.5 }}
+                  formatter={(value: any) => [`${value}`, "Health Score"]}
+                />
+                <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={14}>
+                  {categoryScores.map((entry: any, idx: number) => (
+                    <Cell key={idx} fill={getCategoryBarColor(entry.score)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </section>
       </div>
 
@@ -310,8 +324,11 @@ export default function InventoryHealthPage() {
           <h2 className="fx-display text-[17px] text-foreground">Product Health Details</h2>
           <span className="fx-num text-xs text-muted-foreground">{data.products.length} products</span>
         </div>
-        <div className="overflow-x-auto -mx-2">
+        <div className="fx-table-scroll -mx-2">
           <table className="fx-table min-w-[760px]">
+            <caption className="fx-sr-only">
+              Per-product health details: category, overall health score, and the four contributing factors scored out of 25 each, plus the letter grade. Every column is sortable.
+            </caption>
             <thead>
               <tr>
                 {[
@@ -326,14 +343,17 @@ export default function InventoryHealthPage() {
                 ].map((col) => (
                   <th
                     key={col.key}
-                    onClick={() => handleSort(col.key)}
-                    aria-sort={sortKey === col.key ? (sortAsc ? "ascending" : "descending") : undefined}
-                    className="cursor-pointer hover:text-foreground transition-colors select-none"
+                    scope="col"
+                    aria-sort={sortKey === col.key ? (sortAsc ? "ascending" : "descending") : "none"}
                   >
-                    {col.label}
-                    {sortKey === col.key && (
-                      <span className="ml-1" aria-hidden="true">{sortAsc ? "▲" : "▼"}</span>
-                    )}
+                    <button type="button" className="fx-sort" onClick={() => handleSort(col.key)}>
+                      {col.label}
+                      {sortKey === col.key
+                        ? (sortAsc
+                            ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={2} />
+                            : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={2} />)
+                        : <ArrowUpDown className="w-3.5 h-3.5 opacity-60" aria-hidden="true" strokeWidth={2} />}
+                    </button>
                   </th>
                 ))}
               </tr>

@@ -1,28 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line, Legend,
 } from "recharts";
 import { TrendingUp, TrendingDown, Minus, Filter, Package, AlertTriangle, BarChart3 } from "lucide-react";
+import {
+  SERIES, DASH, tooltipStyle, tooltipLabelStyle,
+  gridProps, axisProps, legendProps, CHART_H,
+} from "@/lib/chart-theme";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-const chartTooltipStyle = {
-  background: "var(--elevated)",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "10px",
-  boxShadow: "var(--shadow-md)",
-  fontSize: "12px",
-  color: "var(--foreground)",
-} as const;
 
 // Contextual skeleton — mirrors the real layout to prevent shift
 function LoadingSkeleton() {
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto pb-12" aria-busy="true" aria-label="Loading forecasts">
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12" aria-busy="true" aria-label="Loading forecasts">
       <div className="fx-card p-6 space-y-4">
         <div className="skeleton-shimmer h-4 w-72" />
         <div className="skeleton-shimmer h-3.5 w-56" />
@@ -57,10 +52,12 @@ export default function ForecastsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [filterCategory, setFilterCategory] = useState("All");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
+  const loadForecasts = useCallback(async () => {
+      if (!user) return;
+      setLoading(true);
+      setError("");
       try {
         const res = await fetch("/api/forecasts", {
           method: "POST",
@@ -71,13 +68,30 @@ export default function ForecastsPage() {
         if (!d.error) {
           setData(d);
           if (d.productForecasts?.length) setSelectedProduct(d.productForecasts[0]);
+        } else {
+          setError(d.error);
         }
-      } catch {} finally { setLoading(false); }
-    })();
+      } catch { setError("Failed to load forecasts."); } finally { setLoading(false); }
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadForecasts();
+  }, [user, loadForecasts]);
 
   if (loading) {
     return <LoadingSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">{error}</span>
+          <button onClick={loadForecasts} className="fx-btn">Retry</button>
+        </div>
+      </div>
+    );
   }
 
   const products = data?.productForecasts || [];
@@ -86,7 +100,7 @@ export default function ForecastsPage() {
   const filtered = filterCategory === "All" ? products : products.filter((p: any) => p.category === filterCategory);
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto pb-12">
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
       <div>
         <h1 className="fx-display text-[24px] text-foreground">Sales Forecasts</h1>
         <p className="text-[13px] text-muted-foreground mt-1.5">
@@ -104,8 +118,8 @@ export default function ForecastsPage() {
           Aggregated prediction vs last week actuals with confidence bounds
           {data?.totalProducts && <span className="ml-2">({data.totalProducts} products tracked)</span>}
         </p>
-        <div className="h-72 sm:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <div role="img" aria-label="Store-wide seven day demand forecast (solid) with confidence band, last week average (dashed) and recommended stock level (dotted)">
+          <ResponsiveContainer width="100%" height={CHART_H.tall}>
             <AreaChart data={storeWide} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
               <defs>
                 <linearGradient id="fGrad" x1="0" y1="0" x2="0" y2="1">
@@ -113,16 +127,16 @@ export default function ForecastsPage() {
                   <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} dy={6} />
-              <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-              <Tooltip contentStyle={chartTooltipStyle} cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }} />
-              <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="plainline" />
+              <CartesianGrid {...gridProps} />
+              <XAxis dataKey="day" {...axisProps} dy={6} />
+              <YAxis {...axisProps} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }} />
+              <Legend {...legendProps} />
               <Area type="monotone" dataKey="upper" name="Upper Bound" stroke="none" fill="var(--accent-soft)" />
               <Area type="monotone" dataKey="lower" name="Lower Bound" stroke="none" fill="var(--background)" />
-              <Area type="monotone" dataKey="predicted" name="Forecast" stroke="var(--accent)" strokeWidth={2} fill="url(#fGrad)" activeDot={{ r: 4 }} />
-              <Area type="monotone" dataKey="actual" name="Last Week Avg" stroke="var(--muted-foreground)" strokeWidth={1.5} fill="none" strokeDasharray="5 4" />
-              <Area type="monotone" dataKey="recommended" name="Recommended" stroke="var(--warning)" strokeWidth={1.5} fill="none" strokeDasharray="2 4" />
+              <Area type="monotone" dataKey="predicted" name="Forecast" stroke={SERIES.primary} strokeWidth={2} fill="url(#fGrad)" strokeDasharray={DASH.solid} activeDot={{ r: 4 }} />
+              <Area type="monotone" dataKey="actual" name="Last Week Avg" stroke={SERIES.comparison} strokeWidth={1.5} fill="none" strokeDasharray={DASH.comparison} />
+              <Area type="monotone" dataKey="recommended" name="Recommended" stroke={SERIES.threshold} strokeWidth={1.5} fill="none" strokeDasharray={DASH.threshold} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -131,30 +145,30 @@ export default function ForecastsPage() {
       {/* Summary ledger strip */}
       <section aria-label="Forecast summary" className="fx-card grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-[var(--border)] overflow-hidden">
         <div className="px-5 py-4">
-          <p className="fx-eyebrow text-[10px]">Total Products</p>
-          <p className="fx-num text-lg font-semibold mt-1.5 text-foreground">{data?.totalProducts || 0}</p>
+          <p className="fx-eyebrow">Total Products</p>
+          <p className="fx-num fx-metric-md mt-1.5 text-foreground">{data?.totalProducts || 0}</p>
         </div>
         <div className="px-5 py-4">
-          <p className="fx-eyebrow text-[10px]">Critical Stock</p>
-          <p className={`fx-num text-lg font-semibold mt-1.5 inline-flex items-center gap-1.5 ${(data?.criticalCount || 0) > 0 ? "text-danger" : "text-foreground"}`}>
+          <p className="fx-eyebrow">Critical Stock</p>
+          <p className={`fx-num fx-metric-md mt-1.5 inline-flex items-center gap-1.5 ${(data?.criticalCount || 0) > 0 ? "text-danger" : "text-foreground"}`}>
             {(data?.criticalCount || 0) > 0 && <span className="fx-signal fx-signal-danger" aria-hidden="true" />}
             {data?.criticalCount || 0}
           </p>
         </div>
         <div className="px-5 py-4">
-          <p className="fx-eyebrow text-[10px]">Low Stock</p>
-          <p className={`fx-num text-lg font-semibold mt-1.5 inline-flex items-center gap-1.5 ${(data?.lowCount || 0) > 0 ? "text-warning" : "text-foreground"}`}>
+          <p className="fx-eyebrow">Low Stock</p>
+          <p className={`fx-num fx-metric-md mt-1.5 inline-flex items-center gap-1.5 ${(data?.lowCount || 0) > 0 ? "text-warning" : "text-foreground"}`}>
             {(data?.lowCount || 0) > 0 && <span className="fx-signal fx-signal-warning" aria-hidden="true" />}
             {data?.lowCount || 0}
           </p>
         </div>
         <div className="px-5 py-4">
-          <p className="fx-eyebrow text-[10px]">Overstock</p>
-          <p className="fx-num text-lg font-semibold mt-1.5 text-foreground">{data?.overstockCount || 0}</p>
+          <p className="fx-eyebrow">Overstock</p>
+          <p className="fx-num fx-metric-md mt-1.5 text-foreground">{data?.overstockCount || 0}</p>
         </div>
         {data?.testInputs?.total > 0 && (
           <div className="px-5 py-4 col-span-2 sm:col-span-4 fx-rule border-l-0">
-            <p className="fx-eyebrow text-[10px]">Test Inputs (test_input table)</p>
+            <p className="fx-eyebrow">Test Inputs (test_input table)</p>
             <p className="text-sm text-secondary-foreground mt-1.5">
               <span className="fx-num font-semibold text-foreground">{data.testInputs.total}</span> predictions required — <span className="fx-num font-semibold text-foreground">{data.testInputs.productIds?.length || 0}</span> unique products
             </p>
@@ -243,14 +257,15 @@ export default function ForecastsPage() {
                 </span>
               </div>
 
-              <div className="h-64 sm:h-72 mb-4">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="mb-4" role="img" aria-label={`Seven day forecast for ${selectedProduct.product} (solid) against the recommended stock level (dotted)`}>
+                <ResponsiveContainer width="100%" height={CHART_H.standard}>
                   <LineChart data={selectedProduct.dailyForecast} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
-                    <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} dy={6} />
-                    <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                    <CartesianGrid {...gridProps} />
+                    <XAxis dataKey="day" {...axisProps} dy={6} />
+                    <YAxis {...axisProps} />
                     <Tooltip
-                      contentStyle={chartTooltipStyle}
+                      contentStyle={tooltipStyle}
+                      labelStyle={tooltipLabelStyle}
                       cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }}
                       formatter={(value: any, name: any) => {
                         if (name === "predicted") return [value, "Forecast"];
@@ -259,9 +274,9 @@ export default function ForecastsPage() {
                         return [value, name];
                       }}
                     />
-                    <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="plainline" />
-                    <Line type="monotone" dataKey="predicted" name="Forecast" stroke="var(--accent)" strokeWidth={2} dot={{ fill: "var(--accent)", r: 3 }} activeDot={{ r: 5 }} />
-                    <Line type="monotone" dataKey="recommended" name="Recommended" stroke="var(--warning)" strokeWidth={1.5} strokeDasharray="2 4" dot={false} />
+                    <Legend {...legendProps} />
+                    <Line type="monotone" dataKey="predicted" name="Forecast" stroke={SERIES.primary} strokeWidth={2} strokeDasharray={DASH.solid} dot={{ fill: SERIES.primary, r: 3 }} activeDot={{ r: 5 }} />
+                    <Line type="monotone" dataKey="recommended" name="Recommended" stroke={SERIES.threshold} strokeWidth={1.5} strokeDasharray={DASH.threshold} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -274,22 +289,25 @@ export default function ForecastsPage() {
                   { label: "Days of Stock", value: `${selectedProduct.daysOfStock} days`, color: selectedProduct.daysOfStock < 3 ? "text-danger" : "text-foreground" },
                 ].map((stat) => (
                   <div key={stat.label} className="px-4 py-3">
-                    <p className="fx-eyebrow text-[10px]">{stat.label}</p>
-                    <p className={`fx-num text-sm font-semibold mt-1 ${stat.color}`}>{stat.value}</p>
+                    <p className="fx-eyebrow">{stat.label}</p>
+                    <p className={`fx-num fx-metric-sm mt-1 ${stat.color}`}>{stat.value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Detailed table */}
-              <div className="overflow-x-auto -mx-2">
+              <div className="fx-table-scroll -mx-2">
                 <table className="fx-table min-w-[480px]">
+                  <caption className="fx-sr-only">
+                    Day-by-day forecast for {selectedProduct.product}: predicted units, recommended stock, forecast confidence, and estimated revenue.
+                  </caption>
                   <thead>
                     <tr>
-                      <th>Day</th>
-                      <th className="text-right">Forecast</th>
-                      <th className="text-right">Recommended</th>
-                      <th className="text-right">Confidence</th>
-                      <th className="text-right">Est. Revenue</th>
+                      <th scope="col">Day</th>
+                      <th scope="col" className="text-right">Forecast</th>
+                      <th scope="col" className="text-right">Recommended</th>
+                      <th scope="col" className="text-right">Confidence</th>
+                      <th scope="col" className="text-right">Est. Revenue</th>
                     </tr>
                   </thead>
                   <tbody>

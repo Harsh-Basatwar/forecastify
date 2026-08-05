@@ -5,15 +5,14 @@ import { useAuth } from "@/lib/auth-context";
 import {
   Network, Users, Plus, LogIn, Copy, Check, ArrowLeft,
   Package, ShoppingCart, Tag, Store, Send, Loader2,
-  CheckCircle2, Clock, X, Crown, MapPin, ChevronRight,
+  CheckCircle2, Clock, Crown, MapPin, ChevronRight,
   Handshake, Search,
 } from "lucide-react";
+import Modal from "@/components/ui/Modal";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 type View = "lobby" | "group";
-
-const modalPanelStyle = { boxShadow: "var(--shadow-lg)" } as const;
 
 // Skeleton mirroring the lobby group grid
 function LobbySkeleton() {
@@ -314,87 +313,80 @@ export default function FederatedIntelligencePage() {
         )}
 
         {/* ── Create Group Modal ────────────────────────────────────── */}
-        {showCreate && (
-          <div className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4" onClick={() => setShowCreate(false)}>
-            <div className="bg-elevated border border-border rounded-[var(--radius-lg)] w-full max-w-md" style={modalPanelStyle} onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                <h2 className="fx-display text-[17px] text-foreground flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} /> Create Group
-                </h2>
-                <button onClick={() => setShowCreate(false)} aria-label="Close" className="fx-btn-ghost fx-btn p-1.5">
-                  <X className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />
+        <Modal
+          open={showCreate}
+          onClose={() => setShowCreate(false)}
+          title="Create Group"
+          description={createdCode ? "Share the invite code with other store owners" : "Your category and city are tagged automatically"}
+        >
+          {createdCode ? (
+            <div className="text-center space-y-4">
+              <CheckCircle2 className="w-5 h-5 text-success mx-auto" aria-hidden="true" strokeWidth={1.8} />
+              <p role="status" className="text-sm text-foreground font-semibold">Group created</p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="fx-num px-6 py-3 bg-secondary rounded-[var(--radius-md)] text-2xl font-semibold tracking-[0.3em] text-foreground">
+                  {createdCode}
+                </p>
+                <button type="button" onClick={() => copyCode(createdCode)} aria-label="Copy invite code" className="fx-icon-btn border-border-strong">
+                  {copied ? <Check className="w-4 h-4 text-success" aria-hidden="true" strokeWidth={1.8} /> : <Copy className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />}
                 </button>
               </div>
-
-              {createdCode ? (
-                <div className="text-center space-y-4 p-6">
-                  <CheckCircle2 className="w-5 h-5 text-success mx-auto" aria-hidden="true" strokeWidth={1.8} />
-                  <p className="text-sm text-foreground font-semibold">Group Created!</p>
-                  <p className="text-xs text-muted-foreground">Share this invite code with other store owners</p>
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="fx-num px-6 py-3 bg-secondary rounded-[var(--radius-md)] text-2xl font-semibold tracking-[0.3em] text-foreground">
-                      {createdCode}
-                    </div>
-                    <button onClick={() => copyCode(createdCode)} aria-label="Copy invite code" className="fx-btn p-2.5">
-                      {copied ? <Check className="w-4 h-4 text-success" aria-hidden="true" strokeWidth={1.8} /> : <Copy className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />}
-                    </button>
-                  </div>
-                  <button onClick={() => { setShowCreate(false); setCreatedCode(""); }} className="fx-btn fx-btn-accent w-full">
-                    Done
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4 p-6">
-                  <div>
-                    <label htmlFor="create-group-name" className="fx-eyebrow mb-1.5 block">Group Name</label>
-                    <input id="create-group-name" value={createName} onChange={(e) => setCreateName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                      placeholder="e.g. Pune Grocery Network" className={inputCls} />
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Your store category (<strong className="text-secondary-foreground">{storeName}</strong>) and city will be auto-tagged. An invite code will be generated to share with other stores.
-                  </p>
-                  {formError && <p role="alert" className="text-xs text-danger">{formError}</p>}
-                  <button onClick={handleCreate} disabled={formLoading || !createName.trim()} className="fx-btn fx-btn-accent w-full">
-                    {formLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Plus className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
-                    Create Group
-                  </button>
+              <p aria-live="polite" className="text-xs text-success h-4">{copied ? "Invite code copied" : ""}</p>
+              <button type="button" onClick={() => { setShowCreate(false); setCreatedCode(""); }} className="fx-btn fx-btn-accent w-full">
+                Done
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="create-group-name" className="fx-eyebrow mb-1.5 block">Group Name</label>
+                <input id="create-group-name" value={createName} onChange={(e) => setCreateName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                  autoComplete="off"
+                  placeholder="e.g. Pune Grocery Network" className={inputCls} />
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Your store category (<strong className="text-secondary-foreground">{storeName}</strong>) and city will be auto-tagged. An invite code will be generated to share with other stores.
+              </p>
+              {formError && (
+                <div role="alert" className="bg-danger-soft border border-danger/25 rounded-[var(--radius-md)] px-3 py-2 text-xs text-danger">
+                  {formError}
                 </div>
               )}
+              <button type="button" onClick={handleCreate} disabled={formLoading || !createName.trim()} className="fx-btn fx-btn-accent w-full">
+                {formLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Plus className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
+                Create Group
+              </button>
             </div>
-          </div>
-        )}
+          )}
+        </Modal>
 
         {/* ── Join Group Modal ──────────────────────────────────────── */}
-        {showJoin && (
-          <div className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4" onClick={() => setShowJoin(false)}>
-            <div className="bg-elevated border border-border rounded-[var(--radius-lg)] w-full max-w-md" style={modalPanelStyle} onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                <h2 className="fx-display text-[17px] text-foreground flex items-center gap-2">
-                  <LogIn className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} /> Join Group
-                </h2>
-                <button onClick={() => setShowJoin(false)} aria-label="Close" className="fx-btn-ghost fx-btn p-1.5">
-                  <X className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />
-                </button>
-              </div>
-              <div className="space-y-4 p-6">
-                <div>
-                  <label htmlFor="join-invite-code" className="fx-eyebrow mb-1.5 block">Invite Code</label>
-                  <input id="join-invite-code" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-                    placeholder="e.g. ABC123" maxLength={6}
-                    className={`${inputCls} fx-num text-center text-xl tracking-[0.3em] uppercase`} />
-                </div>
-                <p className="text-xs text-muted-foreground">Enter the 6-character code shared by the group owner</p>
-                {formError && <p role="alert" className="text-xs text-danger">{formError}</p>}
-                <button onClick={handleJoin} disabled={formLoading || joinCode.trim().length < 4} className="fx-btn fx-btn-accent w-full">
-                  {formLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <LogIn className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
-                  Join Group
-                </button>
-              </div>
+        <Modal
+          open={showJoin}
+          onClose={() => setShowJoin(false)}
+          title="Join Group"
+          description="Enter the 6-character code shared by the group owner"
+        >
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="join-invite-code" className="fx-eyebrow mb-1.5 block">Invite Code</label>
+              <input id="join-invite-code" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+                placeholder="e.g. ABC123" maxLength={6} autoComplete="off"
+                className={`${inputCls} fx-num text-center text-xl tracking-[0.3em] uppercase`} />
             </div>
+            {formError && (
+              <div role="alert" className="bg-danger-soft border border-danger/25 rounded-[var(--radius-md)] px-3 py-2 text-xs text-danger">
+                {formError}
+              </div>
+            )}
+            <button type="button" onClick={handleJoin} disabled={formLoading || joinCode.trim().length < 4} className="fx-btn fx-btn-accent w-full">
+              {formLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <LogIn className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
+              Join Group
+            </button>
           </div>
-        )}
+        </Modal>
       </div>
     );
   }
@@ -420,8 +412,8 @@ export default function FederatedIntelligencePage() {
       <div className="fx-card p-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <button onClick={() => { setView("lobby"); setActiveGroupId(null); loadLobby(); }}
-              aria-label="Back to groups" className="fx-btn fx-btn-ghost p-2 shrink-0">
+            <button type="button" onClick={() => { setView("lobby"); setActiveGroupId(null); loadLobby(); }}
+              aria-label="Back to groups" className="fx-icon-btn shrink-0">
               <ArrowLeft className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />
             </button>
             <div className="min-w-0">
@@ -436,31 +428,32 @@ export default function FederatedIntelligencePage() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-secondary rounded-[var(--radius-sm)]">
+            <p className="flex items-center gap-1.5 px-2.5 py-1.5 bg-secondary rounded-[var(--radius-sm)]">
               <span className="text-xs text-muted-foreground">Code:</span>
               <span className="fx-num text-sm font-semibold text-foreground tracking-wider">{group.invite_code}</span>
-              <button onClick={() => copyCode(group.invite_code)} aria-label="Copy invite code" className="p-1 rounded-[var(--radius-xs)] hover:bg-card transition-colors fx-focus">
-                {copied ? <Check className="w-3.5 h-3.5 text-success" aria-hidden="true" strokeWidth={1.8} /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />}
-              </button>
-            </div>
-            <button onClick={leaveGroup} className="px-3 py-1.5 rounded-[var(--radius-md)] text-xs font-medium text-danger hover:bg-danger/8 transition-colors fx-focus">
+            </p>
+            {/* Icon-only, so it takes the 44px primitive rather than p-1 */}
+            <button type="button" onClick={() => copyCode(group.invite_code)} aria-label="Copy invite code" className="fx-icon-btn">
+              {copied ? <Check className="w-4 h-4 text-success" aria-hidden="true" strokeWidth={1.8} /> : <Copy className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />}
+            </button>
+            <span aria-live="polite" className="fx-sr-only">{copied ? "Invite code copied" : ""}</span>
+            <button type="button" onClick={leaveGroup} className="fx-btn fx-btn-ghost text-danger hover:text-danger hover:bg-danger-soft">
               Leave
             </button>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-0.5 bg-secondary rounded-[var(--radius-md)] p-0.5" role="tablist" aria-label="Group sections">
+      {/* Section switcher · toggle-button group, matching the rest of the app */}
+      <div className="fx-segment w-full" role="group" aria-label="Group sections">
         {[
           { key: "requests" as const, label: "Requests", count: openRequests.length, icon: ShoppingCart },
           { key: "offers" as const, label: "Offers", count: openOffers.length, icon: Package },
           { key: "members" as const, label: "Members", count: members.length, icon: Users },
         ].map((tab) => (
-          <button key={tab.key} role="tab" aria-selected={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-xs font-medium transition-all duration-100 cursor-pointer fx-focus ${
-              activeTab === tab.key ? "bg-card text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"
-            }`}
+          <button key={tab.key} type="button" aria-pressed={activeTab === tab.key} aria-label={tab.label}
+            onClick={() => setActiveTab(tab.key)}
+            className="flex-1 flex items-center justify-center gap-1.5"
           >
             <tab.icon className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />
             {tab.label}
@@ -472,6 +465,8 @@ export default function FederatedIntelligencePage() {
       {/* ── Requests Tab ───────────────────────────────────────────── */}
       {activeTab === "requests" && (
         <section aria-label="Requests" className="space-y-4">
+          {/* Named heading so the item <h3>s do not skip a level under the h1 */}
+          <h2 className="fx-sr-only">Requests</h2>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-xs text-muted-foreground">
               <span className="fx-num font-semibold text-foreground">{openRequests.length}</span> open requests from stores needing products
@@ -531,6 +526,7 @@ export default function FederatedIntelligencePage() {
       {/* ── Offers Tab ─────────────────────────────────────────────── */}
       {activeTab === "offers" && (
         <section aria-label="Offers" className="space-y-4">
+          <h2 className="fx-sr-only">Offers</h2>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-xs text-muted-foreground">
               <span className="fx-num font-semibold text-foreground">{openOffers.length}</span> products available from peer stores
@@ -596,6 +592,7 @@ export default function FederatedIntelligencePage() {
       {/* ── Members Tab ────────────────────────────────────────────── */}
       {activeTab === "members" && (
         <section aria-label="Members" className="fx-card px-5">
+          <h2 className="fx-sr-only">Members</h2>
           {members.map((m: any) => (
             <div key={m.id} className="flex items-center justify-between gap-3 py-3.5 border-b border-border last:border-b-0">
               <div className="flex items-center gap-3 min-w-0">
@@ -605,7 +602,12 @@ export default function FederatedIntelligencePage() {
                 <div className="min-w-0">
                   <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5 truncate">
                     {m.store_name}
-                    {m.store_id === group.created_by && <Crown className="w-3.5 h-3.5 text-warning shrink-0" aria-label="Group owner" strokeWidth={1.8} />}
+                    {m.store_id === group.created_by && (
+                      <>
+                        <Crown className="w-3.5 h-3.5 text-warning shrink-0" aria-hidden="true" strokeWidth={1.8} />
+                        <span className="fx-sr-only">Group owner</span>
+                      </>
+                    )}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                     <MapPin className="w-2.5 h-2.5" aria-hidden="true" strokeWidth={1.8} /> {m.city || "India"}
@@ -619,113 +621,99 @@ export default function FederatedIntelligencePage() {
       )}
 
       {/* ── Post Request Modal ─────────────────────────────────────── */}
-      {showPostReq && (
-        <div className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4" onClick={() => setShowPostReq(false)}>
-          <div className="bg-elevated border border-border rounded-[var(--radius-lg)] w-full max-w-md" style={modalPanelStyle} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="fx-display text-[17px] text-foreground flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} /> Request a Product
-              </h2>
-              <button onClick={() => setShowPostReq(false)} aria-label="Close" className="fx-btn-ghost fx-btn p-1.5">
-                <X className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />
-              </button>
+      <Modal
+        open={showPostReq}
+        onClose={() => setShowPostReq(false)}
+        title="Request a Product"
+        description="Ask peer stores in this group for stock you are short on"
+      >
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="req-product-name" className="fx-eyebrow mb-1.5 block">Product Name *</label>
+            <input id="req-product-name" value={postForm.productName} onChange={(e) => setPostForm({ ...postForm, productName: e.target.value })}
+              placeholder="e.g. Amul Butter 100g" autoComplete="off" className={inputCls} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="req-quantity" className="fx-eyebrow mb-1.5 block">Quantity *</label>
+              <input id="req-quantity" type="number" min="1" value={postForm.quantity} onChange={(e) => setPostForm({ ...postForm, quantity: e.target.value })}
+                placeholder="e.g. 50" className={`${inputCls} fx-num`} />
             </div>
-            <div className="space-y-4 p-6">
-              <div>
-                <label htmlFor="req-product-name" className="fx-eyebrow mb-1.5 block">Product Name *</label>
-                <input id="req-product-name" value={postForm.productName} onChange={(e) => setPostForm({ ...postForm, productName: e.target.value })}
-                  placeholder="e.g. Amul Butter 100g" className={inputCls} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="req-quantity" className="fx-eyebrow mb-1.5 block">Quantity *</label>
-                  <input id="req-quantity" type="number" min="1" value={postForm.quantity} onChange={(e) => setPostForm({ ...postForm, quantity: e.target.value })}
-                    placeholder="e.g. 50" className={`${inputCls} fx-num`} />
-                </div>
-                <div>
-                  <label htmlFor="req-unit" className="fx-eyebrow mb-1.5 block">Unit</label>
-                  <select id="req-unit" value={postForm.unit} onChange={(e) => setPostForm({ ...postForm, unit: e.target.value })} className={inputCls}>
-                    {["pcs", "kg", "g", "L", "ml", "box", "pack", "dozen"].map((u) => <option key={u}>{u}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label htmlFor="req-category" className="fx-eyebrow mb-1.5 block">Category</label>
-                <input id="req-category" value={postForm.category} onChange={(e) => setPostForm({ ...postForm, category: e.target.value })}
-                  placeholder="e.g. Dairy" className={inputCls} />
-              </div>
-              <div>
-                <label htmlFor="req-message" className="fx-eyebrow mb-1.5 block">Message (optional)</label>
-                <input id="req-message" value={postForm.message} onChange={(e) => setPostForm({ ...postForm, message: e.target.value })}
-                  placeholder="e.g. Need urgently by tomorrow" className={inputCls} />
-              </div>
-              <button onClick={() => submitPost("request")} disabled={postLoading || !postForm.productName.trim() || !postForm.quantity}
-                className="fx-btn fx-btn-accent w-full">
-                {postLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Send className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
-                Post Request
-              </button>
+            <div>
+              <label htmlFor="req-unit" className="fx-eyebrow mb-1.5 block">Unit</label>
+              <select id="req-unit" value={postForm.unit} onChange={(e) => setPostForm({ ...postForm, unit: e.target.value })} className={inputCls}>
+                {["pcs", "kg", "g", "L", "ml", "box", "pack", "dozen"].map((u) => <option key={u}>{u}</option>)}
+              </select>
             </div>
           </div>
+          <div>
+            <label htmlFor="req-category" className="fx-eyebrow mb-1.5 block">Category</label>
+            <input id="req-category" value={postForm.category} onChange={(e) => setPostForm({ ...postForm, category: e.target.value })}
+              placeholder="e.g. Dairy" autoComplete="off" className={inputCls} />
+          </div>
+          <div>
+            <label htmlFor="req-message" className="fx-eyebrow mb-1.5 block">Message (optional)</label>
+            <input id="req-message" value={postForm.message} onChange={(e) => setPostForm({ ...postForm, message: e.target.value })}
+              placeholder="e.g. Need urgently by tomorrow" autoComplete="off" className={inputCls} />
+          </div>
+          <button type="button" onClick={() => submitPost("request")} disabled={postLoading || !postForm.productName.trim() || !postForm.quantity}
+            className="fx-btn fx-btn-accent w-full">
+            {postLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Send className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
+            Post Request
+          </button>
         </div>
-      )}
+      </Modal>
 
       {/* ── Post Offer Modal ───────────────────────────────────────── */}
-      {showPostOffer && (
-        <div className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4" onClick={() => setShowPostOffer(false)}>
-          <div className="bg-elevated border border-border rounded-[var(--radius-lg)] w-full max-w-md" style={modalPanelStyle} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="fx-display text-[17px] text-foreground flex items-center gap-2">
-                <Package className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} /> Offer a Product
-              </h2>
-              <button onClick={() => setShowPostOffer(false)} aria-label="Close" className="fx-btn-ghost fx-btn p-1.5">
-                <X className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />
-              </button>
+      <Modal
+        open={showPostOffer}
+        onClose={() => setShowPostOffer(false)}
+        title="Offer a Product"
+        description="List excess stock for peer stores in this group"
+      >
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="offer-product-name" className="fx-eyebrow mb-1.5 block">Product Name *</label>
+            <input id="offer-product-name" value={postForm.productName} onChange={(e) => setPostForm({ ...postForm, productName: e.target.value })}
+              placeholder="e.g. Tata Salt 1kg" autoComplete="off" className={inputCls} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="offer-quantity" className="fx-eyebrow mb-1.5 block">Quantity *</label>
+              <input id="offer-quantity" type="number" min="1" value={postForm.quantity} onChange={(e) => setPostForm({ ...postForm, quantity: e.target.value })}
+                placeholder="e.g. 30" className={`${inputCls} fx-num`} />
             </div>
-            <div className="space-y-4 p-6">
-              <div>
-                <label htmlFor="offer-product-name" className="fx-eyebrow mb-1.5 block">Product Name *</label>
-                <input id="offer-product-name" value={postForm.productName} onChange={(e) => setPostForm({ ...postForm, productName: e.target.value })}
-                  placeholder="e.g. Tata Salt 1kg" className={inputCls} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="offer-quantity" className="fx-eyebrow mb-1.5 block">Quantity *</label>
-                  <input id="offer-quantity" type="number" min="1" value={postForm.quantity} onChange={(e) => setPostForm({ ...postForm, quantity: e.target.value })}
-                    placeholder="e.g. 30" className={`${inputCls} fx-num`} />
-                </div>
-                <div>
-                  <label htmlFor="offer-unit" className="fx-eyebrow mb-1.5 block">Unit</label>
-                  <select id="offer-unit" value={postForm.unit} onChange={(e) => setPostForm({ ...postForm, unit: e.target.value })} className={inputCls}>
-                    {["pcs", "kg", "g", "L", "ml", "box", "pack", "dozen"].map((u) => <option key={u}>{u}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="offer-price" className="fx-eyebrow mb-1.5 block">Price per unit (₹)</label>
-                  <input id="offer-price" type="number" min="0" step="0.5" value={postForm.price} onChange={(e) => setPostForm({ ...postForm, price: e.target.value })}
-                    placeholder="e.g. 25" className={`${inputCls} fx-num`} />
-                </div>
-                <div>
-                  <label htmlFor="offer-category" className="fx-eyebrow mb-1.5 block">Category</label>
-                  <input id="offer-category" value={postForm.category} onChange={(e) => setPostForm({ ...postForm, category: e.target.value })}
-                    placeholder="e.g. Groceries" className={inputCls} />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="offer-message" className="fx-eyebrow mb-1.5 block">Message (optional)</label>
-                <input id="offer-message" value={postForm.message} onChange={(e) => setPostForm({ ...postForm, message: e.target.value })}
-                  placeholder="e.g. Expiring in 15 days, selling at discount" className={inputCls} />
-              </div>
-              <button onClick={() => submitPost("offer")} disabled={postLoading || !postForm.productName.trim() || !postForm.quantity}
-                className="fx-btn fx-btn-accent w-full">
-                {postLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Send className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
-                Post Offer
-              </button>
+            <div>
+              <label htmlFor="offer-unit" className="fx-eyebrow mb-1.5 block">Unit</label>
+              <select id="offer-unit" value={postForm.unit} onChange={(e) => setPostForm({ ...postForm, unit: e.target.value })} className={inputCls}>
+                {["pcs", "kg", "g", "L", "ml", "box", "pack", "dozen"].map((u) => <option key={u}>{u}</option>)}
+              </select>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="offer-price" className="fx-eyebrow mb-1.5 block">Price per unit (₹)</label>
+              <input id="offer-price" type="number" min="0" step="0.5" value={postForm.price} onChange={(e) => setPostForm({ ...postForm, price: e.target.value })}
+                placeholder="e.g. 25" className={`${inputCls} fx-num`} />
+            </div>
+            <div>
+              <label htmlFor="offer-category" className="fx-eyebrow mb-1.5 block">Category</label>
+              <input id="offer-category" value={postForm.category} onChange={(e) => setPostForm({ ...postForm, category: e.target.value })}
+                placeholder="e.g. Groceries" autoComplete="off" className={inputCls} />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="offer-message" className="fx-eyebrow mb-1.5 block">Message (optional)</label>
+            <input id="offer-message" value={postForm.message} onChange={(e) => setPostForm({ ...postForm, message: e.target.value })}
+              placeholder="e.g. Expiring in 15 days, selling at discount" autoComplete="off" className={inputCls} />
+          </div>
+          <button type="button" onClick={() => submitPost("offer")} disabled={postLoading || !postForm.productName.trim() || !postForm.quantity}
+            className="fx-btn fx-btn-accent w-full">
+            {postLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Send className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} />}
+            Post Offer
+          </button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

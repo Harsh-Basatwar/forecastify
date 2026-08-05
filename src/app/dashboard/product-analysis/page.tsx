@@ -13,17 +13,11 @@ import {
   Calendar, Shield, Zap, RefreshCw, Cloud, MapPin, Newspaper,
   BadgePercent, ExternalLink, Brain,
 } from "lucide-react";
+import {
+  SERIES, tooltipStyle, tooltipLabelStyle, gridProps, axisProps, CHART_H,
+} from "@/lib/chart-theme";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-const chartTooltipStyle = {
-  background: "var(--elevated)",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "10px",
-  boxShadow: "var(--shadow-md)",
-  fontSize: "12px",
-  color: "var(--foreground)",
-} as const;
 
 export default function ProductAnalysisPage() {
   const { user } = useAuth();
@@ -374,7 +368,7 @@ ${!forPrint ? "</div>" : ""}
 
         {/* Suggestions dropdown */}
         {suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1.5 bg-elevated border border-border rounded-[var(--radius-md)] z-20 overflow-hidden" style={{ boxShadow: "var(--shadow-md)" }}>
+          <div className="absolute top-full left-0 right-0 mt-1.5 bg-elevated border border-border rounded-[var(--radius-md)] z-20" style={{ boxShadow: "var(--shadow-md)" }}>
             {suggestions.map((s, i) => (
               <button key={i} type="button" onClick={() => { setQuery(s.product_name); setSuggestions([]); analyze(s.product_name); }}
                 className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-secondary text-left border-b border-border last:border-0 transition-colors cursor-pointer fx-focus">
@@ -393,22 +387,26 @@ ${!forPrint ? "</div>" : ""}
       </form>
 
       {error && (
-        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm">{error}</div>
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <span>{error}</span>
+          <button type="button" onClick={() => analyze(query)} className="fx-btn shrink-0">
+            <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={1.8} /> Retry
+          </button>
+        </div>
       )}
 
       {/* Loading — skeleton mirrors the result layout */}
       {loading && (
         <div className="space-y-6" aria-busy="true" aria-label={`Analyzing ${query}`}>
-          <div className="fx-card p-6 space-y-3">
+          <div className="fx-card p-6 space-y-3" aria-busy="true">
             <div className="flex items-center gap-2 text-sm text-secondary-foreground font-medium">
-              <span className="w-4 h-4 border-2 border-border-strong border-t-accent rounded-full animate-spin" aria-hidden="true" />
               Analyzing &quot;{query}&quot;…
             </div>
             <p className="text-xs text-muted-foreground">Fetching inventory, weather, and generating predictions</p>
             <div className="skeleton-shimmer h-5 w-64" />
             <div className="skeleton-shimmer h-3.5 w-full" />
           </div>
-          <div className="fx-card grid grid-cols-2 md:grid-cols-4">
+          <div className="fx-card grid grid-cols-2 md:grid-cols-4" aria-busy="true">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="p-5 space-y-2.5 border-r border-border last:border-r-0">
                 <div className="skeleton-shimmer h-3 w-20" />
@@ -416,7 +414,7 @@ ${!forPrint ? "</div>" : ""}
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-busy="true">
             {[0, 1].map((i) => (
               <div key={i} className="fx-card p-6 space-y-3">
                 <div className="skeleton-shimmer h-4 w-44" />
@@ -451,7 +449,7 @@ ${!forPrint ? "</div>" : ""}
                   <div className="flex items-start gap-2.5">
                     <Cloud className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
                     <div className="min-w-0">
-                      <p className="fx-eyebrow text-[10px]">Current Weather</p>
+                      <p className="fx-eyebrow">Current Weather</p>
                       <p className="text-sm text-foreground mt-0.5"><span className="fx-num font-medium">{weather.temp}°C</span> — {weather.description}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">Humidity: <span className="fx-num">{weather.humidity}%</span></p>
                     </div>
@@ -461,7 +459,7 @@ ${!forPrint ? "</div>" : ""}
                   <div className="flex items-start gap-2.5">
                     <MapPin className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
                     <div className="min-w-0">
-                      <p className="fx-eyebrow text-[10px]">Store Location</p>
+                      <p className="fx-eyebrow">Store Location</p>
                       <p className="text-sm text-foreground mt-0.5 truncate">{location}</p>
                       {analysis.locationContext && <p className="text-xs text-muted-foreground mt-0.5">{analysis.locationContext}</p>}
                     </div>
@@ -471,7 +469,7 @@ ${!forPrint ? "</div>" : ""}
                   <div className="flex items-start gap-2.5">
                     <Zap className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
                     <div className="min-w-0">
-                      <p className="fx-eyebrow text-[10px]">Weather Impact</p>
+                      <p className="fx-eyebrow">Weather Impact</p>
                       <p className="text-sm text-foreground mt-0.5">{analysis.weatherSummary}</p>
                     </div>
                   </div>
@@ -499,7 +497,8 @@ ${!forPrint ? "</div>" : ""}
           {signalSections.some((section) => externalSignals[section.key]?.length) && (
             <div className="space-y-6">
               {signalSections.map((section) => {
-                const items = (externalSignals[section.key] || []).slice(0, 3);
+                const allItems = externalSignals[section.key] || [];
+                const items = allItems.slice(0, 3);
                 if (!items.length) return null;
                 const Icon = section.icon;
                 return (
@@ -522,6 +521,9 @@ ${!forPrint ? "</div>" : ""}
                         </a>
                       ))}
                     </div>
+                    {allItems.length > 3 && (
+                      <p className="text-xs text-muted-foreground mt-3">Showing top 3 of {allItems.length}</p>
+                    )}
                   </section>
                 );
               })}
@@ -535,21 +537,21 @@ ${!forPrint ? "</div>" : ""}
                 <p className="fx-eyebrow">Current Stock</p>
                 <Package className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
               </div>
-              <p className="fx-num text-[22px] font-semibold text-foreground mt-2 leading-none">{analysis.currentStock} <span className="text-sm font-normal text-muted-foreground">{analysis.unit}</span></p>
+              <p className="fx-num fx-metric-lg text-foreground mt-2 leading-none">{analysis.currentStock} <span className="text-sm font-normal text-muted-foreground">{analysis.unit}</span></p>
             </div>
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <p className="fx-eyebrow">7-Day Predicted</p>
                 <TrendingUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
               </div>
-              <p className="fx-num text-[22px] font-semibold text-foreground mt-2 leading-none">{analysis.totalPredictedSales} <span className="text-sm font-normal text-muted-foreground">{analysis.unit}</span></p>
+              <p className="fx-num fx-metric-lg text-foreground mt-2 leading-none">{analysis.totalPredictedSales} <span className="text-sm font-normal text-muted-foreground">{analysis.unit}</span></p>
             </div>
             <div className="p-5">
               <div className="flex items-center justify-between">
                 <p className="fx-eyebrow">Stock Required</p>
                 <ShoppingBag className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
               </div>
-              <p className="fx-num text-[22px] font-semibold text-foreground mt-2 leading-none">{analysis.stockRequired} <span className="text-sm font-normal text-muted-foreground">{analysis.unit}</span></p>
+              <p className="fx-num fx-metric-lg text-foreground mt-2 leading-none">{analysis.stockRequired} <span className="text-sm font-normal text-muted-foreground">{analysis.unit}</span></p>
             </div>
             <div className="p-5">
               <div className="flex items-center justify-between">
@@ -558,7 +560,7 @@ ${!forPrint ? "</div>" : ""}
                   ? <ArrowUpRight className="w-4 h-4 text-danger" aria-hidden="true" strokeWidth={1.8} />
                   : <ArrowDownRight className="w-4 h-4 text-success" aria-hidden="true" strokeWidth={1.8} />}
               </div>
-              <p className={`fx-num text-[22px] font-semibold mt-2 leading-none ${analysis.additionalStockNeeded > 0 ? "text-danger" : "text-success"}`}>
+              <p className={`fx-num fx-metric-lg mt-2 leading-none ${analysis.additionalStockNeeded > 0 ? "text-danger" : "text-success"}`}>
                 {analysis.additionalStockNeeded > 0 ? "+" : ""}{analysis.additionalStockNeeded} <span className="text-sm font-normal text-muted-foreground">{analysis.unit}</span>
               </p>
             </div>
@@ -601,15 +603,17 @@ ${!forPrint ? "</div>" : ""}
                 <h3 className="text-sm font-semibold text-foreground">Daily Sales Forecast</h3>
               </div>
               <p className="text-xs text-muted-foreground mb-4">Predicted units per day for the next week</p>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
-                  <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} dy={6} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
-                  <Bar dataKey="sales" name="Predicted Sales" radius={[3, 3, 0, 0]} barSize={14} fill="var(--accent)" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div role="img" aria-label={`Bar chart of predicted daily sales in ${analysis.unit || "units"} for each of the next 7 days${analysis.totalPredictedSales ? `, totalling ${analysis.totalPredictedSales}` : ""}.`}>
+                <ResponsiveContainer width="100%" height={CHART_H.standard}>
+                  <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+                    <CartesianGrid {...gridProps} />
+                    <XAxis {...axisProps} dataKey="name" dy={6} />
+                    <YAxis {...axisProps} />
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
+                    <Bar dataKey="sales" name="Predicted Sales" radius={[3, 3, 0, 0]} barSize={14} fill={SERIES.primary} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </section>
 
             <section aria-label="Confidence level" className="fx-card p-6">
@@ -618,15 +622,17 @@ ${!forPrint ? "</div>" : ""}
                 <h3 className="text-sm font-semibold text-foreground">Confidence Level</h3>
               </div>
               <p className="text-xs text-muted-foreground mb-4">How strongly the signals agree per day</p>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
-                  <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} dy={6} />
-                  <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={chartTooltipStyle} cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }} />
-                  <Line type="monotone" dataKey="confidence" name="Confidence %" stroke="var(--accent)" strokeWidth={2} dot={{ fill: "var(--accent)", r: 3 }} activeDot={{ r: 5 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              <div role="img" aria-label="Line chart of forecast confidence, as a percentage from 0 to 100, for each of the next 7 days.">
+                <ResponsiveContainer width="100%" height={CHART_H.standard}>
+                  <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+                    <CartesianGrid {...gridProps} />
+                    <XAxis {...axisProps} dataKey="name" dy={6} />
+                    <YAxis {...axisProps} domain={[0, 100]} />
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }} />
+                    <Line type="monotone" dataKey="confidence" name="Confidence %" stroke={SERIES.primary} strokeWidth={2} dot={{ fill: SERIES.primary, r: 3 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </section>
           </div>
 
@@ -636,14 +642,15 @@ ${!forPrint ? "</div>" : ""}
               <TrendingUp className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
               <h3 className="fx-display text-[17px] text-foreground">Detailed 7-Day Forecast</h3>
             </div>
-            <div className="overflow-x-auto -mx-2">
+            <div className="fx-table-scroll -mx-2">
               <table className="fx-table min-w-[560px]">
+                <caption className="fx-sr-only">Day-by-day forecast for the next 7 days, listing predicted sales, forecast confidence, and the reason behind each prediction.</caption>
                 <thead>
                   <tr>
-                    <th>Day</th>
-                    <th className="text-right">Predicted Sales</th>
-                    <th className="text-right">Confidence</th>
-                    <th>Reason</th>
+                    <th scope="col">Day</th>
+                    <th scope="col" className="text-right">Predicted Sales</th>
+                    <th scope="col" className="text-right">Confidence</th>
+                    <th scope="col">Reason</th>
                   </tr>
                 </thead>
                 <tbody>

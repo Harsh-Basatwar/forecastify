@@ -48,6 +48,7 @@ export default function WhatIfPage() {
   const [expandedProduct, setExpandedProduct] = useState<number | null>(null);
   const [showTimeline, setShowTimeline] = useState(false);
   const [animateIn, setAnimateIn] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (result) {
@@ -59,6 +60,7 @@ export default function WhatIfPage() {
   const runSimulation = async () => {
     if (!scenario.trim() || !user) return;
     setLoading(true);
+    setError("");
     setResult(null);
     setExpandedProduct(null);
     setShowTimeline(false);
@@ -72,8 +74,10 @@ export default function WhatIfPage() {
       if (data.simulation && !data.simulation.error) {
         setResult(data.simulation);
         setDataPoints(data.dataPoints || 0);
+      } else {
+        setError(data.simulation?.error || data.error || "The simulation could not be completed.");
       }
-    } catch {} finally { setLoading(false); }
+    } catch { setError("The simulation could not be completed."); } finally { setLoading(false); }
   };
 
   const selectTemplate = (t: typeof SCENARIO_TEMPLATES[0]) => {
@@ -120,7 +124,7 @@ export default function WhatIfPage() {
             key={t.id}
             onClick={() => selectTemplate(t)}
             aria-pressed={selectedTemplate === t.id}
-            className={`fx-card fx-card-interactive flex flex-col items-center gap-2 p-4 text-center fx-focus cursor-pointer ${
+            className={`fx-card fx-card-interactive flex flex-col items-center gap-2 p-5 text-center fx-focus cursor-pointer ${
               selectedTemplate === t.id
                 ? "!border-[var(--accent-border)] !bg-[var(--accent-soft)]"
                 : ""
@@ -162,14 +166,18 @@ export default function WhatIfPage() {
         </div>
       </section>
 
+      {error && !loading && (
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">{error}</span>
+          <button onClick={runSimulation} className="fx-btn">Retry</button>
+        </div>
+      )}
+
       {/* Loading — skeleton mirrors the result layout */}
       {loading && (
         <div className="space-y-6" aria-busy="true" aria-label="Running simulation">
           <div className="fx-card p-6 space-y-3">
-            <div className="flex items-center gap-2 text-sm text-secondary-foreground font-medium">
-              <span className="w-4 h-4 border-2 border-border-strong border-t-accent rounded-full animate-spin" aria-hidden="true" />
-              Running simulation…
-            </div>
+            <p className="text-sm text-secondary-foreground font-medium">Running simulation…</p>
             <p className="text-xs text-muted-foreground">Analyzing {dataPoints || "your"} historic sales records against this scenario</p>
             <div className="skeleton-shimmer h-5 w-64" />
             <div className="skeleton-shimmer h-3.5 w-full" />
@@ -213,7 +221,7 @@ export default function WhatIfPage() {
               </div>
               <div className="shrink-0 text-right">
                 <p className="fx-eyebrow">Confidence</p>
-                <p className={`fx-num text-[30px] font-semibold leading-none mt-1.5 ${result.confidence >= 75 ? "text-success" : result.confidence >= 50 ? "text-warning" : "text-danger"}`}>{result.confidence}%</p>
+                <p className={`fx-num fx-metric-xl mt-1.5 ${result.confidence >= 75 ? "text-success" : result.confidence >= 50 ? "text-warning" : "text-danger"}`}>{result.confidence}%</p>
               </div>
             </div>
           </section>
@@ -225,7 +233,7 @@ export default function WhatIfPage() {
                 <p className="fx-eyebrow">Revenue / Day</p>
                 <DollarSign className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
               </div>
-              <p className="fx-num text-xl font-semibold text-foreground mt-2">₹{(result.revenueChange?.after || 0).toLocaleString("en-IN")}</p>
+              <p className="fx-num fx-metric-md text-foreground mt-2">₹{(result.revenueChange?.after || 0).toLocaleString("en-IN")}</p>
               <p className="flex items-center gap-1 mt-1.5 text-xs">
                 {result.revenueChange?.changePercent >= 0
                   ? <ArrowUpRight className="w-3.5 h-3.5 text-success" aria-hidden="true" strokeWidth={1.8} />
@@ -242,7 +250,7 @@ export default function WhatIfPage() {
                 <p className="fx-eyebrow">Demand / Day</p>
                 <TrendingUp className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
               </div>
-              <p className="fx-num text-xl font-semibold text-foreground mt-2">{result.demandChange?.after || 0} units</p>
+              <p className="fx-num fx-metric-md text-foreground mt-2">{result.demandChange?.after || 0} units</p>
               <p className="flex items-center gap-1 mt-1.5 text-xs">
                 {result.demandChange?.changePercent >= 0
                   ? <ArrowUpRight className="w-3.5 h-3.5 text-success" aria-hidden="true" strokeWidth={1.8} />
@@ -259,7 +267,7 @@ export default function WhatIfPage() {
                 <p className="fx-eyebrow">Products Affected</p>
                 <Package className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
               </div>
-              <p className="fx-num text-xl font-semibold text-foreground mt-2">{result.affectedProducts?.length || 0}</p>
+              <p className="fx-num fx-metric-md text-foreground mt-2">{result.affectedProducts?.length || 0}</p>
               <p className="text-xs text-muted-foreground mt-1.5">
                 {result.affectedProducts?.filter((p: any) => p.stockoutRisk === "high").length || 0} at stockout risk
               </p>
@@ -272,7 +280,7 @@ export default function WhatIfPage() {
               </div>
               <p className="flex items-center gap-2 mt-2">
                 <span className={`fx-signal ${result.riskLevel === "critical" || result.riskLevel === "high" ? "fx-signal-danger" : result.riskLevel === "medium" ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
-                <span className="text-xl font-semibold text-foreground capitalize">{result.riskLevel}</span>
+                <span className="fx-metric-md text-foreground capitalize">{result.riskLevel}</span>
               </p>
               <p className="text-xs text-muted-foreground mt-1.5"><span className="fx-num">{result.confidence}%</span> confidence</p>
             </div>
@@ -280,7 +288,7 @@ export default function WhatIfPage() {
 
           {/* Timeline */}
           {result.timeline?.length > 0 && (
-            <section aria-label="Impact timeline" className="fx-card overflow-hidden">
+            <section aria-label="Impact timeline" className="fx-card">
               <button
                 onClick={() => setShowTimeline(!showTimeline)}
                 aria-expanded={showTimeline}
@@ -372,25 +380,29 @@ export default function WhatIfPage() {
                       <div className="px-1 pb-4 pt-1">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                           <div>
-                            <p className="fx-eyebrow text-[10px]">Current Stock</p>
-                            <p className="fx-num text-sm font-semibold text-foreground mt-1">{p.currentStock} units</p>
+                            <p className="fx-eyebrow">Current Stock</p>
+                            <p className="fx-num fx-metric-sm text-foreground mt-1">{p.currentStock} units</p>
                           </div>
                           <div>
-                            <p className="fx-eyebrow text-[10px]">Baseline Demand</p>
-                            <p className="fx-num text-sm font-semibold text-foreground mt-1">{p.baselineDemand}/day</p>
+                            <p className="fx-eyebrow">Baseline Demand</p>
+                            <p className="fx-num fx-metric-sm text-foreground mt-1">{p.baselineDemand}/day</p>
                           </div>
                           <div>
-                            <p className="fx-eyebrow text-[10px]">Projected Demand</p>
-                            <p className={`fx-num text-sm font-semibold mt-1 ${p.changePercent > 0 ? "text-success" : p.changePercent < 0 ? "text-danger" : "text-foreground"}`}>{p.projectedDemand}/day</p>
+                            <p className="fx-eyebrow">Projected Demand</p>
+                            <p className={`fx-num fx-metric-sm mt-1 ${p.changePercent > 0 ? "text-success" : p.changePercent < 0 ? "text-danger" : "text-foreground"}`}>{p.projectedDemand}/day</p>
                           </div>
                           <div>
-                            <p className="fx-eyebrow text-[10px]">Days of Stock</p>
-                            <p className={`fx-num text-sm font-semibold mt-1 ${p.daysOfStock <= 2 ? "text-danger" : p.daysOfStock <= 5 ? "text-warning" : "text-success"}`}>{p.daysOfStock} days</p>
+                            <p className="fx-eyebrow">Days of Stock</p>
+                            <p className={`fx-num fx-metric-sm mt-1 inline-flex items-center gap-1.5 ${p.daysOfStock <= 2 ? "text-danger" : p.daysOfStock <= 5 ? "text-warning" : "text-success"}`}>
+                              {p.daysOfStock <= 2 && <span className="fx-signal fx-signal-danger" aria-hidden="true" />}
+                              {p.daysOfStock > 2 && p.daysOfStock <= 5 && <span className="fx-signal fx-signal-warning" aria-hidden="true" />}
+                              {p.daysOfStock}d
+                            </p>
                           </div>
                         </div>
                         {/* Stock progress bar */}
                         <div className="mb-3">
-                          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
                             <span>Stock coverage at projected demand</span>
                             <span className="fx-num">{p.daysOfStock} / 7 days</span>
                           </div>
@@ -413,7 +425,7 @@ export default function WhatIfPage() {
                         </div>
                         <div className="fx-rule pt-3">
                           <p className="text-xs text-muted-foreground"><strong className="text-foreground font-semibold">Reasoning:</strong> {p.reasoning}</p>
-                          <p className="text-xs mt-2"><strong className="font-semibold" style={{ color: "var(--accent)" }}>Action:</strong> <span className="text-foreground">{p.action}</span></p>
+                          <p className="text-xs mt-2"><strong className="font-semibold text-accent">Action:</strong> <span className="text-foreground">{p.action}</span></p>
                         </div>
                       </div>
                     )}
@@ -477,7 +489,7 @@ export default function WhatIfPage() {
       )}
 
       {/* Empty State */}
-      {!result && !loading && (
+      {!result && !loading && !error && (
         <div className="fx-card flex flex-col items-center justify-center text-center py-16 px-6">
           <FlaskConical className="w-5 h-5 text-muted-foreground mb-3 opacity-60" aria-hidden="true" strokeWidth={1.8} />
           <p className="text-sm text-secondary-foreground font-medium">Pick a scenario and hit Simulate</p>

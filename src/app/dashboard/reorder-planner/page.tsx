@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Calendar, Package } from "lucide-react";
 
@@ -78,10 +78,10 @@ export default function ReorderPlannerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!user?.id) return;
-    (async () => {
+  const loadReorderPlan = useCallback(async () => {
+      if (!user?.id) return;
       setLoading(true);
+      setError("");
       try {
         const res = await fetch("/api/reorder-planner", {
           method: "POST",
@@ -94,8 +94,12 @@ export default function ReorderPlannerPage() {
         setSummary(data.summary || {});
       } catch { setError("Failed to load reorder data."); }
       finally { setLoading(false); }
-    })();
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    loadReorderPlan();
+  }, [user?.id, loadReorderPlan]);
 
   const urgencyCounts = items.reduce((acc: Record<string, number>, i: any) => {
     acc[i.urgency] = (acc[i.urgency] || 0) + 1;
@@ -112,8 +116,9 @@ export default function ReorderPlannerPage() {
   if (error) {
     return (
       <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
-        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm">
-          {error}
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">{error}</span>
+          <button onClick={loadReorderPlan} className="fx-btn">Retry</button>
         </div>
       </div>
     );
@@ -132,7 +137,7 @@ export default function ReorderPlannerPage() {
       <section aria-label="Reorder summary" className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Reorder Now</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{urgencyCounts["immediate"] || 0}</p>
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{urgencyCounts["immediate"] || 0}</p>
           <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${(urgencyCounts["immediate"] || 0) > 0 ? "text-danger" : "text-muted-foreground"}`}>
             <span className={`fx-signal ${(urgencyCounts["immediate"] || 0) > 0 ? "fx-signal-danger" : "fx-signal-success"}`} aria-hidden="true" />
             {(urgencyCounts["immediate"] || 0) > 0 ? "Need immediate reorder" : "Nothing overdue"}
@@ -140,7 +145,7 @@ export default function ReorderPlannerPage() {
         </div>
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Reorder Soon</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{reorderSoonCount}</p>
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">{reorderSoonCount}</p>
           <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${reorderSoonCount > 0 ? "text-warning" : "text-muted-foreground"}`}>
             <span className={`fx-signal ${reorderSoonCount > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
             {reorderSoonCount > 0 ? "Within 3 days" : "No pressure this week"}
@@ -148,12 +153,12 @@ export default function ReorderPlannerPage() {
         </div>
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Total Reorder Cost</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">₹{summary.totalCost?.toLocaleString("en-IN")}</p>
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">₹{summary.totalCost?.toLocaleString("en-IN")}</p>
           <p className="text-xs text-muted-foreground mt-2.5">Estimated for all reorders</p>
         </div>
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Avg Lead Time</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">
             {summary.avgLeadTime}<span className="text-sm font-normal text-muted-foreground ml-1.5">days</span>
           </p>
           <p className="text-xs text-muted-foreground mt-2.5">Average supplier lead time</p>
@@ -180,7 +185,7 @@ export default function ReorderPlannerPage() {
         <section aria-label="Reorder timeline" className="space-y-4">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
-            <h2 className="fx-display text-[19px] text-foreground">Reorder Timeline</h2>
+            <h2 className="fx-display text-[17px] text-foreground">Reorder Timeline</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {reorderItems.map((item: any, idx: number) => {
@@ -212,11 +217,11 @@ export default function ReorderPlannerPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4 fx-rule pt-3.5">
                     <div>
-                      <p className="fx-eyebrow text-[10px]">Order by</p>
+                      <p className="fx-eyebrow">Order by</p>
                       <p className="fx-num text-sm font-medium text-foreground mt-1">{item.reorderDate}</p>
                     </div>
                     <div>
-                      <p className="fx-eyebrow text-[10px]">Suggested Qty</p>
+                      <p className="fx-eyebrow">Suggested Qty</p>
                       <p className="fx-num text-sm font-medium text-foreground mt-1">{item.orderQuantity} {item.unit}</p>
                     </div>
                   </div>
@@ -238,21 +243,24 @@ export default function ReorderPlannerPage() {
           <h2 className="fx-display text-[17px] text-foreground">All Products</h2>
           <span className="fx-badge fx-num">{items.length}</span>
         </div>
-        <div className="overflow-x-auto -mx-2">
+        <div className="fx-table-scroll -mx-2">
           <table className="fx-table min-w-[960px]">
+            <caption className="fx-sr-only">
+              Every tracked product with its current stock, daily demand, supplier lead time in days, reorder point, safety stock, days until the reorder point is hit, suggested order quantity, estimated cost, and reorder urgency.
+            </caption>
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Category</th>
-                <th className="text-right">Current Stock</th>
-                <th className="text-right">Daily Demand</th>
-                <th className="text-right">Lead Time</th>
-                <th className="text-right">Reorder Point</th>
-                <th className="text-right">Safety Stock</th>
-                <th className="text-right">Days Until</th>
-                <th className="text-right">Order Qty</th>
-                <th className="text-right">Est. Cost</th>
-                <th>Urgency</th>
+                <th scope="col">Product</th>
+                <th scope="col">Category</th>
+                <th scope="col" className="text-right">Current Stock</th>
+                <th scope="col" className="text-right">Daily Demand</th>
+                <th scope="col" className="text-right">Lead Time</th>
+                <th scope="col" className="text-right">Reorder Point</th>
+                <th scope="col" className="text-right">Safety Stock</th>
+                <th scope="col" className="text-right">Days Until</th>
+                <th scope="col" className="text-right">Order Qty</th>
+                <th scope="col" className="text-right">Est. Cost</th>
+                <th scope="col">Urgency</th>
               </tr>
             </thead>
             <tbody>
@@ -265,7 +273,13 @@ export default function ReorderPlannerPage() {
                   <td className="text-right fx-num text-secondary-foreground">{item.leadTimeDays}d</td>
                   <td className="text-right fx-num text-secondary-foreground">{item.reorderPoint}</td>
                   <td className="text-right fx-num text-secondary-foreground">{item.safetyStock}</td>
-                  <td className="text-right fx-num text-secondary-foreground">{item.daysUntilReorder}d</td>
+                  <td className="text-right">
+                    <span className={`fx-num inline-flex items-center justify-end gap-1.5 ${item.daysUntilReorder <= 0 ? "font-semibold text-danger" : item.daysUntilReorder <= 3 ? "font-semibold text-warning" : "text-secondary-foreground"}`}>
+                      {item.daysUntilReorder <= 0 && <span className="fx-signal fx-signal-danger" aria-hidden="true" />}
+                      {item.daysUntilReorder > 0 && item.daysUntilReorder <= 3 && <span className="fx-signal fx-signal-warning" aria-hidden="true" />}
+                      {item.daysUntilReorder}d
+                    </span>
+                  </td>
                   <td className="text-right fx-num font-semibold text-foreground">{item.orderQuantity}</td>
                   <td className="text-right fx-num text-foreground">₹{item.estimatedCost.toLocaleString("en-IN")}</td>
                   <td><UrgencyStatus urgency={item.urgency} /></td>

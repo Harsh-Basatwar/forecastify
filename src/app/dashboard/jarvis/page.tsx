@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { useRouter } from "next/navigation";
@@ -49,6 +49,52 @@ interface ReportCard {
   activityCount: number;
 }
 
+/** How long an auto-dismissing panel stays up. The countdown bar reads the
+ *  same number, so what the bar shows is what actually happens. */
+const POPUP_DISMISS_MS = 8000;
+
+/**
+ * Reveals `text` one character at a time by writing straight into a DOM node.
+ * Kept in its own component with no rendered state so the 50Hz tick cannot
+ * re-render the (very large) Jarvis page around it.
+ */
+function Typewriter({ text, caret }: { text: string; caret: boolean }) {
+  const nodeRef = useRef<HTMLSpanElement>(null);
+  const [typing, setTyping] = useState(false);
+
+  useEffect(() => {
+    const node = nodeRef.current;
+    if (!node) return;
+    if (!text) { node.textContent = ""; setTyping(false); return; }
+
+    let i = 0;
+    node.textContent = "";
+    setTyping(true);
+    const t = setInterval(() => {
+      i++;
+      node.textContent = text.slice(0, i);
+      if (i >= text.length) { clearInterval(t); setTyping(false); }
+    }, 20);
+    return () => clearInterval(t);
+  }, [text]);
+
+  return (
+    <>
+      {/* Visible reveal is decorative motion — the full sentence below is what
+          gets announced, once, instead of 200 single-character updates. */}
+      <span ref={nodeRef} aria-hidden="true" />
+      <span className="fx-sr-only">{text}</span>
+      {caret && typing && (
+        <span
+          className="inline-block w-0.5 h-4 ml-1 animate-pulse align-middle"
+          style={{ background: "var(--accent)" }}
+          aria-hidden="true"
+        />
+      )}
+    </>
+  );
+}
+
 export default function JarvisPage() {
   const { user } = useAuth();
   const { lang: appLang } = useLang();
@@ -60,18 +106,21 @@ export default function JarvisPage() {
   const [dashboardSnapshot, setDashboardSnapshot] = useState<any>(null);
   const [transcript, setTranscript] = useState("");
   const [jarvisText, setJarvisText] = useState("");
-  const [displayedText, setDisplayedText] = useState("");
   const [history, setHistory] = useState<Message[]>([]);
   const [weather, setWeather] = useState<any>(null);
   const [locationName, setLocationName] = useState("");
   const [newsData, setNewsData] = useState<any>(null);
   const [popup, setPopup] = useState<PopupData | null>(null);
   const [inventoryPopup, setInventoryPopup] = useState<any[] | null>(null);
-  const [popupHovered, setPopupHovered] = useState(false);
-  const [invHovered, setInvHovered] = useState(false);
+  /* Auto-dismiss is suspended while a panel is hovered OR focused, and can be
+     cancelled outright with the "Keep open" control — a pointer-only pause
+     fails WCAG 2.2.1. Both flags feed the one timer that actually dismisses,
+     and the countdown bar renders only while that timer is running. */
+  const [popupHeld, setPopupHeld] = useState(false);
+  const [popupPinned, setPopupPinned] = useState(false);
+  const [invHeld, setInvHeld] = useState(false);
+  const [invPinned, setInvPinned] = useState(false);
   const [invFilter, setInvFilter] = useState<"all" | "low" | "over">("all");
-  const popupTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const invTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [metrics, setMetrics] = useState({
     health: 0,
@@ -96,6 +145,9 @@ export default function JarvisPage() {
   const [langOpen, setLangOpen] = useState(false);
   const [showTestQueries, setShowTestQueries] = useState(false);
   const langDropdownRef = useRef<HTMLDivElement>(null);
+  const langTriggerRef = useRef<HTMLButtonElement>(null);
+  const langListRef = useRef<HTMLDivElement>(null);
+  const [langActiveIdx, setLangActiveIdx] = useState(0);
 
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
@@ -112,7 +164,15 @@ export default function JarvisPage() {
   const lonRef = useRef(0);
   const clapStreamRef = useRef<MediaStream | null>(null);
   const clapCtxRef = useRef<AudioContext | null>(null);
-  const clapAnimRef = useRef<number>(0);
+  /* One detection pass, supplied by the audio-graph effect. The rAF loop that
+     calls it is owned by a separate effect gated on `state === "sleeping"`, so
+     it is not running (and not rescheduling) for the whole session. */
+  const clapTickRef = useRef<(() => void) | null>(null);
+  const clapResetRef = useRef<(() => void) | null>(null);
+  const [clapReady, setClapReady] = useState(false);
+  /* Chrome's speech-synthesis keep-alive ticker. Held here so unmount can
+     clear it — utt.onend never fires if we navigate away mid-utterance. */
+  const keepAliveRef = useRef<NodeJS.Timeout | null>(null);
 
   const micStreamRef = useRef<MediaStream | null>(null);
 
@@ -127,7 +187,8 @@ export default function JarvisPage() {
     localStorage.setItem("jarvis-lang", lang);
   }, [lang]);
 
-  // Close language dropdown on outside click
+  // Close language dropdown on outside click. Keyboard dismissal (Escape,
+  // Tab-out) is handled on the listbox itself — mousedown alone traps keyboards.
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (langDropdownRef.current && !langDropdownRef.current.contains(e.target as Node)) {
@@ -138,14 +199,71 @@ export default function JarvisPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [langOpen]);
 
-  // Typewriter
+  // Open the listbox on the current language and move focus into it.
   useEffect(() => {
-    if (!jarvisText) { setDisplayedText(""); return; }
-    let i = 0;
-    setDisplayedText("");
-    const t = setInterval(() => { setDisplayedText(jarvisText.slice(0, i + 1)); i++; if (i >= jarvisText.length) clearInterval(t); }, 20);
-    return () => clearInterval(t);
-  }, [jarvisText]);
+    if (!langOpen) return;
+    const idx = Math.max(0, LANGUAGES.findIndex(l => l.code === lang));
+    setLangActiveIdx(idx);
+    const option = langListRef.current?.querySelectorAll<HTMLElement>('[role="option"]')[idx];
+    option?.focus();
+  }, [langOpen, lang]);
+
+  const moveLangFocus = useCallback((next: number) => {
+    const total = LANGUAGES.length;
+    const idx = ((next % total) + total) % total;
+    setLangActiveIdx(idx);
+    langListRef.current?.querySelectorAll<HTMLElement>('[role="option"]')[idx]?.focus();
+  }, []);
+
+  const closeLangMenu = useCallback(() => {
+    setLangOpen(false);
+    langTriggerRef.current?.focus();
+  }, []);
+
+  // ── Auto-dismiss, honestly ───────────────────────────────────────────
+  // Every path that opens a panel goes through these, so new content always
+  // starts a fresh countdown and never inherits a hold or pin from the panel
+  // it replaced.
+  const showPopup = useCallback((next: PopupData) => {
+    setPopup(next);
+    setPopupHeld(false);
+    setPopupPinned(false);
+  }, []);
+
+  const showInventory = useCallback((rows: any[]) => {
+    setInventoryPopup(rows);
+    setInvHeld(false);
+    setInvPinned(false);
+  }, []);
+
+  // The single owner of feature-popup dismissal. Every code path that opens a
+  // popup is covered, so the countdown bar can never run out on a panel that
+  // then sits there forever.
+  useEffect(() => {
+    if (!popup || popup.loading || popupHeld || popupPinned) return;
+    const t = setTimeout(() => setPopup(null), POPUP_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [popup, popupHeld, popupPinned]);
+
+  useEffect(() => {
+    if (!inventoryPopup || invHeld || invPinned) return;
+    const t = setTimeout(() => setInventoryPopup(null), POPUP_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [inventoryPopup, invHeld, invPinned]);
+
+  // Escape dismisses the topmost panel — a keyboard route out that does not
+  // depend on reaching the close button first.
+  useEffect(() => {
+    if (!popup && !inventoryPopup && !reportCard) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (inventoryPopup) setInventoryPopup(null);
+      else if (popup) setPopup(null);
+      else if (reportCard) setReportCard(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [popup, inventoryPopup, reportCard]);
 
   // Init speech + voices
   useEffect(() => {
@@ -325,15 +443,25 @@ export default function JarvisPage() {
     synthRef.current.speak(utt);
 
     // Chrome bug fix: pause/resume to prevent cutoff
+    if (keepAliveRef.current) clearInterval(keepAliveRef.current);
     const keepAlive = setInterval(() => {
       if (!synthRef.current?.speaking) { clearInterval(keepAlive); return; }
       synthRef.current.pause();
       synthRef.current.resume();
     }, 5000);
+    keepAliveRef.current = keepAlive;
     const origEnd = utt.onend;
-    utt.onend = (e) => { clearInterval(keepAlive); (origEnd as any)?.(e); };
-    utt.onerror = () => { clearInterval(keepAlive); isSpeakingRef.current = false; setState("idle"); onDone?.(); };
+    utt.onend = (e) => { clearInterval(keepAlive); keepAliveRef.current = null; (origEnd as any)?.(e); };
+    utt.onerror = () => { clearInterval(keepAlive); keepAliveRef.current = null; isSpeakingRef.current = false; setState("idle"); onDone?.(); };
   }, [voiceEnabled, lang]);
+
+  // Neither onend nor onerror fires if the page unmounts mid-utterance, so the
+  // 5s ticker would outlive the component. Clear it (and the speech) here.
+  useEffect(() => () => {
+    if (keepAliveRef.current) clearInterval(keepAliveRef.current);
+    keepAliveRef.current = null;
+    try { synthRef.current?.cancel(); } catch {}
+  }, []);
 
   const stopSpeaking = useCallback(() => {
     synthRef.current?.cancel();
@@ -469,7 +597,7 @@ export default function JarvisPage() {
     if (!user) return;
 
     const showLoading = (title: string) => {
-      setPopup({ title, content: "<div style='text-align:center;padding:20px;color:var(--muted-foreground);'>Analyzing data...</div>", loading: true });
+      showPopup({ title, content: "<div style='text-align:center;padding:20px;color:var(--muted-foreground);'>Analyzing data...</div>", loading: true });
     };
 
     try {
@@ -495,7 +623,7 @@ export default function JarvisPage() {
           const data = await res.json();
 
           if (data.error) {
-            setPopup({ title: `Product Analysis: ${productName}`, content: `<p style="color:var(--danger);">Error: ${data.error}</p>` });
+            showPopup({ title: `Product Analysis: ${productName}`, content: `<p style="color:var(--danger);">Error: ${data.error}</p>` });
             return;
           }
 
@@ -530,7 +658,7 @@ export default function JarvisPage() {
             html += `</div>`;
           }
 
-          setPopup({ title: `Product Analysis: ${a.productName || productName}`, content: html });
+          showPopup({ title: `Product Analysis: ${a.productName || productName}`, content: html });
           rememberActivity("PRODUCT_ANALYSIS", `Product Analysis: ${a.productName || productName}`, a.summary || `Analyzed ${a.productName || productName}.`, {
             productName: a.productName || productName,
             currentStock: a.currentStock,
@@ -571,7 +699,7 @@ export default function JarvisPage() {
           const data = await res.json();
 
           if (data.error) {
-            setPopup({ title: "Demand Spike Analysis", content: `<p style="color:var(--danger);">Error: ${data.error}</p>` });
+            showPopup({ title: "Demand Spike Analysis", content: `<p style="color:var(--danger);">Error: ${data.error}</p>` });
             return;
           }
 
@@ -620,7 +748,7 @@ export default function JarvisPage() {
             html += `</div>`;
           }
 
-          setPopup({ title: "Demand Spike Analysis", content: html || "<p>No significant spikes detected.</p>" });
+          showPopup({ title: "Demand Spike Analysis", content: html || "<p>No significant spikes detected.</p>" });
           rememberActivity("DEMAND_SPIKE_ANALYSIS", "Demand Spike Analysis", a.summary || "Demand spike analysis completed.", {
             spikeCount: a.demandSpikes?.length || 0,
             topProducts: a.trendingProducts?.slice(0, 5)?.map((p: any) => p.name) || [],
@@ -647,7 +775,7 @@ export default function JarvisPage() {
           const data = await res.json();
 
           if (data.error) {
-            setPopup({ title: "Category Analysis", content: `<p style="color:var(--danger);">Error: ${data.error}</p>` });
+            showPopup({ title: "Category Analysis", content: `<p style="color:var(--danger);">Error: ${data.error}</p>` });
             return;
           }
 
@@ -692,7 +820,7 @@ export default function JarvisPage() {
             html += `</div>`;
           }
 
-          setPopup({ title: `Category: ${a.category || categoryName || "Analysis"}`, content: html });
+          showPopup({ title: `Category: ${a.category || categoryName || "Analysis"}`, content: html });
           rememberActivity("CATEGORY_ANALYSIS", `Category Analysis${a.category || categoryName ? `: ${a.category || categoryName}` : ""}`, a.summary || "Category analysis completed.", {
             category: a.category || categoryName || "All",
             totalCategoryDemand: a.totalCategoryDemand,
@@ -719,7 +847,7 @@ export default function JarvisPage() {
           const summary = data.summary;
 
           if (!alerts.length) {
-            setPopup({ title: "Stock Alerts", content: "<p style='color:var(--success);text-align:center;padding:20px;'>All clear! No alerts, Sir.</p>" });
+            showPopup({ title: "Stock Alerts", content: "<p style='color:var(--success);text-align:center;padding:20px;'>All clear! No alerts, Sir.</p>" });
             rememberActivity("STOCK_ALERTS", "Stock Alerts Checked", "No urgent stock alerts were found.", { count: 0, summary });
             return;
           }
@@ -741,7 +869,7 @@ export default function JarvisPage() {
           });
           html += `</table>`;
 
-          setPopup({ title: `Stock Alerts (${alerts.length})`, content: html });
+          showPopup({ title: `Stock Alerts (${alerts.length})`, content: html });
           rememberActivity("STOCK_ALERTS", `Stock Alerts (${alerts.length})`, `${alerts.length} alert signals checked.`, {
             count: alerts.length,
             summary,
@@ -752,7 +880,7 @@ export default function JarvisPage() {
         case "news": {
           showLoading("Fetching Market News...");
           if (!newsRef.current) {
-            setPopup({ title: "News & Market Updates", content: "<p style='padding:20px;color:var(--muted-foreground);text-align:center;'>No live news available right now, Sir.</p>" });
+            showPopup({ title: "News & Market Updates", content: "<p style='padding:20px;color:var(--muted-foreground);text-align:center;'>No live news available right now, Sir.</p>" });
             return;
           }
           const allNews = [...(newsRef.current.trending || []), ...(newsRef.current.events || [])].filter((n: any) => n.title && n.link);
@@ -770,7 +898,7 @@ export default function JarvisPage() {
             });
           }
           html += `</div>`;
-          setPopup({ title: "Live Market News", content: html });
+          showPopup({ title: "Live Market News", content: html });
           rememberActivity("NEWS_CHECK", "Checked Market News", `Viewed ${allNews.length} news items.`);
           break;
         }
@@ -805,15 +933,15 @@ export default function JarvisPage() {
             });
           }
           html += `</div>`;
-          setPopup({ title: "Live Promotions & Offers", content: html });
+          showPopup({ title: "Live Promotions & Offers", content: html });
           rememberActivity("PROMO_CHECK", "Checked Live Offers", `Found ${offers.length} offers.`);
           break;
         }
       }
     } catch (err: any) {
-      setPopup({ title: "Error", content: `<p style="color:var(--danger);">Failed: ${err.message || "Unknown error"}</p>` });
+      showPopup({ title: "Error", content: `<p style="color:var(--danger);">Failed: ${err.message || "Unknown error"}</p>` });
     }
-  }, [user, fetchInventory, fetchStoreProfile, fetchWeatherFull, rememberActivity]);
+  }, [user, fetchInventory, fetchStoreProfile, fetchWeatherFull, rememberActivity, showPopup]);
 
   // ---- JARVIS CORE ----
   const sendToJarvis = useCallback(async (text: string) => {
@@ -860,25 +988,19 @@ export default function JarvisPage() {
           if (action.type === "open_url" && action.result?.url) window.open(action.result.url, "_blank");
 
           if (action.type === "popup" && action.result) {
-            setPopup({ title: action.result.title, content: action.result.content });
-            setPopupHovered(false);
-            if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
-            popupTimerRef.current = setTimeout(() => { setPopup(p => popupHovered ? p : null); }, 8000);
+            showPopup({ title: action.result.title, content: action.result.content });
           }
 
           if ((action.type === "list" || action.type === "search") && action.result?.data?.length) {
-            setInventoryPopup(action.result.data);
-            setInvHovered(false);
-            if (invTimerRef.current) clearTimeout(invTimerRef.current);
-            invTimerRef.current = setTimeout(() => { setInventoryPopup(p => invHovered ? p : null); }, 8000);
+            showInventory(action.result.data);
           }
 
           if ((action.type === "add" || action.type === "increase" || action.type === "reduce" || action.type === "update" || action.type === "duplicate") && action.result?.data) {
             const item = action.result.data;
-            setInventoryPopup([item]);
+            showInventory([item]);
             const verb = action.type === "add" ? "Added" : action.type === "increase" ? "Increased" : action.type === "reduce" ? "Reduced" : action.type === "duplicate" ? "Already in inventory" : "Updated";
             const stockText = `${item.current_stock ?? 0} ${item.unit || "units"}`;
-            setPopup({
+            showPopup({
               title: `${verb}: ${item.product_name}`,
               content: `<div style="font-size:13px;line-height:1.5;">
                 <p><strong>${item.product_name}</strong></p>
@@ -892,14 +1014,11 @@ export default function JarvisPage() {
               `${item.product_name} current stock is ${stockText}.`,
               { productName: item.product_name, currentStock: item.current_stock, unit: item.unit, actionType: action.type }
             );
-            setInvHovered(false);
-            if (invTimerRef.current) clearTimeout(invTimerRef.current);
-            invTimerRef.current = setTimeout(() => { setInventoryPopup(p => invHovered ? p : null); }, 8000);
           }
 
           if (action.type === "delete" && !action.result?.error) {
             const deletedName = action.result?.deletedProduct?.product_name || "Product";
-            setPopup({
+            showPopup({
               title: `Removed: ${deletedName}`,
               content: `<p><strong>${deletedName}</strong> was removed from inventory.</p>`,
             });
@@ -930,7 +1049,7 @@ export default function JarvisPage() {
       setJarvisText("Connection lost briefly, Sir.");
       speak("Connection lost briefly, Sir.");
     }
-  }, [user, speak, unlockAudio, popupHovered, invHovered, callFeatureAPI, router, lang, triggerJarvisReport, rememberActivity]);
+  }, [user, speak, unlockAudio, callFeatureAPI, router, lang, triggerJarvisReport, rememberActivity, showPopup, showInventory]);
 
   // ---- REQUEST MIC PERMISSION (must be from user gesture) ----
   const requestMicPermission = useCallback(async (): Promise<boolean> => {
@@ -1118,25 +1237,10 @@ export default function JarvisPage() {
           setMicAllowed(false);
           setJarvisText("Microphone blocked. Click the lock icon in Chrome's address bar → allow Microphone → reload.");
         } else {
-          // "prompt" state — auto-initialize after 10 seconds if user hasn't clicked
+          // "prompt" state — wait for a user gesture. Claiming the microphone
+          // and playing a spoken greeting on a 10s timer is not something the
+          // visitor asked for; `enableMic` / `wakeUp` do this on request.
           setMicAllowed(null);
-          setTimeout(() => {
-            if (cancelled || stateRef.current !== "sleeping") return;
-            // Trigger mic permission request + wake up
-            (async () => {
-              try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
-                micStreamRef.current = stream;
-                setMicAllowed(true);
-                startRecognition();
-                unlockAudio();
-                sendToJarvis("Hey Jarvis, wake up.");
-              } catch {
-                setMicAllowed(false);
-              }
-            })();
-          }, 10000);
         }
 
         // Listen for permission changes (user toggles in browser settings)
@@ -1167,7 +1271,12 @@ export default function JarvisPage() {
   }, [user, startRecognition]);
 
   // ---- CLAP DETECTION (double clap to wake) ----
-  // Only start clap detection once mic is already allowed (reuse the existing stream)
+  // Only start clap detection once mic is already allowed (reuse the existing
+  // stream). This effect builds the audio graph and publishes a single
+  // detection pass; the rAF loop that drives it lives in the effect below and
+  // only runs while Jarvis is asleep, which is the only state that reacts to a
+  // clap. Previously the loop rescheduled itself unconditionally and bailed out
+  // on the next frame — burning a frame callback for the whole session.
   useEffect(() => {
     if (!user || micAllowed !== true) return;
     let cancelled = false;
@@ -1200,13 +1309,6 @@ export default function JarvisPage() {
 
         function detect() {
           if (cancelled) return;
-          clapAnimRef.current = requestAnimationFrame(detect);
-
-          // Only detect claps when sleeping
-          if (stateRef.current !== "sleeping") {
-            clapCount = 0;
-            return;
-          }
 
           analyser.getByteTimeDomainData(dataArray);
           // Calculate RMS from time domain (better for transient detection like claps)
@@ -1253,7 +1355,9 @@ export default function JarvisPage() {
           baselineRms = baselineRms * 0.995 + rms * 0.005;
         }
 
-        detect();
+        clapTickRef.current = detect;
+        clapResetRef.current = () => { clapCount = 0; };
+        setClapReady(true);
       } catch {
         // Retry after delay if mic not ready yet
         if (!cancelled && retryCount < 3) {
@@ -1268,11 +1372,24 @@ export default function JarvisPage() {
     return () => {
       cancelled = true;
       clearTimeout(timer);
-      if (clapAnimRef.current) cancelAnimationFrame(clapAnimRef.current);
+      clapTickRef.current = null;
+      clapResetRef.current = null;
+      setClapReady(false);
       // Don't stop the shared mic stream — only stop clap-specific resources
       clapCtxRef.current?.close().catch(() => {});
     };
   }, [user, micAllowed]);
+
+  // The rAF loop, started and stopped by state rather than running all session.
+  useEffect(() => {
+    if (!clapReady || state !== "sleeping") return;
+    clapResetRef.current?.();
+    let raf = requestAnimationFrame(function loop() {
+      clapTickRef.current?.();
+      raf = requestAnimationFrame(loop);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [clapReady, state]);
 
   // Listen for clap wake event
   useEffect(() => {
@@ -1285,6 +1402,14 @@ export default function JarvisPage() {
     window.addEventListener("jarvis-clap-wake", handleClapWake);
     return () => window.removeEventListener("jarvis-clap-wake", handleClapWake);
   }, [sendToJarvis, unlockAudio]);
+
+  // Explicit, labelled entry point for the microphone prompt. This used to hang
+  // off onClick on the page root, so any click anywhere asked for the mic.
+  const enableMic = useCallback(async () => {
+    unlockAudio();
+    const granted = await requestMicPermission();
+    if (granted && !isListeningRef.current) startRecognition();
+  }, [unlockAudio, requestMicPermission, startRecognition]);
 
   const wakeUp = useCallback(async () => {
     unlockAudio();
@@ -1305,13 +1430,7 @@ export default function JarvisPage() {
 
   // ---- RENDER ----
   return (
-    <div className="h-[calc(100vh-8rem)] max-w-[1400px] mx-auto flex flex-col items-center justify-center relative" onClick={() => {
-      unlockAudio();
-      // On any click, try to get mic permission if not yet granted (user gesture context)
-      if (micAllowed === null) requestMicPermission().then(ok => { if (ok && !isListeningRef.current) startRecognition(); });
-    }}>
-      <style>{`@keyframes shrink { from { width: 100%; } to { width: 0%; } }`}</style>
-
+    <div className="h-[calc(100vh-8rem)] max-w-[1400px] mx-auto flex flex-col items-center justify-center relative">
       {/* Context strip · quiet meta, hairline rule */}
       <div className="absolute top-0 left-0 right-0 flex items-center justify-between gap-3 px-1 py-3 border-b border-border z-10">
         <div className="flex items-center gap-4 min-w-0 text-xs text-muted-foreground">
@@ -1331,25 +1450,57 @@ export default function JarvisPage() {
         <div className="flex items-center gap-2 shrink-0">
           {state !== "sleeping" && (
             <button
+              type="button"
               onClick={state === "paused" ? resumeJarvis : pauseJarvis}
               className="fx-btn"
             >
               {state === "paused" ? <><PlayCircle className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" /> Resume</> : <><PauseCircle className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" /> Pause</>}
             </button>
           )}
-          {/* Language selector dropdown */}
+          {/* Language selector · a real listbox: arrow keys, Home/End, Escape,
+              and focus handed back to the trigger on select. */}
           <div className="relative" ref={langDropdownRef}>
-            <button onClick={() => setLangOpen(!langOpen)}
-              className="fx-btn" aria-haspopup="listbox" aria-expanded={langOpen}>
+            <button
+              type="button"
+              ref={langTriggerRef}
+              onClick={() => setLangOpen(!langOpen)}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); setLangOpen(true); }
+              }}
+              className="fx-btn"
+              aria-haspopup="listbox"
+              aria-expanded={langOpen}
+              aria-label={`Jarvis language: ${LANGUAGES.find(l => l.code === lang)?.name || "English"}`}
+            >
               <Globe className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" />
               <span>{LANGUAGES.find(l => l.code === lang)?.nativeName || "English"}</span>
               <ChevronDown className={`w-3 h-3 transition-transform ${langOpen ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
             {langOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-44 max-h-64 overflow-y-auto bg-elevated border border-border rounded-[var(--radius-md)] z-50 fx-fade-in" style={{ boxShadow: "var(--shadow-md)" }}>
-                {LANGUAGES.map(l => (
+              <div
+                ref={langListRef}
+                role="listbox"
+                aria-label="Jarvis language"
+                className="absolute right-0 top-full mt-1.5 w-44 max-h-64 overflow-y-auto bg-elevated border border-border rounded-[var(--radius-md)] z-50 fx-fade-in"
+                style={{ boxShadow: "var(--shadow-md)" }}
+                onKeyDown={(e) => {
+                  switch (e.key) {
+                    case "ArrowDown": e.preventDefault(); moveLangFocus(langActiveIdx + 1); break;
+                    case "ArrowUp": e.preventDefault(); moveLangFocus(langActiveIdx - 1); break;
+                    case "Home": e.preventDefault(); moveLangFocus(0); break;
+                    case "End": e.preventDefault(); moveLangFocus(LANGUAGES.length - 1); break;
+                    case "Escape": e.preventDefault(); e.stopPropagation(); closeLangMenu(); break;
+                    case "Tab": setLangOpen(false); break;
+                  }
+                }}
+              >
+                {LANGUAGES.map((l, i) => (
                   <button key={l.code}
-                    onClick={() => { setLang(l.code); setLangOpen(false); }}
+                    type="button"
+                    role="option"
+                    aria-selected={lang === l.code}
+                    tabIndex={langActiveIdx === i ? 0 : -1}
+                    onClick={() => { setLang(l.code); closeLangMenu(); }}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 text-xs hover:bg-secondary transition-colors fx-focus ${
                       lang === l.code ? "bg-[var(--accent-soft)] text-accent font-semibold" : "text-foreground"
                     }`}>
@@ -1360,16 +1511,22 @@ export default function JarvisPage() {
               </div>
             )}
           </div>
-          <button onClick={() => { setVoiceEnabled(!voiceEnabled); if (isSpeakingRef.current) stopSpeaking(); }}
-            className="fx-btn fx-btn-ghost"
+          <button type="button" onClick={() => { setVoiceEnabled(!voiceEnabled); if (isSpeakingRef.current) stopSpeaking(); }}
+            className="fx-icon-btn"
             style={voiceEnabled ? { color: "var(--accent)" } : undefined}
             aria-label={voiceEnabled ? "Mute voice output" : "Enable voice output"}
             aria-pressed={voiceEnabled}>
             {voiceEnabled ? <Volume2 className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" /> : <VolumeX className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" />}
           </button>
+          {/* The one control that asks for the microphone */}
+          {micAllowed !== true && (
+            <button type="button" onClick={enableMic} className="fx-btn">
+              <Mic className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" /> Enable microphone
+            </button>
+          )}
           {/* Initialize Jarvis Button Top Right */}
           {(state === "sleeping" || state === "paused") && (
-            <button onClick={wakeUp} className="fx-btn fx-btn-accent">
+            <button type="button" onClick={wakeUp} className="fx-btn fx-btn-accent">
               <Zap className="w-3.5 h-3.5" strokeWidth={1.8} aria-hidden="true" /> Initialize
             </button>
           )}
@@ -1385,10 +1542,15 @@ export default function JarvisPage() {
         <AiOrb
           state={state}
           onClick={state === "sleeping" || state === "paused" ? wakeUp : stopSpeaking}
+          actionLabel={
+            state === "sleeping" ? "Wake Jarvis and start listening"
+              : state === "paused" ? "Resume Jarvis"
+              : "Stop Jarvis speaking"
+          }
         />
 
         <div className="text-center">
-          <h1 className={`fx-display text-[26px] leading-tight transition-colors duration-500 ${["sleeping","paused"].includes(state) ? "text-muted-foreground" : "text-foreground"}`}>J.A.R.V.I.S.</h1>
+          <h1 className={`fx-display text-[26px] leading-tight transition-colors duration-200 ${["sleeping","paused"].includes(state) ? "text-muted-foreground" : "text-foreground"}`}>J.A.R.V.I.S.</h1>
           <p className="fx-eyebrow mt-2 flex items-center justify-center gap-2 flex-wrap">
             Your personal store assistant
             <span className="fx-badge fx-badge-accent">
@@ -1400,34 +1562,39 @@ export default function JarvisPage() {
           </p>
         </div>
 
-        {/* User transcript · the shopkeeper's voice, set apart in serif italic */}
-        {state === "listening" && transcript && (
-          <div className="max-w-lg text-center fx-fade-in">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="fx-signal fx-signal-accent" aria-hidden="true" />
-              <span className="fx-eyebrow" style={{ color: "var(--accent)" }}>Listening</span>
+        {/* User transcript · the shopkeeper's voice, set apart in serif italic.
+            A voice assistant that never speaks to a screen reader is unusable,
+            so both sides of the conversation are live regions. */}
+        <div role="status" aria-live="polite" aria-atomic="true" className="w-full flex flex-col items-center empty:hidden">
+          {state === "listening" && transcript && (
+            <div className="max-w-lg text-center fx-fade-in">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="fx-signal fx-signal-accent" aria-hidden="true" />
+                <span className="fx-eyebrow" style={{ color: "var(--accent)" }}>Listening</span>
+              </div>
+              <p className="fx-display text-[19px] italic text-foreground leading-snug">&quot;{transcript}&quot;</p>
             </div>
-            <p className="fx-display text-[19px] italic text-foreground leading-snug">&quot;{transcript}&quot;</p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Jarvis response · reads like a briefing */}
-        {["speaking", "idle", "thinking", "paused"].includes(state) && displayedText && (
-          <div className="max-w-xl w-full fx-fade-in px-4">
-            <div className="flex items-center gap-2 mb-2.5">
-              <span className="fx-signal fx-signal-accent" aria-hidden="true" />
-              <span className="fx-eyebrow">Jarvis</span>
+        <div role="status" aria-live="polite" aria-atomic="true" className="w-full flex flex-col items-center empty:hidden">
+          {["speaking", "idle", "thinking", "paused"].includes(state) && jarvisText && (
+            <div className="max-w-xl w-full fx-fade-in px-4">
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="fx-signal fx-signal-accent" aria-hidden="true" />
+                <span className="fx-eyebrow">Jarvis</span>
+              </div>
+              <p className="text-[15px] text-foreground leading-relaxed border-l border-border pl-4">
+                <Typewriter text={jarvisText} caret={state === "speaking"} />
+              </p>
             </div>
-            <p className="text-[15px] text-foreground leading-relaxed border-l border-border pl-4">
-              {displayedText}
-              {state === "speaking" && displayedText.length < jarvisText.length && <span className="inline-block w-0.5 h-4 ml-1 animate-pulse align-middle" style={{ background: "var(--accent)" }} />}
-            </p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Thinking */}
-        {state === "thinking" && !displayedText && (
-          <div className="flex items-center gap-3 fx-fade-in">
+        {state === "thinking" && !jarvisText && (
+          <div className="flex items-center gap-3 fx-fade-in" role="status" aria-live="polite" aria-atomic="true">
             <div className="flex gap-1.5" aria-hidden="true">
               <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--muted-foreground)", animationDelay: "0ms" }} />
               <div className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "var(--muted-foreground)", animationDelay: "150ms" }} />
@@ -1438,7 +1605,7 @@ export default function JarvisPage() {
         )}
 
         {/* Sleeping / Paused CTA + Features */}
-        {(state === "sleeping" || state === "paused") && !displayedText && (
+        {(state === "sleeping" || state === "paused") && !jarvisText && (
           <div className="text-center fx-fade-in max-w-2xl">
             <p className="text-sm text-muted-foreground mb-5">
               {state === "paused" ? "Jarvis is paused. Click resume or the orb to continue." :
@@ -1452,7 +1619,7 @@ export default function JarvisPage() {
                 )
               }
             </p>
-            <button onClick={wakeUp} className="fx-btn fx-btn-accent mx-auto mb-8">
+            <button type="button" onClick={wakeUp} className="fx-btn fx-btn-accent mx-auto mb-8">
               <Zap className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" /> {state === "paused" ? "Resume Jarvis" : "Initialize Jarvis"}
             </button>
           </div>
@@ -1473,6 +1640,7 @@ export default function JarvisPage() {
                 { label: "Daily news", icon: ExternalLink },
               ].map((action, i) => (
                 <button key={i}
+                  type="button"
                   onClick={() => {
                     if (action.label.includes("inventory")) sendToJarvis("show my inventory");
                     else if (action.label.includes("Product")) sendToJarvis("analyze product Milk");
@@ -1489,7 +1657,7 @@ export default function JarvisPage() {
 
             {/* Quick Test Buttons */}
             <div className="w-full">
-              <button onClick={() => setShowTestQueries(!showTestQueries)}
+              <button type="button" onClick={() => setShowTestQueries(!showTestQueries)}
                 className="flex items-center gap-1.5 mx-auto px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground rounded-[var(--radius-md)] hover:bg-secondary transition-colors fx-focus"
                 aria-expanded={showTestQueries}>
                 <TestTube className="w-3 h-3" strokeWidth={1.8} aria-hidden="true" /> Test Language Queries
@@ -1499,6 +1667,7 @@ export default function JarvisPage() {
                 <div className="flex flex-wrap justify-center gap-2 mt-3 fx-fade-in">
                   {TEST_QUERIES.map(tq => (
                     <button key={tq.code}
+                      type="button"
                       onClick={() => {
                         setLang(tq.code);
                         setTimeout(() => sendToJarvis(tq.query), 150);
@@ -1527,7 +1696,7 @@ export default function JarvisPage() {
                 {new Date(reportCard.generatedAt).toLocaleString("en-IN")} · {reportCard.activityCount || localActivities.length} recent actions
               </p>
             </div>
-            <button onClick={() => setReportCard(null)} className="text-muted-foreground hover:text-foreground fx-focus rounded" aria-label="Close report card"><X className="w-4 h-4" strokeWidth={1.8} /></button>
+            <button type="button" onClick={() => setReportCard(null)} className="fx-icon-btn shrink-0 -mr-2 -mt-1" aria-label="Close report card"><X className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" /></button>
           </div>
           <div
             className="p-4 max-h-[320px] overflow-y-auto text-xs leading-relaxed text-secondary-foreground [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-accent [&_p]:mb-2 [&_ul]:list-disc [&_ul]:ml-4 [&_li]:mb-1"
@@ -1536,6 +1705,7 @@ export default function JarvisPage() {
           <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-border">
             <span className="text-[10px] text-muted-foreground">Voice: “Jarvis give me today&apos;s report”</span>
             <button
+              type="button"
               onClick={() => downloadReportCard(reportCard)}
               className="fx-btn fx-btn-accent"
             >
@@ -1547,61 +1717,106 @@ export default function JarvisPage() {
 
       {/* Feature Popup */}
       {popup && (
-        <div className="fixed top-4 right-4 z-50 fx-fade-in w-[480px] max-w-[calc(100vw-2rem)] max-h-[75vh] bg-elevated border border-border rounded-[var(--radius-lg)] overflow-hidden" style={{ boxShadow: "var(--shadow-lg)" }}
-          onMouseEnter={() => { setPopupHovered(true); if (popupTimerRef.current) clearTimeout(popupTimerRef.current); }}
-          onMouseLeave={() => { setPopupHovered(false); popupTimerRef.current = setTimeout(() => setPopup(null), 5000); }}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
-              {popup.loading ? <Loader2 className="w-3.5 h-3.5 text-accent animate-spin" strokeWidth={1.8} aria-hidden="true" /> : <Zap className="w-3.5 h-3.5 text-accent" strokeWidth={1.8} aria-hidden="true" />}
-              {popup.title}
+        <section
+          aria-label={popup.title}
+          aria-busy={popup.loading || undefined}
+          className="fixed top-4 right-4 z-50 fx-fade-in w-[480px] max-w-[calc(100vw-2rem)] max-h-[75vh] bg-elevated border border-border rounded-[var(--radius-lg)] overflow-hidden"
+          style={{ boxShadow: "var(--shadow-lg)" }}
+          /* Pointer AND keyboard both suspend the countdown. onFocus/onBlur are
+             React's bubbling focusin/focusout, so tabbing in counts. */
+          onMouseEnter={() => setPopupHeld(true)}
+          onMouseLeave={() => setPopupHeld(false)}
+          onFocus={() => setPopupHeld(true)}
+          onBlur={() => setPopupHeld(false)}
+        >
+          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
+            <h3 className="font-semibold text-foreground text-sm flex items-center gap-2 min-w-0">
+              {popup.loading ? <Loader2 className="w-3.5 h-3.5 text-accent animate-spin shrink-0" strokeWidth={1.8} aria-hidden="true" /> : <Zap className="w-3.5 h-3.5 text-accent shrink-0" strokeWidth={1.8} aria-hidden="true" />}
+              <span className="truncate">{popup.title}</span>
             </h3>
-            <button onClick={() => setPopup(null)} className="text-muted-foreground hover:text-foreground fx-focus rounded" aria-label="Close popup"><X className="w-4 h-4" strokeWidth={1.8} /></button>
+            <div className="flex items-center gap-1 shrink-0">
+              {!popup.loading && (
+                <button
+                  type="button"
+                  onClick={() => setPopupPinned(p => !p)}
+                  aria-pressed={popupPinned}
+                  className="fx-btn fx-btn-ghost text-[11px]"
+                >
+                  Keep open
+                </button>
+              )}
+              <button type="button" onClick={() => setPopup(null)} className="fx-icon-btn" aria-label={`Close ${popup.title}`}><X className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" /></button>
+            </div>
           </div>
           <div className="p-4 overflow-y-auto max-h-[60vh] text-sm text-secondary-foreground leading-relaxed [&_table]:w-full [&_th]:text-left [&_th]:text-muted-foreground [&_th]:font-semibold [&_td]:text-secondary-foreground" dangerouslySetInnerHTML={{ __html: popup.content }} />
-          {!popupHovered && !popup.loading && <div className="h-0.5" style={{ background: "var(--border)" }}><div className="h-full" style={{ background: "var(--accent)", animation: "shrink 8s linear forwards" }} /></div>}
-        </div>
+          {/* Rendered only while the dismissal timer is genuinely running */}
+          {!popupHeld && !popupPinned && !popup.loading && (
+            <div className="fx-countdown" aria-hidden="true" style={{ "--fx-countdown-duration": `${POPUP_DISMISS_MS}ms` } as CSSProperties}>
+              <span />
+            </div>
+          )}
+        </section>
       )}
 
       {/* Inventory popup */}
       {inventoryPopup && (
-        <div className="fixed top-4 right-4 z-50 fx-fade-in w-[520px] max-w-[calc(100vw-2rem)] max-h-[75vh] bg-elevated border border-border rounded-[var(--radius-lg)] overflow-hidden" style={{ boxShadow: "var(--shadow-lg)" }}
-          onMouseEnter={() => { setInvHovered(true); if (invTimerRef.current) clearTimeout(invTimerRef.current); }}
-          onMouseLeave={() => { setInvHovered(false); invTimerRef.current = setTimeout(() => setInventoryPopup(null), 5000); }}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <section
+          aria-label="Inventory"
+          className="fixed top-4 right-4 z-50 fx-fade-in w-[520px] max-w-[calc(100vw-2rem)] max-h-[75vh] bg-elevated border border-border rounded-[var(--radius-lg)] overflow-hidden"
+          style={{ boxShadow: "var(--shadow-lg)" }}
+          onMouseEnter={() => setInvHeld(true)}
+          onMouseLeave={() => setInvHeld(false)}
+          onFocus={() => setInvHeld(true)}
+          onBlur={() => setInvHeld(false)}
+        >
+          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
             <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
               <Package className="w-3.5 h-3.5 text-accent" strokeWidth={1.8} aria-hidden="true" /> Inventory
             </h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Scale utilities instead of one-off inline padding/font-size */}
               <select
                 value={invFilter}
                 onChange={e => setInvFilter(e.target.value as any)}
-                className="fx-input"
-                style={{ width: "auto", padding: "0.3rem 0.55rem", fontSize: "0.75rem" }}
+                className="fx-input w-auto px-2 py-1.5 text-xs"
                 aria-label="Filter inventory"
               >
                 <option value="all">All Items</option>
                 <option value="low">Low Stock (≤5)</option>
                 <option value="over">Overstock (≥150)</option>
               </select>
-              <button onClick={() => setInventoryPopup(null)} className="text-muted-foreground hover:text-foreground fx-focus rounded" aria-label="Close inventory popup"><X className="w-4 h-4" strokeWidth={1.8} /></button>
+              <button
+                type="button"
+                onClick={() => setInvPinned(p => !p)}
+                aria-pressed={invPinned}
+                className="fx-btn fx-btn-ghost text-[11px]"
+              >
+                Keep open
+              </button>
+              <button type="button" onClick={() => setInventoryPopup(null)} className="fx-icon-btn" aria-label="Close inventory panel"><X className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" /></button>
             </div>
           </div>
-          <div className="overflow-y-auto max-h-[60vh]">
+          <div className="fx-table-scroll max-h-[60vh]">
             <table className="fx-table">
-              <thead className="bg-elevated sticky top-0">
+              <caption className="fx-sr-only">Current inventory with stock quantity, price, and stock status per product.</caption>
+              <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th className="text-right">Qty</th>
-                  <th className="text-right">Price</th>
-                  <th className="text-center">Status</th>
+                  <th scope="col">#</th>
+                  <th scope="col">Product</th>
+                  <th scope="col">Category</th>
+                  <th scope="col" className="text-right">Qty</th>
+                  <th scope="col" className="text-right">Price</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {inventoryPopup
                   .filter(i => invFilter === "all" ? true : invFilter === "low" ? i.current_stock <= 5 : i.current_stock >= 150)
-                  .map((item: any, i: number) => (
+                  .map((item: any, i: number) => {
+                  const status = item.current_stock <= 5 ? { signal: "fx-signal-danger", label: "Low" }
+                    : item.current_stock >= 150 ? { signal: "fx-signal-warning", label: "Over" }
+                    : { signal: "fx-signal-success", label: "OK" };
+                  return (
                   <tr key={i}>
                     <td className="text-muted-foreground fx-num">{i + 1}</td>
                     <td>
@@ -1611,23 +1826,33 @@ export default function JarvisPage() {
                     <td className="text-xs text-muted-foreground">{item.category}</td>
                     <td className="text-right fx-num font-semibold text-foreground">{item.current_stock} <span className="text-muted-foreground font-normal">{item.unit || "pcs"}</span></td>
                     <td className="text-right fx-num text-foreground">₹{item.price}</td>
-                    <td className="text-center">
-                      <span className={`fx-signal ${
-                        item.current_stock <= 5 ? "fx-signal-danger" : item.current_stock >= 150 ? "fx-signal-warning" : "fx-signal-success"
-                      }`} aria-label={item.current_stock <= 5 ? "Low stock" : item.current_stock >= 150 ? "Overstock" : "Healthy stock"} />
+                    <td>
+                      {/* Written status alongside the dot — hue alone is not the
+                          encoding, and aria-label on a role-less span is dropped */}
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <span className={`fx-signal ${status.signal}`} aria-hidden="true" />
+                        <span className="text-[11px] text-secondary-foreground">{status.label}</span>
+                      </span>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          {!invHovered && <div className="h-0.5" style={{ background: "var(--border)" }}><div className="h-full" style={{ background: "var(--accent)", animation: "shrink 8s linear forwards" }} /></div>}
-        </div>
+          {!invHeld && !invPinned && (
+            <div className="fx-countdown" aria-hidden="true" style={{ "--fx-countdown-duration": `${POPUP_DISMISS_MS}ms` } as CSSProperties}>
+              <span />
+            </div>
+          )}
+        </section>
       )}
 
       {/* Bottom status rail · hairline rule, quiet signal */}
       <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-3 px-1 py-3 border-t border-border z-10">
-        <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        {/* Mic / listening state — the assistant's only ambient status, so it
+            gets announced rather than sitting there silently. */}
+        <div role="status" aria-live="polite" aria-atomic="true" className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <span className={`fx-signal ${
             micAllowed === false ? "fx-signal-danger"
               : state === "listening" || state === "speaking" ? "fx-signal-accent"

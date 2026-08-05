@@ -38,6 +38,18 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/*
+          Applies the saved theme before first paint. Without this the class
+          lands in an effect after hydration and dark-mode users see a flash
+          of the light canvas on every load.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("forecastify-theme");if(t==="dark"){document.documentElement.classList.add("dark")}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <LangProvider>

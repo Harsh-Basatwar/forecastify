@@ -183,20 +183,23 @@ export default function AlertsPage() {
 
       {/* ── Filter + actions · quiet toolbar ──────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex gap-0.5 bg-secondary rounded-[var(--radius-md)] p-0.5 overflow-x-auto" role="tablist" aria-label="Filter alerts by severity">
-          {["all", "critical", "warning", "info"].map((f) => (
-            <button
-              key={f}
-              role="tab"
-              aria-selected={filter === f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-xs font-medium whitespace-nowrap fx-focus ${
-                filter === f ? "bg-card text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {f === "all" ? `All (${alerts.length})` : `${f.charAt(0).toUpperCase() + f.slice(1)} (${alerts.filter(a => a.severity === f).length})`}
-            </button>
-          ))}
+        {/* Toggle-button group rather than a partial tablist: no aria-controls,
+            roving tabIndex or arrow-key wiring is owed for aria-pressed. */}
+        <div className="fx-segment max-w-full overflow-x-auto" role="group" aria-label="Filter alerts by severity">
+          {["all", "critical", "warning", "info"].map((f) => {
+            const count = f === "all" ? alerts.length : alerts.filter(a => a.severity === f).length;
+            const label = f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1);
+            return (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={filter === f}
+                onClick={() => setFilter(f)}
+              >
+                {label} (<span className="fx-num">{count}</span>)
+              </button>
+            );
+          })}
         </div>
         <div className="flex items-center gap-2">
           {generatedAt && (
@@ -211,16 +214,16 @@ export default function AlertsPage() {
               {sending ? "Sending..." : emailSent ? "Email Sent" : "Email Alerts"}
             </button>
           )}
-          <button onClick={fetchAlerts} disabled={loading} aria-label="Refresh alerts" className="fx-btn fx-btn-ghost">
+          <button type="button" onClick={fetchAlerts} disabled={loading} aria-label="Refresh alerts" className="fx-icon-btn">
             {loading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} />}
           </button>
         </div>
       </div>
 
       {error && (
-        <div role="alert" className="bg-danger/8 border border-danger/25 rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+        <div role="alert" className="bg-danger-soft border border-danger/25 rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
           <span className="text-sm text-danger">{error}</span>
-          <button onClick={fetchAlerts} className="fx-btn">Retry</button>
+          <button type="button" onClick={fetchAlerts} className="fx-btn">Retry</button>
         </div>
       )}
 
@@ -350,28 +353,28 @@ export default function AlertsPage() {
       {/* Demand legend */}
       {alerts.length > 0 && (
         <section aria-label="Demand categories" className="fx-card p-6">
-          <h4 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
             <Zap className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} /> Demand Categories
-          </h4>
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
             <div className="flex items-start gap-2.5">
               <TrendingUp className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
               <div>
-                <p className="text-sm font-semibold text-foreground">High Demand</p>
+                <h3 className="text-sm font-semibold text-foreground">High Demand</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">10+ units sold daily. Restock immediately if below minimum. These products drive footfall.</p>
               </div>
             </div>
             <div className="flex items-start gap-2.5">
               <Minus className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
               <div>
-                <p className="text-sm font-semibold text-foreground">Medium Demand</p>
+                <h3 className="text-sm font-semibold text-foreground">Medium Demand</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">3-10 units daily. Monitor weekly. Restock when below 7-day supply threshold.</p>
               </div>
             </div>
             <div className="flex items-start gap-2.5">
               <TrendingDown className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" aria-hidden="true" strokeWidth={1.8} />
               <div>
-                <p className="text-sm font-semibold text-foreground">Low Demand</p>
+                <h3 className="text-sm font-semibold text-foreground">Low Demand</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">Under 3 units daily. Keep minimal stock. Risk of overstock and expiry if overstocked.</p>
               </div>
             </div>

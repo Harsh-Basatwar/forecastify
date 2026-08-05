@@ -63,20 +63,25 @@ function Slot<T extends HTMLElement = HTMLElement>({
   ref,
   ...props
 }: SlotProps<T>) {
+  // Read `children.type` only after confirming this is an element — a
+  // non-element child would otherwise throw before the guard below runs.
+  const isElement = React.isValidElement(children);
+  const childType = isElement ? (children.type as React.ElementType) : null;
+
   const isAlreadyMotion =
-    typeof children.type === 'object' &&
-    children.type !== null &&
-    isMotionComponent(children.type);
+    typeof childType === 'object' && childType !== null && isMotionComponent(childType);
 
   const Base = React.useMemo(
     () =>
-      isAlreadyMotion
-        ? (children.type as React.ElementType)
-        : motion.create(children.type as React.ElementType),
-    [isAlreadyMotion, children.type],
+      childType === null
+        ? null
+        : isAlreadyMotion
+          ? childType
+          : motion.create(childType),
+    [isAlreadyMotion, childType],
   );
 
-  if (!React.isValidElement(children)) return null;
+  if (!isElement || Base === null) return null;
 
   const { ref: childRef, ...childProps } = children.props as AnyProps;
 

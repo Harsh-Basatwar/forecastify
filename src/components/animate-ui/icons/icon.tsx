@@ -15,14 +15,19 @@ import { cn } from '@/lib/utils';
 import { useIsInView } from '@/hooks/use-is-in-view';
 import { Slot, type WithAsChild } from '@/components/animate-ui/primitives/animate/slot';
 
+/* A path reveal is an entrance, so it takes ease-out, and it stays inside the
+   240ms ceiling the design system declares — 800ms on an icon hover read as
+   sluggish. Curve matches --ease-out in globals.css. */
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
+
 const staticAnimations = {
   path: {
     initial: { pathLength: 1 },
     animate: {
       pathLength: [0.05, 1],
       transition: {
-        duration: 0.8,
-        ease: 'easeInOut',
+        duration: 0.24,
+        ease: EASE_OUT,
       },
     },
   } as Variants,
@@ -31,8 +36,8 @@ const staticAnimations = {
     animate: {
       pathLength: [1, 0.05, 1],
       transition: {
-        duration: 1.6,
-        ease: 'easeInOut',
+        duration: 0.48,
+        ease: EASE_OUT,
       },
     },
   } as Variants,

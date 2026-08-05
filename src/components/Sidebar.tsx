@@ -7,9 +7,10 @@ import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { supabase } from "@/lib/supabase";
-import { ChartLine } from "@/components/animate-ui/icons/chart-line";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/providers/sidebar-provider";
+import Modal from "@/components/ui/Modal";
 
 const navSections = [
   {
@@ -22,7 +23,7 @@ const navSections = [
   {
     titleKey: "nav.section.intelligence",
     items: [
-      { href: "/dashboard/demand-analysis", labelKey: "nav.demandSpikes", icon: ChartLine },
+      { href: "/dashboard/demand-analysis", labelKey: "nav.demandSpikes", icon: Zap },
       { href: "/dashboard/product-analysis", labelKey: "nav.productAnalysis", icon: Box },
       { href: "/dashboard/category-analysis", labelKey: "nav.categoryAnalysis", icon: Tag },
       { href: "/dashboard/what-if", labelKey: "nav.whatIf", icon: FlaskConical },
@@ -49,14 +50,31 @@ const navSections = [
 ];
 
 function BrandMark({ size = 30 }: { size?: number }) {
+  const reduce = useReducedMotion();
   return (
     <div
-      className="rounded-lg bg-accent flex items-center justify-center shrink-0"
+      className="rounded-lg bg-accent flex items-center justify-center shrink-0 fx-glow"
       style={{ width: size, height: size }}
     >
       <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M3 20L7 10L11 13L17 6L21 10" stroke="var(--accent-foreground)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="17" cy="6" r="2.3" fill="var(--accent-foreground)" />
+        {/* The forecast line draws itself once on mount — the brand gesture. */}
+        <motion.path
+          d="M3 20L7 10L11 13L17 6L21 10"
+          stroke="var(--accent-foreground)"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          initial={reduce ? false : { pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: reduce ? 0 : 0.6, ease: [0.16, 1, 0.3, 1] }}
+        />
+        <motion.circle
+          cx="17" cy="6" r="2.3" fill="var(--accent-foreground)"
+          initial={reduce ? false : { scale: 0.4, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: reduce ? 0 : 0.24, delay: reduce ? 0 : 0.42, ease: [0.16, 1, 0.3, 1] }}
+          style={{ transformBox: "fill-box", transformOrigin: "center" }}
+        />
       </svg>
     </div>
   );
@@ -73,6 +91,15 @@ export default function Sidebar() {
 
   const storeName = profileStoreName || user?.user_metadata?.store_name || "Store";
   const userName = user?.user_metadata?.full_name || user?.email || "User";
+
+  // Real initials from a name; a bare email would otherwise show "DO" from "doraemon…".
+  const initials = (() => {
+    const name = String(userName);
+    if (name.includes("@")) return name[0]?.toUpperCase() ?? "?";
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  })();
 
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -119,22 +146,23 @@ export default function Sidebar() {
   }
 
   const sidebarContent = (
-    <div className="flex flex-col h-full overflow-x-hidden select-none">
+    <div className="flex flex-col h-full overflow-x-hidden">
       {/* Brand */}
       <div className={cn(
-        "flex items-center shrink-0 border-b border-border/80 h-16 transition-all duration-200",
-        isExpanded ? "justify-between pl-4 pr-3" : "justify-center"
+        "flex items-center shrink-0 border-b border-border/80 h-16",
+        isExpanded ? "justify-between pl-4 pr-2" : "justify-center"
       )}>
-        <Link 
-          href="/dashboard" 
+        <Link
+          href="/dashboard"
+          aria-label="Forecastify home"
           className={cn(
-            "flex items-center fx-focus rounded-md overflow-hidden transition-all duration-150", 
-            isExpanded ? "gap-3" : "mx-auto justify-center"
+            "flex items-center fx-focus rounded-md min-h-11",
+            isExpanded ? "gap-3" : "mx-auto justify-center w-11"
           )}
         >
-          <BrandMark size={isExpanded ? 32 : 36} />
+          <BrandMark size={isExpanded ? 32 : 34} />
           {isExpanded && (
-            <span className="fx-display text-[18px] font-semibold tracking-tight text-foreground whitespace-nowrap truncate animate-fade-in">
+            <span className="fx-display text-[18px] font-semibold tracking-tight text-foreground whitespace-nowrap truncate">
               Forecastify
             </span>
           )}
@@ -142,82 +170,92 @@ export default function Sidebar() {
         {isExpanded && (
           <button
             onClick={togglePin}
-            title={isPinned ? "Collapse sidebar" : "Pin sidebar"}
-            className="hidden lg:block p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors fx-focus"
+            aria-label={isPinned ? "Unpin sidebar" : "Pin sidebar open"}
+            aria-pressed={isPinned}
+            className="hidden lg:inline-flex fx-icon-btn"
           >
-            {isPinned ? <PinOff className="w-4 h-4 text-accent" /> : <Pin className="w-4 h-4" />}
+            {isPinned
+              ? <PinOff className="w-4 h-4 text-accent" aria-hidden="true" />
+              : <Pin className="w-4 h-4" aria-hidden="true" />}
           </button>
         )}
         <button
           onClick={onMobileClose}
-          className="lg:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary fx-focus"
+          className="lg:hidden fx-icon-btn"
           aria-label="Close navigation"
         >
-          <X className="w-4.5 h-4.5" />
+          <X className="w-4.5 h-4.5" aria-hidden="true" />
         </button>
       </div>
 
-      <div className="px-3 pt-4.5 pb-2.5 shrink-0 flex justify-center">
+      <div className="px-3 pt-4 pb-2.5 shrink-0 flex justify-center">
         <button
           onClick={() => setShowAddProduct(true)}
+          aria-label={isExpanded ? undefined : t("nav.addProduct")}
           className={cn(
-            "fx-btn text-[14px] text-secondary-foreground transition-all duration-150",
-            isExpanded 
-              ? "w-full justify-start gap-3 py-2.5" 
-              : "w-11 h-11 p-0 flex items-center justify-center rounded-lg"
+            "fx-btn fx-press fx-ripple text-[14px] text-secondary-foreground",
+            isExpanded
+              ? "w-full justify-start gap-3"
+              : "w-11 h-11 p-0 flex items-center justify-center"
           )}
-          title={isExpanded ? undefined : t("nav.addProduct")}
         >
-          <Plus className="w-5 h-5 shrink-0 text-accent" strokeWidth={2.4} />
-          {isExpanded && <span className="animate-fade-in whitespace-nowrap truncate">{t("nav.addProduct")}</span>}
+          <Plus className="w-5 h-5 shrink-0 text-accent" strokeWidth={2.2} aria-hidden="true" />
+          {isExpanded && <span className="whitespace-nowrap truncate">{t("nav.addProduct")}</span>}
         </button>
       </div>
 
-      <nav className="flex-1 px-3 pt-2 pb-4 overflow-y-auto overflow-x-hidden animate-fade-in" aria-label="Primary">
+      <nav className="flex-1 px-3 pt-2 pb-4 overflow-y-auto overflow-x-hidden" aria-label="Primary">
         {navSections.map((section) => (
           <div key={section.titleKey} className="mt-7 first:mt-2">
             {isExpanded ? (
-              <p className="fx-eyebrow px-2.5 mb-2.5 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground/80 uppercase animate-fade-in">{t(section.titleKey)}</p>
+              <p className="fx-eyebrow px-2.5 mb-2.5">{t(section.titleKey)}</p>
             ) : (
-              <div className="h-px bg-border/40 my-4.5 first:hidden" />
+              <div className="h-px bg-border/40 my-4 first:hidden" aria-hidden="true" />
             )}
-            <div className={isExpanded ? "space-y-1.5" : "space-y-2.5"}>
+            <div className="space-y-1">
               {section.items.map((item) => {
                 const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                const label = t(item.labelKey);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={onMobileClose}
                     aria-current={isActive ? "page" : undefined}
-                    title={isExpanded ? undefined : t(item.labelKey)}
+                    /* Name the link even when the rail is collapsed — `title`
+                       alone is not a reliable accessible name. */
+                    aria-label={isExpanded ? undefined : label}
                     className={cn(
-                      "relative flex items-center rounded-md text-[14.5px] transition-all duration-100 fx-focus group",
+                      "relative flex items-center rounded-md text-[14.5px] transition-colors duration-100 fx-focus group min-h-11",
                       isExpanded
-                        ? "pl-3.5 pr-2.5 py-[8px] gap-3.5 w-full"
-                        : "w-11 h-11 p-0 justify-center mx-auto",
+                        ? "pl-3.5 pr-2.5 gap-3.5 w-full"
+                        : "w-11 p-0 justify-center mx-auto",
                       isActive
                         ? "bg-card text-foreground font-semibold shadow-xs border border-border"
-                        : "text-sidebar-foreground font-medium border border-transparent hover:text-foreground hover:bg-card/60"
+                        : "text-sidebar-foreground font-medium border border-transparent hover:text-foreground hover:bg-hover-surface"
                     )}
                   >
+                    {/* One indicator shared across rows, so it slides between
+                        them instead of blinking out and in. */}
                     {isActive && isExpanded && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-4.5 rounded-full bg-accent animate-fade-in" aria-hidden="true" />
-                    )}
-                    {item.icon === ChartLine ? (
-                      <ChartLine
-                        size={21}
-                        className={`shrink-0 transition-colors ${isActive ? "text-accent" : "text-muted-foreground group-hover:text-foreground"}`}
-                        animateOnHover
-                      />
-                    ) : (
-                      <item.icon
-                        size={21}
-                        className={`shrink-0 transition-colors ${isActive ? "text-accent" : "text-muted-foreground group-hover:text-foreground"}`}
-                        strokeWidth={isActive ? 2.0 : 1.7}
+                      <motion.span
+                        layoutId="nav-active-indicator"
+                        className="absolute left-0 top-1/2 w-[2.5px] h-4.5 rounded-full bg-accent"
+                        style={{ y: "-50%" }}
+                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                        aria-hidden="true"
                       />
                     )}
-                    {isExpanded && <span className="whitespace-nowrap truncate animate-fade-in">{t(item.labelKey)}</span>}
+                    <item.icon
+                      size={21}
+                      className={cn(
+                        "shrink-0 transition-transform duration-[var(--t-medium)] ease-[var(--ease-out)] group-hover:scale-110",
+                        isActive ? "text-accent" : "text-muted-foreground group-hover:text-foreground"
+                      )}
+                      strokeWidth={isActive ? 2.0 : 1.7}
+                      aria-hidden="true"
+                    />
+                    {isExpanded && <span className="whitespace-nowrap truncate">{label}</span>}
                   </Link>
                 );
               })}
@@ -226,32 +264,33 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="fx-rule px-3 pt-4 pb-4 shrink-0 flex justify-center">
+      <div className="fx-rule px-3 pt-3 pb-3 shrink-0 flex justify-center">
         <div className={cn(
-          "flex items-center w-full transition-all duration-150",
-          isExpanded ? "gap-3 px-2 py-1.5" : "justify-center h-11"
+          "flex items-center w-full",
+          isExpanded ? "gap-3 px-2" : "justify-center"
         )}>
           <div
             className="w-9 h-9 rounded-full bg-secondary border border-border flex items-center justify-center text-[12px] font-semibold text-secondary-foreground uppercase shrink-0"
-            title={isExpanded ? undefined : `${userName} (${storeName})`}
+            aria-hidden="true"
           >
-            {String(userName).slice(0, 2)}
+            {initials}
           </div>
-          {isExpanded && (
+          {isExpanded ? (
             <>
-              <div className="min-w-0 flex-1 animate-fade-in">
+              <div className="min-w-0 flex-1">
                 <p className="text-[13.5px] font-semibold text-foreground truncate leading-tight">{userName}</p>
                 <p className="text-[11.5px] text-muted-foreground truncate leading-tight mt-0.5">{storeName}</p>
               </div>
               <button
                 onClick={signOut}
-                title={t("nav.signOut")}
                 aria-label={t("nav.signOut")}
-                className="p-2 rounded-md text-muted-foreground hover:text-danger hover:bg-danger/8 transition-colors fx-focus shrink-0 animate-fade-in"
+                className="fx-icon-btn shrink-0 hover:text-danger"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4" aria-hidden="true" />
               </button>
             </>
+          ) : (
+            <span className="fx-sr-only">{userName}, {storeName}</span>
           )}
         </div>
       </div>
@@ -260,33 +299,13 @@ export default function Sidebar() {
 
   return (
     <>
-      {showAddProduct && (
-        <div
-          className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4 fx-fade-in"
-          onClick={() => setShowAddProduct(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add product"
-        >
-          <div
-            className="bg-elevated border border-border rounded-[var(--radius-lg)] w-full max-w-md fx-page"
-            style={{ boxShadow: "var(--shadow-lg)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
-              <div>
-                <h2 className="fx-display text-lg text-foreground">Add Product</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">New item in {storeName}&apos;s catalog</p>
-              </div>
-              <button
-                onClick={() => setShowAddProduct(false)}
-                className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary fx-focus"
-                aria-label="Close"
-              >
-                <X className="w-4.5 h-4.5" />
-              </button>
-            </div>
-            <form onSubmit={handleAddProduct} className="px-6 py-5 space-y-3.5 max-h-[65vh] overflow-y-auto">
+      <Modal
+        open={showAddProduct}
+        onClose={() => setShowAddProduct(false)}
+        title="Add Product"
+        description={`New item in ${storeName}'s catalog`}
+      >
+        <form id="add-product-form" onSubmit={handleAddProduct} className="space-y-3.5">
               <div>
                 <label htmlFor="ap-name" className="block text-xs font-medium text-secondary-foreground mb-1.5">Product Name *</label>
                 <input id="ap-name" required placeholder="e.g. Tata Salt 1kg" value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} className="fx-input" />
@@ -330,41 +349,56 @@ export default function Sidebar() {
                 <input id="ap-exp" type="date" value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} className="fx-input" />
               </div>
               {error && (
-                <p className="text-xs text-danger bg-danger/8 border border-danger/20 rounded-md px-3 py-2" role="alert">{error}</p>
+                <p className="text-xs text-danger bg-danger-soft border border-danger/25 rounded-md px-3 py-2" role="alert">{error}</p>
               )}
               <div className="pt-1">
-                <button type="submit" disabled={saving} className="fx-btn fx-btn-accent w-full py-2.5">
+                <button type="submit" disabled={saving} className="fx-btn fx-btn-accent w-full">
                   {saving ? "Adding…" : "Add Product"}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
       {mobileOpen && (
-        <div 
-          className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-40 lg:hidden fx-fade-in" 
-          onClick={onMobileClose} 
-          aria-hidden="true" 
+        <div
+          className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] z-40 lg:hidden fx-fade-in"
+          onClick={onMobileClose}
+          aria-hidden="true"
         />
       )}
 
-      {/* Mobile drawer (always fully expanded) */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-border transform transition-transform duration-200 ease-out lg:hidden",
-        mobileOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      {/*
+        Mobile drawer. `inert` removes it from the tab order and the
+        accessibility tree while it is translated off-screen — without it the
+        19 controls inside stay reachable by keyboard behind the closed drawer.
+      */}
+      <aside
+        id="mobile-nav"
+        inert={!mobileOpen}
+        aria-hidden={!mobileOpen}
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-border transform transition-transform duration-200 ease-out lg:hidden",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         {sidebarContent}
       </aside>
 
-      {/* Desktop rail (collapsible with transitions) */}
-      <aside 
+      {/*
+        Desktop rail. Width is not transitioned: animating it reflows the whole
+        page every frame, and this fires on every hover. `focus-within` lets
+        keyboard users expand it too — hover alone left them with icons only.
+      */}
+      <aside
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) setHovered(false);
+        }}
         className={cn(
-          "hidden lg:flex flex-col sticky top-0 h-screen bg-sidebar border-r border-border shrink-0 transition-all duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)] overflow-x-hidden",
-          isExpanded ? "w-[240px] shadow-lg" : "w-[60px]"
+          "hidden lg:flex flex-col sticky top-0 h-[100dvh] bg-sidebar border-r border-border shrink-0 overflow-x-hidden",
+          isExpanded ? "w-[240px]" : "w-[60px]"
         )}
       >
         {sidebarContent}

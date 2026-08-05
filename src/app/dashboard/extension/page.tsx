@@ -8,8 +8,6 @@ import {
   RefreshCw, TrendingUp, Download, Puzzle, ListChecks
 } from "lucide-react";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 const FEATURES = [
   { icon: Zap, title: "Fetch AI Reorder Lists", desc: "Instantly pull recommended products from our forecasting engine" },
   { icon: ShoppingCart, title: "One-Click Cart Population", desc: "Automatically search and add products to your cart on any supplier platform" },
@@ -38,10 +36,8 @@ const INSTALL_STEPS = [
 ];
 
 export default function ExtensionPage() {
-  const [mounted, setMounted] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
 
-  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     const interval = setInterval(() => setActiveFeature(f => (f + 1) % FEATURES.length), 3000);
     return () => clearInterval(interval);
@@ -63,14 +59,20 @@ export default function ExtensionPage() {
             supplier platform with one click.
           </p>
           <div className="mt-5">
-            <a href="/arjuna-sarthi-extension.zip" download="arjuna-sarthi-extension.zip" className="inline-block">
-              <button className="fx-btn fx-btn-accent">
-                <Download className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" /> Download Extension
-              </button>
+            {/* Anchor styled as the button — a <button> nested in an <a> is
+                invalid and gives assistive tech two conflicting controls. */}
+            <a
+              href="/arjuna-sarthi-extension.zip"
+              download="arjuna-sarthi-extension.zip"
+              className="fx-btn fx-btn-accent no-underline"
+            >
+              <Download className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" /> Download Extension
             </a>
           </div>
         </div>
-        <div className={`shrink-0 self-center md:self-end transition-opacity duration-300 ${mounted ? "opacity-100" : "opacity-0"}`}>
+        {/* fx-fade-in handles the entrance; a mounted flag in state was an
+            extra render pass for the same 200ms fade. */}
+        <div className="shrink-0 self-center md:self-end fx-fade-in">
           <div className="fx-card p-6 flex flex-col items-center gap-3">
             <div className="relative w-20 h-20">
               <Image src={extensionIcon} alt="Arjuna Sarthi AI" className="w-full h-full object-contain" />
@@ -153,15 +155,18 @@ export default function ExtensionPage() {
             <h2 className="fx-display text-[17px] text-foreground">Sample Procurement List</h2>
           </div>
           <p className="text-xs text-muted-foreground mb-3">Products recommended by Arjuna Sarthi AI</p>
-          <div className="overflow-x-auto -mx-2">
+          <div className="fx-table-scroll -mx-2">
             <table className="fx-table min-w-[480px]">
+              <caption className="fx-sr-only">
+                Sample procurement list: products recommended by Arjuna Sarthi AI, with current stock, estimated cost, priority, and suggested order quantity.
+              </caption>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th className="text-right">Stock</th>
-                  <th className="text-right">Est. Cost</th>
-                  <th>Priority</th>
-                  <th className="text-right">Order Qty</th>
+                  <th scope="col">Product</th>
+                  <th scope="col" className="text-right">Stock</th>
+                  <th scope="col" className="text-right">Est. Cost</th>
+                  <th scope="col">Priority</th>
+                  <th scope="col" className="text-right">Order Qty</th>
                 </tr>
               </thead>
               <tbody>

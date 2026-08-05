@@ -11,7 +11,13 @@ import {
   Calendar,
   TrendingDown,
   Percent,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
+import {
+  chartColor, tooltipStyle, tooltipLabelStyle, gridProps, axisProps, CHART_H,
+} from "@/lib/chart-theme";
 import {
   Bar,
   BarChart,
@@ -55,8 +61,8 @@ interface Summary {
 const RISK_STYLES: Record<string, { label: string; signal: string; daysText: string; chart: string }> = {
   critical: { label: "Critical", signal: "fx-signal fx-signal-danger", daysText: "text-danger font-semibold", chart: "var(--danger)" },
   high: { label: "High", signal: "fx-signal fx-signal-warning", daysText: "text-warning font-semibold", chart: "var(--warning)" },
-  medium: { label: "Medium", signal: "fx-signal", daysText: "text-secondary-foreground", chart: "#C0A46B" },
-  low: { label: "Low", signal: "fx-signal", daysText: "text-muted-foreground", chart: "#93C0B7" },
+  medium: { label: "Medium", signal: "fx-signal", daysText: "text-secondary-foreground", chart: "var(--chart-3)" },
+  low: { label: "Low", signal: "fx-signal", daysText: "text-muted-foreground", chart: "var(--chart-4)" },
 };
 
 function RiskBadge({ level }: { level: string }) {
@@ -65,18 +71,6 @@ function RiskBadge({ level }: { level: string }) {
   if (level === "medium") return <span className="fx-badge">Medium</span>;
   return <span className="text-xs text-muted-foreground">Low</span>;
 }
-
-// Restrained categorical ramp for the category-loss bars
-const CAT_COLORS = ["#11746A", "#579E92", "#93C0B7", "#7A7466", "#A39C8C", "#4E4A42", "#C0A46B", "#5C7A74"];
-
-const chartTooltipStyle = {
-  background: "var(--elevated)",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "10px",
-  boxShadow: "var(--shadow-md)",
-  fontSize: "12px",
-  color: "var(--foreground)",
-} as const;
 
 // Skeleton mirrors the KPI strip, chart row, and ledger table
 function LoadingSkeleton() {
@@ -187,8 +181,8 @@ export default function ExpiryRiskPage() {
   if (error) {
     return (
       <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
-        <div role="alert" className="bg-danger/8 border border-danger/25 rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <span className="text-sm text-danger">{error}</span>
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">{error}</span>
           <button onClick={fetchData} className="fx-btn">Retry</button>
         </div>
       </div>
@@ -231,12 +225,12 @@ export default function ExpiryRiskPage() {
         <section aria-label="Expiry risk summary" className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
           <div className="p-5 sm:p-6">
             <p className="fx-eyebrow">Products at Risk</p>
-            <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.totalAtRisk}</p>
+            <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.totalAtRisk}</p>
             <p className="text-xs text-muted-foreground mt-2.5">of {summary.totalProducts} with expiry dates</p>
           </div>
           <div className="p-5 sm:p-6">
             <p className="fx-eyebrow">Potential Waste Loss</p>
-            <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">
+            <p className="fx-num fx-metric-xl text-foreground mt-2.5">
               ₹{summary.totalPotentialLoss.toLocaleString("en-IN")}
             </p>
             <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.totalPotentialLoss > 0 ? "text-danger" : "text-muted-foreground"}`}>
@@ -246,12 +240,12 @@ export default function ExpiryRiskPage() {
           </div>
           <div className="p-5 sm:p-6">
             <p className="fx-eyebrow">Average Waste</p>
-            <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.avgWastePercent}%</p>
+            <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.avgWastePercent}%</p>
             <p className="text-xs text-muted-foreground mt-2.5">Across all tracked products</p>
           </div>
           <div className="p-5 sm:p-6">
             <p className="fx-eyebrow">Expiring This Week</p>
-            <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">{summary.expiringThisWeek}</p>
+            <p className="fx-num fx-metric-xl text-foreground mt-2.5">{summary.expiringThisWeek}</p>
             <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${summary.expiringThisWeek > 0 ? "text-warning" : "text-muted-foreground"}`}>
               <span className={`fx-signal ${summary.expiringThisWeek > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
               {summary.expiringThisWeek > 0 ? "Products in next 7 days" : "Nothing due in 7 days"}
@@ -269,14 +263,16 @@ export default function ExpiryRiskPage() {
               <h2 className="text-sm font-semibold text-foreground">Risk Mix</h2>
             </div>
             <p className="text-xs text-muted-foreground mb-4">Red and amber slices need markdown, bundling, or front-shelf placement</p>
-            <ResponsiveContainer width="100%" height={230}>
-              <PieChart>
-                <Pie data={riskChartData} dataKey="value" nameKey="name" outerRadius={82} label>
-                  {riskChartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                </Pie>
-                <Tooltip contentStyle={chartTooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
+            <div role="img" aria-label="Pie chart of the number of products in each expiry risk level: critical, high, medium and low">
+              <ResponsiveContainer width="100%" height={CHART_H.standard}>
+                <PieChart>
+                  <Pie data={riskChartData} dataKey="value" nameKey="name" outerRadius={82} label>
+                    {riskChartData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </section>
 
           {/* Loss by category */}
@@ -286,17 +282,19 @@ export default function ExpiryRiskPage() {
               <h2 className="text-sm font-semibold text-foreground">Loss by Category</h2>
             </div>
             <p className="text-xs text-muted-foreground mb-4">Where expiry waste blocks the most money</p>
-            <ResponsiveContainer width="100%" height={230}>
-              <BarChart data={categoryWasteData} layout="vertical" margin={{ left: 10, right: 16 }}>
-                <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" horizontal={false} />
-                <XAxis type="number" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="category" width={96} stroke="var(--muted-foreground)" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, "Potential loss"]} />
-                <Bar dataKey="loss" radius={[0, 4, 4, 0]} barSize={14}>
-                  {categoryWasteData.map((_, index) => <Cell key={index} fill={CAT_COLORS[index % CAT_COLORS.length]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div role="img" aria-label="Horizontal bar chart of projected expiry waste loss by product category, highest first">
+              <ResponsiveContainer width="100%" height={CHART_H.standard}>
+                <BarChart data={categoryWasteData} layout="vertical" margin={{ left: 10, right: 16 }}>
+                  <CartesianGrid {...gridProps} vertical horizontal={false} />
+                  <XAxis type="number" {...axisProps} />
+                  <YAxis type="category" dataKey="category" width={96} {...axisProps} fontSize={10} />
+                  <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, "Potential loss"]} />
+                  <Bar dataKey="loss" radius={[0, 4, 4, 0]} barSize={14}>
+                    {categoryWasteData.map((_, index) => <Cell key={index} fill={chartColor(index)} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </section>
 
           {/* Action queue */}
@@ -323,13 +321,18 @@ export default function ExpiryRiskPage() {
                     <p className="text-xs text-muted-foreground mt-1 pl-4">
                       Waste risk <span className="fx-num">{product.wasteUnits}</span> {product.unit || "pcs"} · Loss <span className="fx-num">₹{product.potentialLoss.toLocaleString("en-IN")}</span>
                     </p>
-                    <p className="text-xs font-medium mt-0.5 pl-4" style={{ color: "var(--accent)" }}>
+                    <p className="text-xs font-medium text-accent mt-0.5 pl-4">
                       {product.suggestedMarkdown > 0 ? `Run ${product.suggestedMarkdown}% markdown` : "Move to visible shelf and monitor daily"}
                     </p>
                   </div>
                 );
               })}
             </div>
+            {sortedProducts.filter((p) => p.riskLevel === "critical" || p.riskLevel === "high").length > 6 && (
+              <p className="text-xs text-muted-foreground mt-3 fx-rule pt-3">
+                Showing top <span className="fx-num">6</span> of <span className="fx-num">{sortedProducts.filter((p) => p.riskLevel === "critical" || p.riskLevel === "high").length}</span> urgent products &mdash; the full list is in the table below.
+              </p>
+            )}
           </section>
         </div>
       )}
@@ -380,7 +383,7 @@ export default function ExpiryRiskPage() {
         <section aria-label="Product risk details" className="fx-card p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             <h2 className="fx-display text-[17px] text-foreground">Product Risk Details</h2>
-            <div className="flex gap-0.5 bg-secondary rounded-[var(--radius-md)] p-0.5" role="group" aria-label="Sort products">
+            <div className="fx-segment" role="group" aria-label="Sort products">
               {[
                 ["risk", "Risk first"],
                 ["expiry", "Expiry date"],
@@ -389,32 +392,54 @@ export default function ExpiryRiskPage() {
               ].map(([key, label]) => (
                 <button
                   key={key}
+                  type="button"
                   onClick={() => setSortBy(key as typeof sortBy)}
                   aria-pressed={sortBy === key}
-                  className={`px-3 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-xs font-medium fx-focus ${
-                    sortBy === key ? "bg-card text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"
-                  }`}
                 >
                   {label}
                 </button>
               ))}
             </div>
           </div>
-          <div className="overflow-x-auto -mx-2">
+          <div className="fx-table-scroll -mx-2">
             <table className="fx-table min-w-[960px]">
+              <caption className="fx-sr-only">
+                Product expiry risk details: category, stock on hand, expiry date, days left, daily demand, units expected to sell before expiry, projected waste units and percentage, risk level, and the suggested markdown action. Days Left, Waste percent and Risk Level are sortable.
+              </caption>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th className="text-right">Stock</th>
-                  <th>Expiry Date</th>
-                  <th className="text-right">Days Left</th>
-                  <th className="text-right">Daily Demand</th>
-                  <th className="text-right">Will Sell</th>
-                  <th className="text-right">Waste Units</th>
-                  <th className="text-right">Waste %</th>
-                  <th>Risk Level</th>
-                  <th className="text-right">Suggested Action</th>
+                  <th scope="col">Product</th>
+                  <th scope="col">Category</th>
+                  <th scope="col" className="text-right">Stock</th>
+                  <th scope="col">Expiry Date</th>
+                  <th scope="col" className="text-right" aria-sort={sortBy === "expiry" ? "ascending" : "none"}>
+                    <button type="button" className="fx-sort" onClick={() => setSortBy("expiry")}>
+                      Days Left
+                      {sortBy === "expiry"
+                        ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={2} />
+                        : <ArrowUpDown className="w-3.5 h-3.5 opacity-60" aria-hidden="true" strokeWidth={2} />}
+                    </button>
+                  </th>
+                  <th scope="col" className="text-right">Daily Demand</th>
+                  <th scope="col" className="text-right">Will Sell</th>
+                  <th scope="col" className="text-right">Waste Units</th>
+                  <th scope="col" className="text-right" aria-sort={sortBy === "waste" ? "descending" : "none"}>
+                    <button type="button" className="fx-sort" onClick={() => setSortBy("waste")}>
+                      Waste %
+                      {sortBy === "waste"
+                        ? <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={2} />
+                        : <ArrowUpDown className="w-3.5 h-3.5 opacity-60" aria-hidden="true" strokeWidth={2} />}
+                    </button>
+                  </th>
+                  <th scope="col" aria-sort={sortBy === "risk" ? "ascending" : "none"}>
+                    <button type="button" className="fx-sort" onClick={() => setSortBy("risk")}>
+                      Risk Level
+                      {sortBy === "risk"
+                        ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" strokeWidth={2} />
+                        : <ArrowUpDown className="w-3.5 h-3.5 opacity-60" aria-hidden="true" strokeWidth={2} />}
+                    </button>
+                  </th>
+                  <th scope="col" className="text-right">Suggested Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -469,7 +494,7 @@ export default function ExpiryRiskPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
             <div>
               <p className="fx-eyebrow">Total Potential Loss</p>
-              <p className="fx-num text-[24px] font-semibold text-danger mt-2 leading-none">
+              <p className="fx-num fx-metric-lg text-danger mt-2">
                 ₹{summary.totalPotentialLoss.toLocaleString("en-IN")}
               </p>
               <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
@@ -478,7 +503,7 @@ export default function ExpiryRiskPage() {
             </div>
             <div className="fx-rule pt-5 md:pt-0 md:border-t-0 md:border-l md:border-[var(--border)] md:pl-8">
               <p className="fx-eyebrow">Recoverable with Markdowns</p>
-              <p className="fx-num text-[24px] font-semibold text-success mt-2 leading-none">
+              <p className="fx-num fx-metric-lg text-success mt-2">
                 ₹{summary.potentialSavings.toLocaleString("en-IN")}
               </p>
               <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">

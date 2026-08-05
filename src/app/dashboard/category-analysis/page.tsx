@@ -12,6 +12,7 @@ import {
   ShoppingBag, Star, FileText, Code, RefreshCw, Zap, Crown,
   Newspaper, BadgePercent, ExternalLink, Brain,
 } from "lucide-react";
+import { chartColor, tooltipStyle, tooltipLabelStyle, gridProps, axisProps, CHART_H } from "@/lib/chart-theme";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -19,18 +20,6 @@ const DEFAULT_CATEGORIES = [
   "Dairy", "Beverages", "Snacks", "Groceries", "Ice Cream", "Personal Care",
   "Household", "Biscuits", "Chocolates", "Instant Food", "Masala & Spices", "Oils",
 ];
-
-// Restrained categorical ramp — teal + warm neutrals
-const COLORS = ["#11746A", "#579E92", "#93C0B7", "#7A7466", "#A39C8C", "#4E4A42", "#C0A46B", "#5C7A74"];
-
-const chartTooltipStyle = {
-  background: "var(--elevated)",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "10px",
-  boxShadow: "var(--shadow-md)",
-  fontSize: "12px",
-  color: "var(--foreground)",
-} as const;
 
 const demandBadge = (level: string) => {
   if (level === "High") return "fx-badge fx-badge-danger";
@@ -235,17 +224,17 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
       </div>
 
       {error && (
-        <div role="alert" className="bg-danger/8 border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm">{error}</div>
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">{error}</span>
+          <button onClick={() => analyze(query)} className="fx-btn">Retry</button>
+        </div>
       )}
 
       {/* Loading — skeleton mirrors the result layout */}
       {loading && (
         <div className="space-y-6" aria-busy="true" aria-label={`Analyzing ${query} category`}>
           <div className="fx-card p-6 space-y-3">
-            <div className="flex items-center gap-2 text-sm text-secondary-foreground font-medium">
-              <span className="w-4 h-4 border-2 border-border-strong border-t-accent rounded-full animate-spin" aria-hidden="true" />
-              Analyzing &quot;{query}&quot; category…
-            </div>
+            <p className="text-sm text-secondary-foreground font-medium">Analyzing &quot;{query}&quot; category…</p>
             <p className="text-xs text-muted-foreground">Fetching regional brands, historic sales, and market data</p>
             <div className="skeleton-shimmer h-5 w-56" />
             <div className="skeleton-shimmer h-3.5 w-full" />
@@ -283,7 +272,7 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className={demandBadge(analysis.totalCategoryDemand)}>{analysis.totalCategoryDemand} Demand</span>
-                <button onClick={() => analyze(query)} className="fx-btn fx-btn-ghost !p-2" aria-label="Re-run analysis"><RefreshCw className="w-4 h-4" strokeWidth={1.8} /></button>
+                <button onClick={() => analyze(query)} className="fx-icon-btn" aria-label="Re-run analysis"><RefreshCw className="w-4 h-4" aria-hidden="true" strokeWidth={1.8} /></button>
               </div>
             </div>
             <p className="text-sm text-secondary-foreground leading-relaxed">{analysis.summary}</p>
@@ -335,6 +324,11 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
                         </a>
                       ))}
                     </div>
+                    {(externalSignals[section.key] || []).length > 3 && (
+                      <p className="text-xs text-muted-foreground mt-4 fx-rule pt-3">
+                        Showing top <span className="fx-num">3</span> of <span className="fx-num">{(externalSignals[section.key] || []).length}</span> {section.title.toLowerCase()} signals
+                      </p>
+                    )}
                   </section>
                 );
               })}
@@ -350,17 +344,19 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
                 <h3 className="text-sm font-semibold text-foreground">Top Brands by Popularity</h3>
               </div>
               <p className="text-xs text-muted-foreground mb-4">Popularity score out of 100, ranked for your region</p>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={brandChartData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="name" width={80} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
-                  <Bar dataKey="popularity" name="Popularity" radius={[0, 4, 4, 0]} barSize={14}>
-                    {brandChartData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div role="img" aria-label={`Horizontal bar chart ranking top brands in ${analysis.category} by popularity score out of 100`}>
+                <ResponsiveContainer width="100%" height={CHART_H.standard}>
+                  <BarChart data={brandChartData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+                    <CartesianGrid {...gridProps} vertical horizontal={false} />
+                    <XAxis type="number" domain={[0, 100]} {...axisProps} />
+                    <YAxis type="category" dataKey="name" width={80} {...axisProps} />
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
+                    <Bar dataKey="popularity" name="Popularity" radius={[0, 4, 4, 0]} barSize={14}>
+                      {brandChartData.map((_: any, i: number) => <Cell key={i} fill={chartColor(i)} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </section>
 
             {/* Weekly demand by product */}
@@ -369,16 +365,20 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
                 <TrendingUp className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
                 <h3 className="text-sm font-semibold text-foreground">Weekly Demand by Product</h3>
               </div>
-              <p className="text-xs text-muted-foreground mb-4">Estimated weekly units for the top products</p>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={productDemandData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
-                  <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={10} tickLine={false} axisLine={false} angle={-25} textAnchor="end" height={60} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
-                  <Bar dataKey="demand" name="Weekly Units" radius={[3, 3, 0, 0]} barSize={14} fill="var(--accent)" />
-                </BarChart>
-              </ResponsiveContainer>
+              <p className="text-xs text-muted-foreground mb-4">
+                Estimated weekly units — showing top <span className="fx-num">{productDemandData.length}</span> of <span className="fx-num">{analysis.products?.length || 0}</span> products
+              </p>
+              <div role="img" aria-label="Bar chart of estimated weekly unit demand for the top products in this category">
+                <ResponsiveContainer width="100%" height={CHART_H.standard}>
+                  <BarChart data={productDemandData} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+                    <CartesianGrid {...gridProps} />
+                    <XAxis dataKey="name" {...axisProps} fontSize={10} angle={-25} textAnchor="end" height={60} />
+                    <YAxis {...axisProps} />
+                    <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
+                    <Bar dataKey="demand" name="Weekly Units" radius={[3, 3, 0, 0]} barSize={14} fill="var(--accent)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </section>
           </div>
 
@@ -414,25 +414,28 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
               <Package className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
               <h3 className="fx-display text-[17px] text-foreground">Product-wise Demand Analysis</h3>
             </div>
-            <div className="overflow-x-auto -mx-2">
+            <div className="fx-table-scroll -mx-2">
               <table className="fx-table min-w-[720px]">
+                <caption className="fx-sr-only">
+                  Product-wise demand analysis for {analysis.category}: brand, demand level, daily and weekly units, suggested price, your stock on hand, stock status, and margin.
+                </caption>
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th>Brand</th>
-                    <th className="text-center">Demand</th>
-                    <th className="text-right">Daily</th>
-                    <th className="text-right">Weekly</th>
-                    <th className="text-right">Price</th>
-                    <th className="text-right">My Stock</th>
-                    <th className="text-center">Status</th>
-                    <th className="text-right">Margin</th>
+                    <th scope="col">Product</th>
+                    <th scope="col">Brand</th>
+                    <th scope="col" className="text-center">Demand</th>
+                    <th scope="col" className="text-right">Daily</th>
+                    <th scope="col" className="text-right">Weekly</th>
+                    <th scope="col" className="text-right">Price</th>
+                    <th scope="col" className="text-right">My Stock</th>
+                    <th scope="col" className="text-center">Status</th>
+                    <th scope="col" className="text-right">Margin</th>
                   </tr>
                 </thead>
                 <tbody>
                   {analysis.products?.map((p: any, i: number) => (
                     <tr key={i}>
-                      <td><p className="font-medium text-foreground">{p.name}</p><p className="text-[11px] text-muted-foreground mt-0.5">{p.reason}</p></td>
+                      <td><p className="font-medium text-foreground">{p.name}</p><p className="text-xs text-muted-foreground mt-0.5">{p.reason}</p></td>
                       <td className="text-xs text-muted-foreground">{p.brand}</td>
                       <td className="text-center"><span className={demandBadge(p.demandLevel)}><DemandIcon level={p.demandLevel} />{p.demandLevel}</span></td>
                       <td className="text-right fx-num font-semibold text-foreground">{p.dailyDemand}</td>

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import {
@@ -9,18 +9,10 @@ import {
   ResponsiveContainer, Cell,
 } from "recharts";
 import { Target, TrendingUp, Activity, CheckCircle } from "lucide-react";
-
-// Restrained categorical ramp — teal + warm neutrals
-const CAT_COLORS = ["#11746A", "#579E92", "#93C0B7", "#7A7466", "#A39C8C", "#4E4A42", "#C0A46B", "#5C7A74"];
-
-const chartTooltipStyle = {
-  background: "var(--elevated)",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "10px",
-  boxShadow: "var(--shadow-md)",
-  fontSize: "12px",
-  color: "var(--foreground)",
-} as const;
+import {
+  chartColor, SERIES, DASH, tooltipStyle, tooltipLabelStyle,
+  gridProps, axisProps, CHART_H,
+} from "@/lib/chart-theme";
 
 function accuracyColor(acc: number) {
   if (acc >= 85) return "text-success";
@@ -80,10 +72,12 @@ export default function ModelAccuracyPage() {
   const { t } = useLang();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
+  const loadAccuracy = useCallback(async () => {
+      if (!user) return;
+      setLoading(true);
+      setError("");
       try {
         const res = await fetch("/api/model-accuracy", {
           method: "POST",
@@ -92,14 +86,30 @@ export default function ModelAccuracyPage() {
         });
         const d = await res.json();
         if (!d.error) setData(d);
-      } catch {} finally {
+        else setError(d.error);
+      } catch { setError("Failed to load accuracy data."); } finally {
         setLoading(false);
       }
-    })();
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadAccuracy();
+  }, [user, loadAccuracy]);
 
   if (loading) {
     return <LoadingSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">{error}</span>
+          <button onClick={loadAccuracy} className="fx-btn">Retry</button>
+        </div>
+      </div>
+    );
   }
 
   if (!data || data.matchedCount === 0) {
@@ -169,7 +179,7 @@ export default function ModelAccuracyPage() {
                 <p className="fx-eyebrow">{s.label}</p>
                 <Icon className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
               </div>
-              <p className={`fx-num text-[26px] sm:text-[30px] font-semibold mt-2.5 leading-none ${accuracyColor(s.acc)}`}>{s.value}</p>
+              <p className={`fx-num fx-metric-xl mt-2.5 ${accuracyColor(s.acc)}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground mt-2.5">{s.subtitle}</p>
             </div>
           );
@@ -183,8 +193,8 @@ export default function ModelAccuracyPage() {
           <h3 className="text-sm font-semibold text-foreground">Daily Accuracy Trend (Last 14 Days)</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-4">Daily forecast-vs-actual accuracy across the matched window</p>
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
+        <div role="img" aria-label="Area chart of daily forecast accuracy percentage over the last fourteen days">
+          <ResponsiveContainer width="100%" height={CHART_H.tall}>
             <AreaChart data={dailyTrend} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
               <defs>
                 <linearGradient id="gAccuracy" x1="0" y1="0" x2="0" y2="1">
@@ -192,11 +202,12 @@ export default function ModelAccuracyPage() {
                   <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} dy={6} />
-              <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+              <CartesianGrid {...gridProps} />
+              <XAxis dataKey="label" {...axisProps} dy={6} />
+              <YAxis domain={[0, 100]} {...axisProps} />
               <Tooltip
-                contentStyle={chartTooltipStyle}
+                contentStyle={tooltipStyle}
+                labelStyle={tooltipLabelStyle}
                 cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }}
                 formatter={(value: any) => [`${value}%`, "Accuracy"]}
               />
@@ -204,9 +215,10 @@ export default function ModelAccuracyPage() {
                 type="monotone"
                 dataKey="accuracy"
                 name="Accuracy"
-                stroke="var(--accent)"
+                stroke={SERIES.primary}
                 fill="url(#gAccuracy)"
                 strokeWidth={2}
+                strokeDasharray={DASH.solid}
                 activeDot={{ r: 4 }}
               />
             </AreaChart>
@@ -222,15 +234,18 @@ export default function ModelAccuracyPage() {
             <h3 className="text-sm font-semibold text-foreground">Per-Product Accuracy</h3>
           </div>
           <p className="text-xs text-muted-foreground mb-4">Predicted vs actual units per product</p>
-          <div className="overflow-x-auto -mx-2 max-h-96 overflow-y-auto">
+          <div className="fx-table-scroll -mx-2">
             <table className="fx-table min-w-[480px]">
+              <caption className="fx-sr-only">
+                Per-product forecast accuracy: predicted units, actual units sold, percentage error, and accuracy percentage.
+              </caption>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th className="text-right">Predicted</th>
-                  <th className="text-right">Actual</th>
-                  <th className="text-right">Error%</th>
-                  <th className="text-right">Accuracy%</th>
+                  <th scope="col">Product</th>
+                  <th scope="col" className="text-right">Predicted</th>
+                  <th scope="col" className="text-right">Actual</th>
+                  <th scope="col" className="text-right">Error%</th>
+                  <th scope="col" className="text-right">Accuracy%</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,28 +272,26 @@ export default function ModelAccuracyPage() {
             <h3 className="text-sm font-semibold text-foreground">Accuracy by Category</h3>
           </div>
           <p className="text-xs text-muted-foreground mb-4">Category-level forecast reliability</p>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <div role="img" aria-label="Horizontal bar chart of forecast accuracy percentage for each product category">
+            <ResponsiveContainer width="100%" height={CHART_H.tall}>
               <BarChart data={categoryAccuracy} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" horizontal={false} />
-                <XAxis type="number" domain={[0, 100]} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <CartesianGrid {...gridProps} vertical horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} {...axisProps} />
                 <YAxis
                   type="category"
                   dataKey="category"
-                  stroke="var(--muted-foreground)"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
+                  {...axisProps}
                   width={100}
                 />
                 <Tooltip
-                  contentStyle={chartTooltipStyle}
+                  contentStyle={tooltipStyle}
+                  labelStyle={tooltipLabelStyle}
                   cursor={{ fill: "var(--secondary)", opacity: 0.5 }}
                   formatter={(value: any) => [`${value}%`, "Accuracy"]}
                 />
                 <Bar dataKey="accuracy" name="Accuracy" radius={[0, 4, 4, 0]} barSize={14}>
                   {categoryAccuracy.map((_: any, i: number) => (
-                    <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]} />
+                    <Cell key={i} fill={chartColor(i)} />
                   ))}
                 </Bar>
               </BarChart>

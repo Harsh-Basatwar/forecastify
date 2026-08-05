@@ -6,78 +6,105 @@
    FORECASTIFY — "Ledger" Design System
    Editorial operational minimalism · Warm paper + ink + forecast teal
    Light mode is the primary experience. Dark is soft warm charcoal.
+
+   CASCADE CONTRACT
+   Element resets live in @layer base; primitives live in @layer components.
+   Tailwind utilities sit in @layer utilities, which comes last — so a
+   utility ALWAYS wins over a primitive. Never add unlayered rules here:
+   unlayered author styles beat every layer regardless of specificity.
    ══════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Spacing Tokens ───────────────────────────────────── */
-  --space-1: 0.25rem;  /* 4px */
-  --space-2: 0.5rem;   /* 8px */
-  --space-3: 0.75rem;  /* 12px */
-  --space-4: 1rem;     /* 16px */
-  --space-5: 1.25rem;  /* 20px */
-  --space-6: 1.5rem;   /* 24px */
-  --space-8: 2rem;     /* 32px */
-  --space-12: 3rem;    /* 48px */
-  --space-16: 4rem;    /* 64px */
-  --space-24: 6rem;    /* 96px */
+  /* ── Spacing ───────────────────────────────────────────── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
 
-  /* ── Animation Tokens ─────────────────────────────────── */
-  --t-fast: 0.15s;
-  --t-medium: 0.3s;
-  --t-slow: 0.6s;
-  --t-hero: 0.8s;
-
-  /* ── Premium Shadow & Background ──────────────────────── */
-  --shadow-premium: 0 2px 8px rgba(32, 30, 27, 0.04), 0 12px 40px rgba(32, 30, 27, 0.08);
-  --background-warm: #FAF9F6;
+  /* ── Motion · state, not spectacle ─────────────────────── */
+  --t-instant: 100ms;   /* press feedback */
+  --t-fast: 140ms;      /* hover, colour */
+  --t-medium: 200ms;    /* enter/exit, dropdowns */
+  --t-slow: 240ms;      /* page transitions — the ceiling */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
   /* ── Surfaces · warm paper ─────────────────────────────── */
-  --background: #F5F4F0;             /* warm paper canvas */
-  --background-subtle: #EDEBE5;      /* recessed wells / rails */
-  --foreground: #201E1B;             /* warm ink */
-  --card: #FDFDFB;                   /* sheet — just off pure white */
+  --background: #F5F4F0;
+  --background-subtle: #EDEBE5;
+  --foreground: #201E1B;
+  --card: #FDFDFB;
   --card-foreground: #201E1B;
-  --elevated: #FFFFFF;               /* popover / modal */
+  --elevated: #FFFFFF;
 
-  --primary: #201E1B;                /* ink actions */
+  --primary: #201E1B;
   --primary-foreground: #F8F7F4;
-  --secondary: #ECEAE3;              /* quiet fills, chips */
+  --secondary: #ECEAE3;
   --secondary-foreground: #45423C;
   --muted: #E5E2DA;
-  --muted-foreground: #6F6B62;       /* secondary text — 5.5:1 on paper */
+  --muted-foreground: #6F6B62;
 
-  /* ── Accent · Forecast Teal (the one Forecastify color) ── */
+  /* ── Accent · Forecast Teal (the one Forecastify colour) ── */
   --accent: #0B6E62;
   --accent-hover: #095A50;
   --accent-soft: rgba(11, 110, 98, 0.09);
   --accent-border: rgba(11, 110, 98, 0.28);
   --accent-foreground: #FFFFFF;
 
-  --border: rgba(32, 30, 27, 0.10);        /* hairline */
+  --border: rgba(32, 30, 27, 0.10);
   --border-strong: rgba(32, 30, 27, 0.18);
   --ring: #0B6E62;
 
   --sidebar: #F0EEE8;
   --sidebar-foreground: #4B4841;
 
-  /* ── Status · quiet until it matters ─────────────────────── */
+  /* ── Interaction states ────────────────────────────────── */
+  --hover-surface: rgba(32, 30, 27, 0.045);
+  --active-surface: rgba(32, 30, 27, 0.075);
+  --selected-surface: #FDFDFB;
+  --opacity-disabled: 0.5;
+  /* Track for unchecked switches — 3:1 against --card */
+  --control-track: #8F8A80;
+
+  /* ── Status · quiet until it matters ───────────────────── */
   --success: #2F7D4F;
   --success-soft: rgba(47, 125, 79, 0.10);
   --warning: #A16107;
   --warning-soft: rgba(161, 97, 7, 0.10);
   --danger: #B93A34;
   --danger-soft: rgba(185, 58, 52, 0.09);
-  --info: #0B6E62;
-  --info-soft: rgba(11, 110, 98, 0.09);
+  --info: #1F5F8B;
+  --info-soft: rgba(31, 95, 139, 0.10);
 
-  /* ── Radius · intentional, restrained ────────────────────── */
+  /* ── Categorical chart ramp · light ground ─────────────────
+     Every swatch ≥3:1 on --card, and hue-separated so no two
+     adjacent series read alike. Dark variants below. */
+  --chart-1: #0B6E62;
+  --chart-2: #3F6E8C;
+  --chart-3: #7A5C3E;
+  --chart-4: #4E4A42;
+  --chart-5: #8C4A52;
+  --chart-6: #2F6B4A;
+  --chart-7: #5F5288;
+  --chart-8: #8A6410;
+
+  /* ── Radius · intentional, restrained ──────────────────── */
   --radius-xs: 4px;
-  --radius-sm: 6px;                  /* small controls */
-  --radius-md: 10px;                 /* inputs, buttons */
-  --radius-lg: 14px;                 /* cards, modals */
-  --radius-xl: 18px;                 /* page-level panels only */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
 
-  /* ── Elevation · almost invisible; real only when floating ─ */
+  /* ── Elevation · real only when floating ─────────────────
+     Declared here (not in @theme inline, which would strip the custom
+     property) so `var(--shadow-md)` works in inline styles. Use the
+     .fx-elev-* classes for the utility form. */
   --shadow-xs: 0 1px 2px rgba(32, 30, 27, 0.04);
   --shadow-sm: 0 1px 3px rgba(32, 30, 27, 0.05);
   --shadow-md: 0 10px 24px -12px rgba(32, 30, 27, 0.18), 0 2px 6px -2px rgba(32, 30, 27, 0.06);
@@ -86,8 +113,6 @@
 }
 
 .dark {
-  --shadow-premium: 0 2px 8px rgba(0, 0, 0, 0.2), 0 12px 40px rgba(0, 0, 0, 0.45);
-
   /* ── Surfaces · soft warm charcoal (never black graphite) ── */
   --background: #1C1B19;
   --background-subtle: #191816;
@@ -116,14 +141,29 @@
   --sidebar: #191816;
   --sidebar-foreground: #ABA79D;
 
+  --hover-surface: rgba(234, 232, 227, 0.055);
+  --active-surface: rgba(234, 232, 227, 0.09);
+  --selected-surface: #2E2C28;
+  --control-track: #6B675F;
+
   --success: #58B57F;
   --success-soft: rgba(88, 181, 127, 0.13);
   --warning: #D9A03E;
   --warning-soft: rgba(217, 160, 62, 0.13);
   --danger: #E06C64;
   --danger-soft: rgba(224, 108, 100, 0.12);
-  --info: #3BB8A5;
-  --info-soft: rgba(59, 184, 165, 0.13);
+  --info: #7FB4C4;
+  --info-soft: rgba(127, 180, 196, 0.13);
+
+  /* Categorical ramp · dark ground — lighter, same hue order */
+  --chart-1: #3BB8A5;
+  --chart-2: #7FB4C4;
+  --chart-3: #C9A87E;
+  --chart-4: #B8B2A6;
+  --chart-5: #E09AA0;
+  --chart-6: #7FC49A;
+  --chart-7: #B0A0D8;
+  --chart-8: #D9BC6A;
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
@@ -147,6 +187,8 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-border: var(--accent-border);
   --color-accent-foreground: var(--accent-foreground);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
@@ -154,235 +196,457 @@
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
   --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);
-  /* Legacy alias — old saffron accent now resolves to the teal accent */
-  --color-saffron: var(--accent);
+  --color-info-soft: var(--info-soft);
+  --color-hover-surface: var(--hover-surface);
+  --color-control-track: var(--control-track);
 
-  --radius-xs: var(--radius-xs);
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-display);
 }
 
-* {
-  border-color: var(--border);
-}
+/* ══════════════════════════════════════════════════════════════
+   BASE — element defaults. Layered so utilities always win.
+   ══════════════════════════════════════════════════════════════ */
+@layer base {
+  html { color-scheme: light; }
+  html.dark { color-scheme: dark; }
 
-html {
-  color-scheme: light;
-}
-html.dark {
-  color-scheme: dark;
-}
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  /* Default hairline for elements that opt into a border via
+     border-width utilities. Scoped to the border-style property so
+     it can never override a border-color utility. */
+  *,
+  *::before,
+  *::after {
+    border-style: solid;
+    border-color: var(--border);
+  }
+
+  h1, h2, h3, h4 { letter-spacing: -0.015em; }
+
+  /* One visible focus treatment for the whole product. Inset so an
+     ancestor with overflow-hidden can never clip it away. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
-   TYPOGRAPHY — editorial hierarchy
+   COMPONENTS — the fx-* primitives
    ══════════════════════════════════════════════════════════════ */
+@layer components {
 
-h1, h2, h3, h4 { letter-spacing: -0.015em; }
+  /* ── Typography ──────────────────────────────────────────── */
+  .fx-display {
+    font-family: var(--font-display), Georgia, "Times New Roman", serif;
+    font-weight: 560;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+    text-wrap: balance;
+  }
 
-/* Editorial display — page titles, section leads */
-.fx-display {
-  font-family: var(--font-display), Georgia, "Times New Roman", serif;
-  font-weight: 560;
-  letter-spacing: -0.01em;
-  color: var(--foreground);
+  .fx-eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  .fx-num {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Metric type scale — use these instead of arbitrary px sizes */
+  .fx-metric-xl { font-size: 1.75rem; line-height: 1.05; font-weight: 600; }
+  .fx-metric-lg { font-size: 1.375rem; line-height: 1.1;  font-weight: 600; }
+  .fx-metric-md { font-size: 1.0625rem; line-height: 1.2; font-weight: 600; }
+  .fx-metric-sm { font-size: 0.875rem; line-height: 1.3;  font-weight: 600; }
+
+  /* ── Surfaces ────────────────────────────────────────────── */
+  .fx-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  .fx-card-interactive {
+    transition: border-color var(--t-medium) ease, box-shadow var(--t-medium) ease;
+  }
+  .fx-card-interactive:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .fx-rule { border-top: 1px solid var(--border); }
+
+  /* ── Signal dot — the status language ────────────────────── */
+  .fx-signal {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+  .fx-signal-success { background: var(--success); }
+  .fx-signal-warning { background: var(--warning); }
+  .fx-signal-danger  { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+  .fx-signal-accent  { background: var(--accent); }
+  .fx-signal-info    { background: var(--info); }
+
+  /* ── Buttons ─────────────────────────────────────────────── */
+  .fx-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    line-height: 1;
+    padding: 0.6rem 0.9rem;
+    min-height: 2.25rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-strong);
+    background: var(--card);
+    color: var(--foreground);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--t-fast) ease, border-color var(--t-fast) ease,
+                transform var(--t-instant) ease;
+  }
+  .fx-btn:hover { background: var(--secondary); }
+  .fx-btn:active { transform: scale(0.98); }
+  .fx-btn:disabled { opacity: var(--opacity-disabled); cursor: not-allowed; }
+
+  .fx-btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+  .fx-btn-primary:hover { background: color-mix(in srgb, var(--primary) 88%, var(--background)); }
+
+  .fx-btn-accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-foreground);
+  }
+  .fx-btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+  .fx-btn-ghost { background: transparent; border-color: transparent; color: var(--muted-foreground); }
+  .fx-btn-ghost:hover { background: var(--secondary); color: var(--foreground); }
+
+  /* Icon-only control — meets the 44px touch minimum */
+  .fx-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: background var(--t-fast) ease, color var(--t-fast) ease;
+  }
+  .fx-icon-btn:hover { background: var(--secondary); color: var(--foreground); }
+  .fx-icon-btn:active { transform: scale(0.97); }
+
+  /* ── Badges ──────────────────────────────────────────────── */
+  .fx-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.14rem 0.5rem;
+    border-radius: var(--radius-xs);
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+  .fx-badge-accent  { background: var(--accent-soft);  color: var(--accent); }
+  .fx-badge-success { background: var(--success-soft); color: var(--success); }
+  .fx-badge-warning { background: var(--warning-soft); color: var(--warning); }
+  .fx-badge-danger  { background: var(--danger-soft);  color: var(--danger); }
+  .fx-badge-info    { background: var(--info-soft);    color: var(--info); }
+
+  /* ── Inputs ──────────────────────────────────────────────── */
+  .fx-input {
+    width: 100%;
+    padding: 0.62rem 0.8rem;
+    font-size: 0.875rem;
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    color: var(--foreground);
+    transition: border-color var(--t-fast) ease, box-shadow var(--t-fast) ease;
+  }
+  /* Full-strength muted colour — no stacked opacity, so it clears AA */
+  .fx-input::placeholder { color: var(--muted-foreground); opacity: 1; }
+  .fx-input:focus-visible {
+    border-color: var(--accent);
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+  .fx-input[aria-invalid="true"] { border-color: var(--danger); }
+  .fx-input:disabled {
+    background: var(--secondary);
+    color: var(--muted-foreground);
+    cursor: not-allowed;
+  }
+
+  /* Explicit helper for custom interactive elements */
+  .fx-focus:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: -2px;
+  }
+
+  /* ── Segmented control ───────────────────────────────────── */
+  .fx-segment {
+    display: inline-flex;
+    gap: 2px;
+    background: var(--secondary);
+    border-radius: var(--radius-md);
+    padding: 2px;
+  }
+  .fx-segment > button {
+    padding: 0.35rem 0.75rem;
+    border-radius: calc(var(--radius-md) - 2px);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--t-fast) ease, color var(--t-fast) ease;
+  }
+  .fx-segment > button:hover { color: var(--foreground); }
+  .fx-segment > button[aria-pressed="true"],
+  .fx-segment > button[aria-selected="true"] {
+    background: var(--selected-surface);
+    color: var(--foreground);
+    font-weight: 600;
+    box-shadow: var(--shadow-xs);
+  }
+
+  /* ── Tables — the ledger ─────────────────────────────────── */
+  .fx-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  .fx-table thead th {
+    text-align: left;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--border-strong);
+    white-space: nowrap;
+    /* Header stays put while the body scrolls */
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--card);
+  }
+  .fx-table tbody td { padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--border); }
+  .fx-table tbody tr:last-child td { border-bottom: 0; }
+  .fx-table tbody tr { transition: background var(--t-instant) ease; }
+  .fx-table tbody tr:hover { background: var(--hover-surface); }
+  /* Scroll container for wide tables */
+  .fx-table-scroll { overflow: auto; max-height: 32rem; }
+
+  /* Sortable header affordance */
+  .fx-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  .fx-sort:hover { color: var(--foreground); }
+
+  /* ── Skeletons ───────────────────────────────────────────── */
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--muted);
+    border-radius: var(--radius-sm);
+  }
+  .skeleton-shimmer::after {
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0,
+      color-mix(in srgb, var(--foreground) 4%, transparent) 40%,
+      color-mix(in srgb, var(--foreground) 7%, transparent) 60%,
+      transparent
+    );
+    animation: shimmer 1.6s infinite ease-in-out;
+    content: '';
+  }
+
+  /* Elevation classes — warm-tinted, unlike Tailwind's black shadow-* */
+  .fx-elev-xs { box-shadow: var(--shadow-xs); }
+  .fx-elev-sm { box-shadow: var(--shadow-sm); }
+  .fx-elev-md { box-shadow: var(--shadow-md); }
+  .fx-elev-lg { box-shadow: var(--shadow-lg); }
+
+  /* Screen-reader-only, with a visible skip-link variant */
+  .fx-sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .fx-skip-link {
+    position: absolute;
+    left: 0.5rem;
+    top: 0.5rem;
+    z-index: 100;
+    padding: 0.6rem 1rem;
+    background: var(--elevated);
+    color: var(--foreground);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    /* Transform, not `top` — animating a layout property costs a reflow. */
+    transform: translateY(-200%);
+    transition: transform var(--t-fast) var(--ease-out);
+  }
+  .fx-skip-link:focus { transform: translateY(0); }
 }
-
-/* Overline label — quiet, structural */
-.fx-eyebrow {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-}
-
-/* Metric numerals — precise, tabular */
-.fx-num {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-}
-
-.tabular-nums, .font-mono { font-variant-numeric: tabular-nums; }
 
 /* ══════════════════════════════════════════════════════════════
-   PRIMITIVES
+   MOTION — 100–240ms, natural easing
    ══════════════════════════════════════════════════════════════ */
+@layer components {
+  .fx-page { animation: fx-fade-up var(--t-slow) var(--ease-out); }
+  .fx-fade-in { animation: fx-fade-in var(--t-medium) ease; }
 
-/* Sheet — the standard surface. Hairline border, no shadow. */
-.fx-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  /* Orb activator — a real button, so it needs real press feedback. */
+  .fx-orb {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: transform var(--t-instant) var(--ease-out);
+  }
+  .fx-orb:active { transform: scale(0.97); }
+
+  /* Countdown bar for auto-dismissing panels. The track clips the fill so
+     scaleX reads as a shrink; transform-origin keeps it anchored left. */
+  .fx-countdown { overflow: hidden; height: 2px; background: var(--border); }
+  .fx-countdown > span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transform-origin: left center;
+    animation: fx-shrink-x var(--fx-countdown-duration, 8s) linear forwards;
+  }
+
+  .density-compact     { --table-row-height: 34px; --table-cell-padding-y: 4px; }
+  .density-standard    { --table-row-height: 48px; --table-cell-padding-y: 10px; }
+  .density-comfortable { --table-row-height: 64px; --table-cell-padding-y: 16px; }
 }
-
-/* Interactive surfaces earn a whisper of lift */
-.fx-card-interactive {
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.fx-card-interactive:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
-}
-
-/* Ledger section — hairline-ruled header inside a sheet */
-.fx-rule { border-top: 1px solid var(--border); }
-
-/* Signal dot — Forecastify's status language */
-.fx-signal {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--muted-foreground);
-  flex-shrink: 0;
-}
-.fx-signal-success { background: var(--success); }
-.fx-signal-warning { background: var(--warning); }
-.fx-signal-danger  { background: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
-.fx-signal-accent  { background: var(--accent); }
-
-/* Buttons */
-.fx-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  font-size: 0.8125rem;
-  font-weight: 550;
-  line-height: 1;
-  padding: 0.6rem 0.9rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-strong);
-  background: var(--card);
-  color: var(--foreground);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 140ms ease, border-color 140ms ease, transform 100ms ease, box-shadow 140ms ease;
-}
-.fx-btn:hover { background: var(--secondary); }
-.fx-btn:active { transform: scale(0.98); }
-.fx-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring); }
-.fx-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.fx-btn-primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--primary-foreground);
-}
-.fx-btn-primary:hover { background: color-mix(in srgb, var(--primary) 88%, var(--background)); }
-
-.fx-btn-accent {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-foreground);
-}
-.fx-btn-accent:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-
-.fx-btn-ghost { background: transparent; border-color: transparent; color: var(--muted-foreground); }
-.fx-btn-ghost:hover { background: var(--secondary); color: var(--foreground); }
-
-/* Badges — reserved for genuine status, not decoration */
-.fx-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 0.14rem 0.5rem;
-  border-radius: var(--radius-xs);
-  background: var(--secondary);
-  color: var(--secondary-foreground);
-}
-.fx-badge-accent  { background: var(--accent-soft);  color: var(--accent); }
-.fx-badge-success { background: var(--success-soft); color: var(--success); }
-.fx-badge-warning { background: var(--warning-soft); color: var(--warning); }
-.fx-badge-danger  { background: var(--danger-soft);  color: var(--danger); }
-
-/* Inputs */
-.fx-input {
-  width: 100%;
-  padding: 0.62rem 0.8rem;
-  font-size: 0.875rem;
-  background: var(--card);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  color: var(--foreground);
-  transition: border-color 140ms ease, box-shadow 140ms ease;
-}
-.fx-input::placeholder { color: var(--muted-foreground); opacity: 0.75; }
-.fx-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.fx-focus:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
-}
-
-/* Tables — the ledger */
-.fx-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
-.fx-table thead th {
-  text-align: left;
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid var(--border-strong);
-  white-space: nowrap;
-}
-.fx-table tbody td { padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--border); }
-.fx-table tbody tr:last-child td { border-bottom: 0; }
-.fx-table tbody tr { transition: background 100ms ease; }
-.fx-table tbody tr:hover { background: color-mix(in srgb, var(--secondary) 45%, transparent); }
-
-/* Glass — retained for sticky chrome only, theme-aware */
-.glass {
-  background: color-mix(in srgb, var(--background) 82%, transparent);
-  backdrop-filter: blur(12px) saturate(120%);
-  border: 1px solid var(--border);
-}
-
-/* ══════════════════════════════════════════════════════════════
-   MOTION — state, not spectacle · 120–240ms
-   ══════════════════════════════════════════════════════════════ */
 
 @keyframes fx-fade-up {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fx-page { animation: fx-fade-up 240ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes fx-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 
-@keyframes fx-fade-in { from { opacity: 0; } to { opacity: 1; } }
-.fx-fade-in { animation: fx-fade-in 180ms ease; }
+/* Auto-dismiss countdown bar. Composited transform, not width, so an
+   8s timer costs zero layout passes. Paired with transform-origin: left. */
+@keyframes fx-shrink-x {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
 
-/* Density tiers (preserved) */
-.density-compact     { --table-row-height: 34px; --table-cell-padding-y: 4px; }
-.density-standard    { --table-row-height: 48px; --table-cell-padding-y: 10px; }
-.density-comfortable { --table-row-height: 64px; --table-cell-padding-y: 16px; }
+/* ── AiOrb cadence ─────────────────────────────────────────────────
+   Declared once here rather than re-injected by a <style> tag on every
+   render. Opacity is read from --orb-pulse-opacity / --orb-core-opacity,
+   which the component sets per state. */
+@keyframes orb-quiet-pulse {
+  0%   { transform: scale(0.55); opacity: var(--orb-pulse-opacity); }
+  80%  { transform: scale(1); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+@keyframes orb-quiet-pulse-b {
+  0%   { transform: scale(0.55); opacity: 0; }
+  20%  { transform: scale(0.64); opacity: var(--orb-pulse-opacity); }
+  100% { transform: scale(1); opacity: 0; }
+}
+@keyframes orb-arc-turn {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes orb-core-breathe {
+  0%, 100% { opacity: var(--orb-core-opacity); }
+  50%      { opacity: calc(var(--orb-core-opacity) * 0.65); }
+}
+
+@layer utilities {
+  .animate-spin-slow { animation: spin-slow 15s linear infinite; }
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -398,40 +662,238 @@ h1, h2, h3, h4 { letter-spacing: -0.015em; }
   background-clip: padding-box;
 }
 
-/* Skeletons */
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-.skeleton-shimmer {
-  position: relative;
-  overflow: hidden;
-  background-color: var(--muted);
-  border-radius: var(--radius-sm);
-}
-.skeleton-shimmer::after {
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background-image: linear-gradient(
-    90deg,
-    transparent 0,
-    color-mix(in srgb, var(--foreground) 4%, transparent) 40%,
-    color-mix(in srgb, var(--foreground) 7%, transparent) 60%,
-    transparent
-  );
-  animation: shimmer 1.6s infinite ease-in-out;
-  content: '';
+/* ══════════════════════════════════════════════════════════════
+   INTERACTION LAYER
+   Hover, press and ambient effects. Everything here animates only
+   `transform`, `opacity`, `box-shadow` or `background-position`, so it
+   stays on the compositor. All of it is disabled by the reduced-motion
+   block at the end of this file.
+   ══════════════════════════════════════════════════════════════ */
+@layer components {
+
+  /* Lift — the standard card hover. Pairs with .fx-card. */
+  .fx-lift {
+    transition: transform var(--t-medium) var(--ease-out),
+                box-shadow var(--t-medium) var(--ease-out),
+                border-color var(--t-medium) ease;
+    will-change: transform;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .fx-lift:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--border-strong);
+    }
+  }
+  .fx-lift:active { transform: translateY(-1px); }
+
+  /* Press — tactile feedback for anything clickable. */
+  .fx-press { transition: transform var(--t-instant) ease; }
+  .fx-press:active { transform: scale(0.975); }
+
+  /* Underline that draws in from the left on hover. */
+  .fx-underline {
+    position: relative;
+    text-decoration: none;
+  }
+  .fx-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 100%;
+    height: 1.5px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--t-medium) var(--ease-out);
+  }
+  .fx-underline:hover::after,
+  .fx-underline:focus-visible::after { transform: scaleX(1); }
+
+  /* Icon nudge on hover of a parent marked .fx-group */
+  .fx-group .fx-icon-shift {
+    transition: transform var(--t-medium) var(--ease-out);
+  }
+  .fx-group:hover .fx-icon-shift { transform: translateX(2px); }
+
+  /* Ripple — expanding ring on press. Driven by :active only, no JS. */
+  .fx-ripple { position: relative; overflow: hidden; isolation: isolate; }
+  .fx-ripple::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 8rem;
+    height: 8rem;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0;
+    transform: scale(0.2);
+    pointer-events: none;
+    z-index: -1;
+  }
+  .fx-ripple:active::after {
+    animation: fx-ripple 480ms var(--ease-out);
+  }
+
+  /* Soft accent glow — reserved for the brand mark and primary CTAs. */
+  .fx-glow {
+    transition: box-shadow var(--t-medium) var(--ease-out),
+                transform var(--t-medium) var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .fx-glow:hover {
+      transform: scale(1.04) rotate(-2deg);
+      box-shadow: var(--shadow-accent);
+    }
+  }
+
+  /* Ambient breathing — very low amplitude, long period. */
+  .fx-float { animation: fx-float 7s ease-in-out infinite; }
+  .fx-pulse-soft { animation: fx-pulse-soft 4.5s ease-in-out infinite; }
+
+  /* Cursor-follow sheen. Requires useCursorGlow() to set --mx / --my. */
+  .fx-cursor-glow { position: relative; isolation: isolate; }
+  .fx-cursor-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(
+      circle 22rem at var(--mx, 50%) var(--my, 50%),
+      var(--accent-soft),
+      transparent 65%
+    );
+    opacity: 0;
+    transition: opacity var(--t-slow) ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .fx-cursor-glow:hover::before { opacity: 1; }
+  }
+
+  /* Image reveal — scale settles as it loads/enters. */
+  .fx-zoom { overflow: hidden; }
+  .fx-zoom > img,
+  .fx-zoom > .fx-zoom-target {
+    transition: transform 420ms var(--ease-out);
+    will-change: transform;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .fx-zoom:hover > img,
+    .fx-zoom:hover > .fx-zoom-target { transform: scale(1.04); }
+  }
+
+  /* Sheen sweep across a surface — used sparingly on skeletons and CTAs. */
+  .fx-sheen {
+    background-image: linear-gradient(
+      100deg,
+      transparent 30%,
+      color-mix(in srgb, var(--foreground) 6%, transparent) 50%,
+      transparent 70%
+    );
+    background-size: 220% 100%;
+    background-repeat: no-repeat;
+    animation: fx-sheen 2.6s ease-in-out infinite;
+  }
+
+  /* Theme crossfade — brief, so switching does not feel like a flash. */
+  .fx-theme-transition,
+  .fx-theme-transition * {
+    transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease;
+  }
+
+  /* Cursor sheen tuned for the evergreen auth panel — brighter than the
+     light-surface variant so it reads against the dark gradient. */
+  .fx-panel-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      circle 26rem at var(--mx, 50%) var(--my, 50%),
+      rgba(255, 255, 255, 0.055),
+      transparent 62%
+    );
+    opacity: 0;
+    transition: opacity var(--t-slow) ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .fx-panel-glow:hover::before { opacity: 1; }
+  }
+
+  /* Meter — progress/score bars. The fill is scaled, not resized, so the
+     animation stays on the compositor instead of reflowing each frame.
+     Usage: <div class="fx-meter"><div class="fx-meter-fill" style="--v:.62"/></div> */
+  .fx-meter {
+    position: relative;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--muted);
+  }
+  .fx-meter-fill {
+    position: absolute;
+    inset: 0;
+    transform-origin: left center;
+    transform: scaleX(var(--v, 0));
+    background: var(--accent);
+    border-radius: inherit;
+    transition: transform 700ms var(--ease-out);
+    will-change: transform;
+  }
+
+  /* Scroll progress rail */
+  .fx-scroll-rail {
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    z-index: 40;
+  }
 }
 
-@keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.animate-spin-slow { animation: spin-slow 15s linear infinite; }
+@keyframes fx-ripple {
+  0%   { opacity: 0.16; transform: scale(0.2); }
+  100% { opacity: 0;    transform: scale(1); }
+}
+@keyframes fx-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+@keyframes fx-pulse-soft {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.82; transform: scale(1.04); }
+}
+@keyframes fx-sheen {
+  0%   { background-position: 160% 0; }
+  100% { background-position: -60% 0; }
+}
 
-/* Reduced motion */
+@layer base {
+  /* Smooth in-page scrolling; the reduced-motion block below overrides it. */
+  html { scroll-behavior: smooth; }
+}
+
+/* Reduced motion — CSS animations only. JS/Motion animations must
+   additionally branch on useReducedMotion(); this block cannot reach them. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+  /* Ambient loops carry no information — stop them outright rather than
+     running them 100,000x/second at a 0.01ms duration. */
+  .fx-float,
+  .fx-pulse-soft,
+  .fx-sheen,
+  .animate-spin-slow {
+    animation: none !important;
+  }
+  .fx-cursor-glow::before,
+  .fx-panel-glow::before { display: none; }
+  .fx-lift:hover { transform: none; }
+  .fx-glow:hover { transform: none; }
 }

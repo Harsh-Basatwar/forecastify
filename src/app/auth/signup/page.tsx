@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import AuthBackground from "@/components/auth/AuthBackground";
 import AuthLeftPanel from "@/components/auth/AuthLeftPanel";
@@ -25,15 +25,17 @@ const storeSizes = [
 ];
 
 function MobileBrandHeader() {
+  const reduceMotion = useReducedMotion();
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: -12 }}
+      initial={reduceMotion ? false : { opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
       className="lg:hidden flex items-center gap-3 mb-6 justify-center"
     >
       <div
-        className="rounded-lg bg-accent flex items-center justify-center shrink-0 shadow-md"
+        className="rounded-[var(--radius-md)] bg-accent flex items-center justify-center shrink-0 shadow-md"
         style={{ width: 36, height: 36 }}
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -41,16 +43,29 @@ function MobileBrandHeader() {
           <circle cx="17" cy="6" r="2.3" fill="var(--accent-foreground)" />
         </svg>
       </div>
-      <h1 className="fx-display text-[22px] font-semibold text-foreground">Forecastify</h1>
+      <span className="fx-display text-[22px] font-semibold text-foreground">Forecastify</span>
     </motion.div>
   );
 }
 
+interface SignupFieldErrors {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  password?: string;
+  confirmPassword?: string;
+  storeName?: string;
+  storeCategory?: string;
+  storeSize?: string;
+}
+
 export default function SignupPage() {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -64,13 +79,33 @@ export default function SignupPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Validation rules are unchanged — the same checks, in the same order, with
+  // the same messages. They are additionally attributed to the fields they
+  // came from so each one can be surfaced in place.
   const validateStep1 = () => {
     if (!formData.fullName || !formData.email || !formData.phone || !formData.password) {
-      setError("Please fill in all required fields"); return false;
+      setError("Please fill in all required fields");
+      setFieldErrors({
+        fullName: formData.fullName ? undefined : "Full name is required",
+        email: formData.email ? undefined : "Email address is required",
+        phone: formData.phone ? undefined : "Phone number is required",
+        password: formData.password ? undefined : "Password is required",
+      });
+      return false;
     }
-    if (formData.password.length < 6) { setError("Password must be at least 6 characters"); return false; }
-    if (formData.password !== formData.confirmPassword) { setError("Passwords do not match"); return false; }
-    setError(""); return true;
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters");
+      setFieldErrors({ password: "Password must be at least 6 characters" });
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      setFieldErrors({ confirmPassword: "Passwords do not match" });
+      return false;
+    }
+    setError("");
+    setFieldErrors({});
+    return true;
   };
 
   const handleNext = () => { if (validateStep1()) setStep(2); };
@@ -78,9 +113,15 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.storeName || !formData.storeCategory || !formData.storeSize) {
-      setError("Please fill in all required store details"); return;
+      setError("Please fill in all required store details");
+      setFieldErrors({
+        storeName: formData.storeName ? undefined : "Store name is required",
+        storeCategory: formData.storeCategory ? undefined : "Store category is required",
+        storeSize: formData.storeSize ? undefined : "Store size is required",
+      });
+      return;
     }
-    setError(""); setLoading(true);
+    setError(""); setFieldErrors({}); setLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -153,63 +194,69 @@ export default function SignupPage() {
     router.push("/dashboard");
   };
 
+  // The banner carries anything not already attached to a field, so one
+  // failure is never announced twice.
+  const hasFieldError = Object.values(fieldErrors).some(Boolean);
+  const showBanner = Boolean(error) && !hasFieldError;
+
+  const stepMotion = reduceMotion
+    ? { initial: false as const, animate: { opacity: 1, x: 0 }, transition: { duration: 0 } }
+    : {
+        initial: { opacity: 0, x: 8 },
+        animate: { opacity: 1, x: 0 },
+        exit: { opacity: 0, x: -8 },
+        transition: { duration: 0.2, ease: "easeOut" as const },
+      };
+
   return (
-    <div className="min-h-screen h-screen lg:h-screen lg:max-h-screen lg:overflow-hidden flex flex-col lg:flex-row relative overflow-y-auto lg:overflow-hidden">
-      {/* Ambient Motion Background */}
+    <div className="min-h-[100dvh] flex flex-col lg:flex-row relative">
+      {/* Decorative ambient layer */}
       <AuthBackground />
 
-      {/* Success Overlay Animation */}
       <SuccessOverlay show={showSuccess} onComplete={handleSuccessComplete} />
 
-      {/* Left panel (takes 53% width) */}
+      {/* Brand panel — desktop only */}
       <AuthLeftPanel mode="signup" step={step} />
 
-      {/* Right panel (takes 47% width, has warm off-white background and ambient radial bleed) */}
-      <div className="w-full lg:w-[47%] flex flex-col justify-center items-center px-[4vw] py-[5vh] lg:pb-[8vh] relative z-10 lg:h-full lg:max-h-full lg:overflow-y-auto bg-[#FAF9F6] dark:bg-background transition-colors duration-300">
-        {/* Ambient radial glow bleed from left dark green panel to right */}
-        <div 
-          className="hidden lg:block absolute left-[-150px] top-1/4 w-[300px] h-[50%] rounded-full blur-[100px] pointer-events-none opacity-40 dark:opacity-20 z-0"
-          style={{
-            background: "radial-gradient(circle, #12332D 0%, transparent 70%)"
-          }}
-        />
-
+      {/* Form column — scrolls independently so a short viewport never clips it */}
+      <div className="w-full lg:w-[47%] flex flex-col justify-center items-center px-[4vw] py-[5vh] relative z-10 lg:max-h-[100dvh] lg:overflow-y-auto bg-background">
         <AuthCard>
           <MobileBrandHeader />
 
-          {/* Mobile step dots */}
-          <div className="lg:hidden flex items-center justify-center gap-1.5 mb-5" aria-label={`Step ${step} of 2`}>
-            <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 1 ? "w-8 bg-accent" : "w-3 bg-muted"}`} />
-            <div className={`h-1.5 rounded-full transition-all duration-300 ${step === 2 ? "w-8 bg-accent" : "w-3 bg-muted"}`} />
+          {/* Decorative mirror of the "Step n of 2" text below */}
+          <div aria-hidden="true" className="lg:hidden flex items-center justify-center gap-1.5 mb-5">
+            <div
+              className={`h-1.5 w-8 rounded-full origin-left transition-transform duration-[var(--t-fast)] ease-[var(--ease-out)] ${
+                step === 1 ? "bg-accent" : "bg-muted scale-x-[0.375]"
+              }`}
+            />
+            <div
+              className={`h-1.5 w-8 rounded-full origin-left transition-transform duration-[var(--t-fast)] ease-[var(--ease-out)] ${
+                step === 2 ? "bg-accent" : "bg-muted scale-x-[0.375]"
+              }`}
+            />
           </div>
 
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, x: step === 1 ? -16 : 16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4 }}
-            className="mb-6 xl:mb-8"
-          >
+          <div className="mb-6 xl:mb-8">
             <p className="fx-eyebrow mb-1">Step {step} of 2</p>
-            <h2 className="fx-display text-[22px] xl:text-[26px] font-semibold text-foreground">
+            <h1 className="fx-display text-[22px] xl:text-[26px] font-semibold text-foreground">
               {step === 1 ? "Create your account" : "Store details"}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {step === 1 ? "Enter your personal details to get started" : "Tell us about your retail store for a tailored experience"}
-            </p>
-          </motion.div>
+            </h1>
+            {step === 1 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Enter your personal details to get started
+              </p>
+            )}
+          </div>
 
-          <AnimatePresence>
-            {error && (
+          <AnimatePresence initial={false}>
+            {showBanner && (
               <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  x: [0, -6, 6, -6, 6, 0],
-                }}
-                exit={{ opacity: 0, y: -8 }}
-                className="bg-danger/10 border border-danger/25 text-danger rounded-xl px-4 py-3 text-sm font-medium mb-4"
+                initial={reduceMotion ? false : { opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -4 }}
+                transition={{ duration: reduceMotion ? 0 : 0.14, ease: "easeOut" }}
+                className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 text-sm font-medium mb-4"
                 role="alert"
               >
                 {error.includes("already registered") ? (
@@ -231,23 +278,17 @@ export default function SignupPage() {
 
           <AnimatePresence mode="wait">
             {step === 1 ? (
-              <motion.div
-                key="step1"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-3 xl:space-y-4"
-              >
+              <motion.div key="step1" {...stepMotion} className="space-y-3 xl:space-y-4">
                 <AnimatedInput
                   id="su-name"
                   label="Full Name *"
                   type="text"
                   value={formData.fullName}
                   onChange={(e) => updateField("fullName", e.target.value)}
-                  placeholder="John Doe"
+                  placeholder="Priya Sharma"
                   required
                   autoComplete="name"
+                  error={fieldErrors.fullName}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:gap-4">
@@ -260,6 +301,7 @@ export default function SignupPage() {
                     placeholder="you@yourstore.com"
                     required
                     autoComplete="email"
+                    error={fieldErrors.email}
                   />
                   <AnimatedInput
                     id="su-phone"
@@ -270,6 +312,7 @@ export default function SignupPage() {
                     placeholder="+91 9876543210"
                     required
                     autoComplete="tel"
+                    error={fieldErrors.phone}
                   />
                 </div>
 
@@ -280,9 +323,12 @@ export default function SignupPage() {
                   onChange={(e) => updateField("password", e.target.value)}
                   showPassword={showPassword}
                   onToggleShowPassword={() => setShowPassword(!showPassword)}
-                  placeholder="Min. 6 characters"
+                  placeholder="Enter a password"
+                  hint="Must be at least 6 characters."
+                  minLength={6}
                   required
                   autoComplete="new-password"
+                  error={fieldErrors.password}
                 />
 
                 <AnimatedInput
@@ -292,8 +338,10 @@ export default function SignupPage() {
                   value={formData.confirmPassword}
                   onChange={(e) => updateField("confirmPassword", e.target.value)}
                   placeholder="Re-enter your password"
+                  minLength={6}
                   required
                   autoComplete="new-password"
+                  error={fieldErrors.confirmPassword}
                 />
 
                 <div className="pt-1">
@@ -305,10 +353,7 @@ export default function SignupPage() {
             ) : (
               <motion.form
                 key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.3 }}
+                {...stepMotion}
                 onSubmit={handleSignup}
                 className="space-y-3 xl:space-y-4"
               >
@@ -320,6 +365,8 @@ export default function SignupPage() {
                   onChange={(e) => updateField("storeName", e.target.value)}
                   placeholder="My Retail Store"
                   required
+                  autoComplete="organization"
+                  error={fieldErrors.storeName}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:gap-4">
@@ -328,16 +375,20 @@ export default function SignupPage() {
                     label="Store Category *"
                     value={formData.storeCategory}
                     onChange={(e) => updateField("storeCategory", e.target.value)}
-                    options={["Select category", ...storeCategories]}
+                    placeholder="Select category"
+                    options={storeCategories}
                     required
+                    error={fieldErrors.storeCategory}
                   />
                   <AnimatedSelect
                     id="su-size"
                     label="Store Size *"
                     value={formData.storeSize}
                     onChange={(e) => updateField("storeSize", e.target.value)}
-                    options={["Select size", ...storeSizes]}
+                    placeholder="Select size"
+                    options={storeSizes}
                     required
+                    error={fieldErrors.storeSize}
                   />
                 </div>
 
@@ -359,6 +410,7 @@ export default function SignupPage() {
                     value={formData.city}
                     onChange={(e) => updateField("city", e.target.value)}
                     placeholder="Mumbai"
+                    autoComplete="address-level2"
                   />
                   <AnimatedInput
                     id="su-state"
@@ -367,6 +419,7 @@ export default function SignupPage() {
                     value={formData.state}
                     onChange={(e) => updateField("state", e.target.value)}
                     placeholder="Maharashtra"
+                    autoComplete="address-level1"
                   />
                   <AnimatedInput
                     id="su-pin"
@@ -402,12 +455,12 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="fx-btn flex-1 py-3 text-sm rounded-xl font-medium"
+                    className="fx-btn flex-1 py-3 text-sm font-medium"
                   >
                     Back
                   </button>
                   <div className="flex-[2]">
-                    <AuthSubmitButton loading={loading}>
+                    <AuthSubmitButton loading={loading} loadingLabel="Creating account…">
                       Create Account
                     </AuthSubmitButton>
                   </div>
@@ -416,22 +469,21 @@ export default function SignupPage() {
             )}
           </AnimatePresence>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.8 }}
-            className="text-center text-sm text-muted-foreground mt-6 xl:mt-8"
-          >
+          <p className="text-center text-sm text-muted-foreground mt-6 xl:mt-8">
             Already have an account?{" "}
             <Link
               href="/auth/login"
-              className="font-semibold transition-all duration-200 hover:underline fx-focus rounded inline-block relative group"
+              className="font-semibold hover:underline fx-focus rounded inline-block relative group"
               style={{ color: "var(--accent-hover)" }}
             >
               <span>Sign In</span>
-              <span className="absolute bottom-0 left-0 w-0 h-[1.5px] transition-all duration-300 group-hover:w-full" style={{ backgroundColor: "var(--accent-hover)" }} />
+              <span
+                aria-hidden="true"
+                className="absolute bottom-0 left-0 w-full h-[1.5px] origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-[var(--t-fast)] ease-[var(--ease-out)]"
+                style={{ backgroundColor: "var(--accent-hover)" }}
+              />
             </Link>
-          </motion.p>
+          </p>
         </AuthCard>
       </div>
     </div>

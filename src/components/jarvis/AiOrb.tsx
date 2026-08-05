@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useReducedMotion } from "framer-motion";
 
 export type OrbState = "sleeping" | "idle" | "listening" | "thinking" | "speaking" | "paused" | "report";
 
@@ -7,11 +8,21 @@ interface AiOrbProps {
   state: OrbState;
   onClick?: () => void;
   className?: string;
+  /** What activating the orb DOES — this is the accessible name. State is
+   *  announced separately by the page's live regions. */
+  actionLabel?: string;
 }
+
+/* Geometry is fixed and scaled with transform. Animating the SVG `r`
+   attribute re-runs layout every frame; `scale` stays on the compositor. */
+const CORE_BASE_R = 13;
+const FIELD_BASE_R = 27;
 
 // Calm, minimal intelligence indicator — a teal concentric pulse on paper.
 // State is expressed through pulse cadence and core presence, not spectacle.
-export function AiOrb({ state, onClick, className = "" }: AiOrbProps) {
+export function AiOrb({ state, onClick, className = "", actionLabel }: AiOrbProps) {
+  const reduceMotion = useReducedMotion();
+
   const getOrbConfig = () => {
     switch (state) {
       case "sleeping":
@@ -34,36 +45,29 @@ export function AiOrb({ state, onClick, className = "" }: AiOrbProps) {
 
   const config = getOrbConfig();
 
-  return (
-    <div
-      className={`relative flex items-center justify-center w-40 h-40 cursor-pointer fx-focus rounded-full ${className}`}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      aria-label={`Jarvis status: ${state}`}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(); } }}
-    >
-      <style>{`
-        @keyframes orb-quiet-pulse {
-          0% { transform: scale(0.55); opacity: var(--orb-pulse-opacity); }
-          80% { transform: scale(1); opacity: 0; }
-          100% { transform: scale(1); opacity: 0; }
-        }
-        @keyframes orb-quiet-pulse-b {
-          0% { transform: scale(0.55); opacity: 0; }
-          20% { transform: scale(0.64); opacity: var(--orb-pulse-opacity); }
-          100% { transform: scale(1); opacity: 0; }
-        }
-        @keyframes orb-arc-turn {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes orb-core-breathe {
-          0%, 100% { opacity: var(--orb-core-opacity); }
-          50% { opacity: calc(var(--orb-core-opacity) * 0.65); }
-        }
-      `}</style>
+  const defaultLabel =
+    state === "sleeping" ? "Wake Jarvis and start listening"
+      : state === "paused" ? "Resume Jarvis"
+      : state === "speaking" ? "Stop Jarvis speaking"
+      : "Stop Jarvis";
 
+  // Geometry transition — short, and skipped entirely for reduced motion.
+  const geomTransition = reduceMotion
+    ? undefined
+    : "transform var(--t-medium) var(--ease-out), opacity var(--t-medium) var(--ease-out)";
+  const scaleStyle = (r: number, base: number): React.CSSProperties => ({
+    transformBox: "fill-box",
+    transformOrigin: "center",
+    transform: `scale(${r / base})`,
+  });
+
+  return (
+    <button
+      type="button"
+      className={`fx-orb relative flex items-center justify-center w-40 h-40 fx-focus rounded-full ${className}`}
+      onClick={onClick}
+      aria-label={actionLabel ?? defaultLabel}
+    >
       <svg
         viewBox="0 0 160 160"
         className="w-full h-full"
@@ -74,26 +78,27 @@ export function AiOrb({ state, onClick, className = "" }: AiOrbProps) {
         } as React.CSSProperties}
       >
         {/* Paper disc — grounds the indicator on the page */}
-        <circle cx="80" cy="80" r="62" fill="var(--card)" stroke="var(--border)" strokeWidth="1" style={{ opacity: config.ringOpacity, transition: "opacity 400ms ease" }} />
+        <circle cx="80" cy="80" r="62" fill="var(--card)" stroke="var(--border)" strokeWidth="1" style={{ opacity: config.ringOpacity, transition: geomTransition }} />
 
         {/* Outer hairline reference ring */}
-        <circle cx="80" cy="80" r="74" fill="none" stroke="var(--border)" strokeWidth="1" style={{ opacity: config.ringOpacity * 0.8, transition: "opacity 400ms ease" }} />
+        <circle cx="80" cy="80" r="74" fill="none" stroke="var(--border)" strokeWidth="1" style={{ opacity: config.ringOpacity * 0.8, transition: geomTransition }} />
 
-        {/* Concentric pulse — cadence carries the state */}
-        {config.pulseOpacity > 0 && (
+        {/* Concentric pulse — cadence carries the state.
+            Held still for anyone who asked for reduced motion. */}
+        {config.pulseOpacity > 0 && !reduceMotion && (
           <>
             <circle
               cx="80" cy="80" r="72"
               fill="none" stroke="var(--accent)" strokeWidth="1"
               className="origin-center"
-              style={{ animation: `orb-quiet-pulse ${config.pulseDuration} cubic-bezier(0.16, 1, 0.3, 1) infinite` }}
+              style={{ animation: `orb-quiet-pulse ${config.pulseDuration} var(--ease-out) infinite` }}
             />
             {(state === "speaking" || state === "listening") && (
               <circle
                 cx="80" cy="80" r="72"
                 fill="none" stroke="var(--accent)" strokeWidth="1"
                 className="origin-center"
-                style={{ animation: `orb-quiet-pulse-b ${config.pulseDuration} cubic-bezier(0.16, 1, 0.3, 1) infinite` }}
+                style={{ animation: `orb-quiet-pulse-b ${config.pulseDuration} var(--ease-out) infinite` }}
               />
             )}
           </>
@@ -106,30 +111,35 @@ export function AiOrb({ state, onClick, className = "" }: AiOrbProps) {
             fill="none" stroke="var(--muted-foreground)" strokeWidth="1"
             strokeDasharray="3 9" strokeLinecap="round"
             className="origin-center"
-            style={{ animation: "orb-arc-turn 6s linear infinite", opacity: 0.7 }}
+            style={{ animation: reduceMotion ? undefined : "orb-arc-turn 6s linear infinite", opacity: 0.7 }}
           />
         )}
 
         {/* Soft accent field behind the core */}
         <circle
-          cx="80" cy="80" r={config.coreR + 14}
+          cx="80" cy="80" r={FIELD_BASE_R}
           fill="var(--accent)"
-          style={{ opacity: config.coreOpacity * 0.1, transition: "opacity 400ms ease, r 400ms ease" }}
+          style={{
+            ...scaleStyle(config.coreR + 14, FIELD_BASE_R),
+            opacity: config.coreOpacity * 0.1,
+            transition: geomTransition,
+          }}
         />
 
         {/* Core signal */}
         <circle
-          cx="80" cy="80" r={config.coreR}
+          cx="80" cy="80" r={CORE_BASE_R}
           fill="var(--accent)"
           style={{
-            transition: "r 400ms cubic-bezier(0.16, 1, 0.3, 1)",
-            animation: state === "sleeping" || state === "paused"
+            ...scaleStyle(config.coreR, CORE_BASE_R),
+            transition: geomTransition,
+            animation: (state === "sleeping" || state === "paused") && !reduceMotion
               ? "orb-core-breathe 5s ease-in-out infinite"
               : undefined,
             opacity: config.coreOpacity,
           }}
         />
       </svg>
-    </div>
+    </button>
   );
 }

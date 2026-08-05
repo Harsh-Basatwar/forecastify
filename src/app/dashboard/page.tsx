@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { recordLocalActivity } from "@/lib/local-activity";
+import { AnimatedCounter, Reveal } from "@/lib/motion-primitives";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
@@ -12,11 +13,12 @@ import {
   TrendingUp, Cloud, Calendar, Zap, Tag, Layers, Sun, Clock,
   Megaphone, FileDown, AlertCircle, ShoppingCart, Ban, Database
 } from "lucide-react";
+import {
+  chartColor, SERIES, DASH, tooltipStyle, tooltipLabelStyle,
+  gridProps, axisProps, legendProps, CHART_H,
+} from "@/lib/chart-theme";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
-// Restrained categorical ramp — teal + warm neutrals, readable in both themes
-const CAT_COLORS = ["#11746A", "#579E92", "#93C0B7", "#7A7466", "#A39C8C", "#4E4A42", "#C0A46B", "#5C7A74"];
 
 // Animated circular health ring — token-driven status colors
 function HealthRing({ score }: { score: number }) {
@@ -36,8 +38,8 @@ function HealthRing({ score }: { score: number }) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-2">
-      <div className="relative w-32 h-32 flex items-center justify-center">
+    <div className="flex flex-col items-center justify-center">
+      <div className="relative w-32 h-32 flex items-center justify-center" role="img" aria-label={`Store health index ${score} out of 100 — ${label}`}>
         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
           <circle cx="50" cy="50" r={radius} stroke="var(--muted)" strokeWidth={strokeWidth} fill="transparent" />
           <circle
@@ -54,8 +56,8 @@ function HealthRing({ score }: { score: number }) {
           />
         </svg>
         <div className="absolute flex flex-col items-center">
-          <span className="fx-num text-[30px] font-semibold text-foreground leading-none">{score}</span>
-          <span className="fx-eyebrow mt-1.5 text-[9px]">Health Index</span>
+          <span className="fx-num fx-metric-xl text-foreground">{score}</span>
+          <span className="fx-eyebrow mt-1.5">Health Index</span>
         </div>
       </div>
       <span className="inline-flex items-center gap-1.5 text-xs font-medium mt-2" style={{ color: ringColor }}>
@@ -120,28 +122,21 @@ function LoadingSkeleton() {
   );
 }
 
-const chartTooltipStyle = {
-  background: "var(--elevated)",
-  border: "1px solid var(--border-strong)",
-  borderRadius: "10px",
-  boxShadow: "var(--shadow-md)",
-  fontSize: "12px",
-  color: "var(--foreground)",
-} as const;
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const { t, lang } = useLang();
   const [data, setData] = useState<any>(null);
   const [weather, setWeather] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [liveLocation, setLiveLocation] = useState("");
   const [activeFilter, setActiveFilter] = useState<"recent" | "lowStock" | "highValue" | "topDemand">("topDemand");
 
   // Load weather and dashboard API data
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
+  const loadDashboard = useCallback(async () => {
+      if (!user) return;
+      setLoading(true);
+      setError("");
       try {
         const res = await fetch("/api/dashboard", {
           method: "POST",
@@ -199,11 +194,16 @@ export default function DashboardPage() {
         }
       } catch (err) {
         console.error("Dashboard page data load failed:", err);
+        setError("Could not load dashboard data. Check your connection and try again.");
       } finally {
         setLoading(false);
       }
-    })();
   }, [user, lang]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadDashboard();
+  }, [user, loadDashboard]);
 
   if (loading) return <LoadingSkeleton />;
 
@@ -238,6 +238,9 @@ export default function DashboardPage() {
     highValue: t("table.highValue"),
     recent: t("table.recentlyAdded")
   };
+  // The segment tabs rewrite the header row, so the empty-row colSpan has to
+  // follow the actual column count: Product + Category + segment columns.
+  const segmentColumns = 2 + (activeFilter === "topDemand" ? 4 : 3);
 
   const genTime = data?.generatedAt ? new Date(data.generatedAt) : new Date();
   const timeStr = genTime.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
@@ -401,19 +404,26 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {error && (
+        <div role="alert" className="bg-danger-soft border border-danger/25 text-danger rounded-[var(--radius-md)] px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm">{error}</span>
+          <button onClick={loadDashboard} className="fx-btn">Retry</button>
+        </div>
+      )}
+
       {/* ── KPI ledger · one sheet, hairline-divided ───────────── */}
       <section aria-label="Key metrics" className="fx-card grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-[var(--border)] overflow-hidden">
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Inventory Valuation</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">
-            ₹{Number(s.totalInventoryValue || 0).toLocaleString("en-IN")}
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">
+            <AnimatedCounter value={Number(s.totalInventoryValue || 0)} prefix="₹" />
           </p>
           <p className="text-xs text-muted-foreground mt-2.5">Capital on shelves</p>
         </div>
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Stockout Risk</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold mt-2.5 leading-none text-foreground">
-            {stockoutCount}<span className="text-sm font-normal text-muted-foreground ml-1.5">items</span>
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">
+            <AnimatedCounter value={stockoutCount} /><span className="text-sm font-normal text-muted-foreground ml-1.5">items</span>
           </p>
           <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${stockoutCount > 0 ? "text-danger" : "text-muted-foreground"}`}>
             <span className={`fx-signal ${stockoutCount > 0 ? "fx-signal-danger" : "fx-signal-success"}`} aria-hidden="true" />
@@ -422,8 +432,8 @@ export default function DashboardPage() {
         </div>
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Blocked Capital</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">
-            ₹{moneyStuck.toLocaleString("en-IN")}
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">
+            <AnimatedCounter value={moneyStuck} prefix="₹" />
           </p>
           <p className={`inline-flex items-center gap-1.5 text-xs mt-2.5 font-medium ${moneyStuck > 0 ? "text-warning" : "text-muted-foreground"}`}>
             <span className={`fx-signal ${moneyStuck > 0 ? "fx-signal-warning" : "fx-signal-success"}`} aria-hidden="true" />
@@ -432,8 +442,8 @@ export default function DashboardPage() {
         </div>
         <div className="p-5 sm:p-6">
           <p className="fx-eyebrow">Catalog</p>
-          <p className="fx-num text-[26px] sm:text-[30px] font-semibold text-foreground mt-2.5 leading-none">
-            {s.totalSKUs || 0}<span className="text-sm font-normal text-muted-foreground ml-1.5">SKUs</span>
+          <p className="fx-num fx-metric-xl text-foreground mt-2.5">
+            <AnimatedCounter value={s.totalSKUs || 0} /><span className="text-sm font-normal text-muted-foreground ml-1.5">SKUs</span>
           </p>
           <p className="text-xs text-muted-foreground mt-2.5">100% tracked</p>
         </div>
@@ -506,7 +516,7 @@ export default function DashboardPage() {
                   {story?.recommendation || "Check the order and slow-moving tables below for current inventory actions."}
                 </p>
               </div>
-              <p className="fx-num text-[11px] text-muted-foreground mt-4 text-right">
+              <p className="fx-num text-xs text-muted-foreground mt-4 text-right">
                 Advisor confidence {Math.round((story?.confidence || 0) * 100)}%
               </p>
             </div>
@@ -517,14 +527,14 @@ export default function DashboardPage() {
       {/* ── Signals: weather · health · events ─────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Weather & advice */}
-        <section aria-label="Weather and advice" className="fx-card p-6">
+        <section aria-label="Weather and advice" className="fx-card fx-lift p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Sun className="w-4 h-4 text-warning" aria-hidden="true" strokeWidth={1.8} />
               <h2 className="fx-display text-[17px] text-foreground">Weather Signal</h2>
             </div>
             {weather?.current && (
-              <span className="fx-num text-lg font-semibold text-foreground">{weather.current.temp}°C</span>
+              <span className="fx-num fx-metric-md text-foreground">{weather.current.temp}°C</span>
             )}
           </div>
 
@@ -551,7 +561,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-2.5" aria-label="Loading weather">
+            <div className="space-y-2.5" aria-busy="true" aria-label="Loading weather">
               <div className="skeleton-shimmer h-4 w-40" />
               <div className="skeleton-shimmer h-3.5 w-full" />
               <div className="skeleton-shimmer h-3.5 w-2/3" />
@@ -573,14 +583,13 @@ export default function DashboardPage() {
                   <span className="text-xs text-muted-foreground">{item.label}</span>
                   <span className="fx-num text-xs font-semibold text-foreground">{item.value}%</span>
                 </div>
-                <div className="h-1 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={item.value} aria-valuemin={0} aria-valuemax={100} aria-label={item.label}>
+                <div className="fx-meter h-1" role="progressbar" aria-valuenow={item.value} aria-valuemin={0} aria-valuemax={100} aria-label={item.label}>
                   <div
-                    className="h-full rounded-full"
+                    className="fx-meter-fill"
                     style={{
-                      width: `${item.value}%`,
+                      "--v": item.value / 100,
                       background: item.value < 50 ? "var(--danger)" : item.value < 75 ? "var(--warning)" : "var(--accent)",
-                      transition: "width 1.2s cubic-bezier(0.16, 1, 0.3, 1)",
-                    }}
+                    } as React.CSSProperties}
                   />
                 </div>
               </div>
@@ -614,27 +623,35 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+          {extEvents.length > 3 && (
+            <p className="text-xs text-muted-foreground mt-3 fx-rule pt-3">
+              Showing top <span className="fx-num">3</span> of <span className="fx-num">{extEvents.length}</span> demand events
+            </p>
+          )}
         </section>
       </div>
 
       {/* ── Operational tables ─────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Products to order */}
-        <section aria-label="Products to order" className="fx-card p-6">
+        <section aria-label="Products to order" className="fx-card fx-lift p-6">
           <div className="flex items-center gap-2 mb-4">
             <ShoppingCart className="w-4 h-4 text-accent" aria-hidden="true" strokeWidth={1.8} />
             <h2 className="fx-display text-[17px] text-foreground">Order Today</h2>
           </div>
 
-          <div className="overflow-x-auto -mx-2">
+          <div className="fx-table-scroll -mx-2">
             <table className="fx-table min-w-[480px]">
+              <caption className="fx-sr-only">
+                Products to order today, with current stock, days of cover remaining, recommended order quantity, and the reason flagged.
+              </caption>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th className="text-right">Stock</th>
-                  <th className="text-right">Days Left</th>
-                  <th className="text-right">Order Qty</th>
-                  <th>Reason</th>
+                  <th scope="col">Product</th>
+                  <th scope="col" className="text-right">Stock</th>
+                  <th scope="col" className="text-right">Days Left</th>
+                  <th scope="col" className="text-right">Order Qty</th>
+                  <th scope="col">Reason</th>
                 </tr>
               </thead>
               <tbody>
@@ -646,6 +663,7 @@ export default function DashboardPage() {
                       <td className="text-right">
                         <span className={`fx-num font-semibold inline-flex items-center gap-1.5 ${item.daysLeft <= 2 ? "text-danger" : item.daysLeft <= 4 ? "text-warning" : "text-foreground"}`}>
                           {item.daysLeft <= 2 && <span className="fx-signal fx-signal-danger" aria-hidden="true" />}
+                          {item.daysLeft > 2 && item.daysLeft <= 4 && <span className="fx-signal fx-signal-warning" aria-hidden="true" />}
                           {item.daysLeft}d
                         </span>
                       </td>
@@ -664,10 +682,15 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+          {toOrder.length > 5 && (
+            <p className="text-xs text-muted-foreground mt-3 fx-rule pt-3">
+              Showing top <span className="fx-num">5</span> of <span className="fx-num">{toOrder.length}</span> — see Purchase List for the full order.
+            </p>
+          )}
         </section>
 
         {/* Not selling */}
-        <section aria-label="Products not selling" className="fx-card p-6">
+        <section aria-label="Products not selling" className="fx-card fx-lift p-6">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
               <Ban className="w-4 h-4 text-danger" aria-hidden="true" strokeWidth={1.8} />
@@ -678,15 +701,18 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="overflow-x-auto -mx-2">
+          <div className="fx-table-scroll -mx-2">
             <table className="fx-table min-w-[480px]">
+              <caption className="fx-sr-only">
+                Slow-moving products, with category, stock on hand, days idle without a sale, and the capital value blocked.
+              </caption>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th className="text-right">Stock</th>
-                  <th className="text-right">Idle</th>
-                  <th className="text-right">Value</th>
+                  <th scope="col">Product</th>
+                  <th scope="col">Category</th>
+                  <th scope="col" className="text-right">Stock</th>
+                  <th scope="col" className="text-right">Idle</th>
+                  <th scope="col" className="text-right">Value</th>
                 </tr>
               </thead>
               <tbody>
@@ -713,12 +739,17 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+          {notSelling.length > 5 && (
+            <p className="text-xs text-muted-foreground mt-3 fx-rule pt-3">
+              Showing top <span className="fx-num">5</span> of <span className="fx-num">{notSelling.length}</span> slow-moving products.
+            </p>
+          )}
         </section>
       </div>
 
       {/* ── Business control center ────────────────────────────── */}
       {modelUtilization && (
-        <section aria-label="Business control center" className="fx-card p-6 sm:p-7">
+        <section aria-label="Business control center" className="fx-card p-6">
           <div className="flex items-start justify-between gap-3 flex-wrap mb-1">
             <div>
               <h2 className="fx-display text-[19px] text-foreground flex items-center gap-2">
@@ -726,7 +757,7 @@ export default function DashboardPage() {
               </h2>
               <p className="text-[13px] text-muted-foreground mt-1">What changed, what to expect, and what to do about it.</p>
             </div>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground mt-1">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground mt-1">
               <span className="fx-signal fx-signal-accent" aria-hidden="true" /> Live store signals
             </span>
           </div>
@@ -748,9 +779,9 @@ export default function DashboardPage() {
             <div className="py-5 border-t border-border">
               <p className="fx-eyebrow mb-2">Forecast Snapshot</p>
               <div className="flex items-baseline gap-6 mt-1">
-                <div><p className="fx-num text-xl font-semibold text-foreground">{modelUtilization.forecastSnapshot?.sevenDay || 0}</p><p className="text-[11px] text-muted-foreground mt-0.5">7 day</p></div>
-                <div><p className="fx-num text-xl font-semibold text-foreground">{modelUtilization.forecastSnapshot?.fourteenDay || 0}</p><p className="text-[11px] text-muted-foreground mt-0.5">14 day</p></div>
-                <div><p className="fx-num text-xl font-semibold text-foreground">{modelUtilization.forecastSnapshot?.thirtyDay || 0}</p><p className="text-[11px] text-muted-foreground mt-0.5">30 day</p></div>
+                <div><p className="fx-num fx-metric-md text-foreground">{modelUtilization.forecastSnapshot?.sevenDay || 0}</p><p className="text-xs text-muted-foreground mt-0.5">7 days</p></div>
+                <div><p className="fx-num fx-metric-md text-foreground">{modelUtilization.forecastSnapshot?.fourteenDay || 0}</p><p className="text-xs text-muted-foreground mt-0.5">14 days</p></div>
+                <div><p className="fx-num fx-metric-md text-foreground">{modelUtilization.forecastSnapshot?.thirtyDay || 0}</p><p className="text-xs text-muted-foreground mt-0.5">30 days</p></div>
               </div>
               <p className="text-xs text-muted-foreground mt-2.5">Confidence <span className="fx-num font-medium text-foreground">{modelUtilization.forecastSnapshot?.confidence || 0}%</span></p>
             </div>
@@ -764,6 +795,11 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 {!modelUtilization.upcomingEvents?.events?.length && <p className="text-xs text-muted-foreground">No active event risk in the current window.</p>}
+                {(modelUtilization.upcomingEvents?.events || []).length > 3 && (
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Showing top <span className="fx-num">3</span> of <span className="fx-num">{modelUtilization.upcomingEvents.events.length}</span>
+                  </p>
+                )}
               </div>
             </div>
             <div className="py-5 border-t border-border">
@@ -783,6 +819,11 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 {!modelUtilization.weatherImpact?.products?.length && <p className="text-xs text-muted-foreground">No weather-sensitive movement detected today.</p>}
+                {(modelUtilization.weatherImpact?.products || []).length > 3 && (
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Showing top <span className="fx-num">3</span> of <span className="fx-num">{modelUtilization.weatherImpact.products.length}</span>
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -790,9 +831,9 @@ export default function DashboardPage() {
       )}
 
       {/* ── Analytics ──────────────────────────────────────────── */}
-      <section aria-label="Analytics" className="space-y-6">
+      <Reveal as="section" direction="up" className="space-y-6">
         <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <h2 className="fx-display text-[22px] text-foreground">Analytics</h2>
+          <h2 className="fx-display text-[19px] text-foreground">Analytics</h2>
           <p className="text-xs text-muted-foreground">Across {s.forecastProductCount || 0} forecasted products</p>
         </div>
 
@@ -804,24 +845,26 @@ export default function DashboardPage() {
               <h3 className="text-sm font-semibold text-foreground">7-Day Sales Forecast</h3>
             </div>
             <p className="text-xs text-muted-foreground mb-4">Forecast vs last week, with recommended buffer</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={forecast} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
-                <defs>
-                  <linearGradient id="gPred" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.18} />
-                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} dy={6} />
-                <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={chartTooltipStyle} cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }} />
-                <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} iconType="plainline" />
-                <Area type="monotone" dataKey="predicted" name="Forecast" stroke="var(--accent)" fill="url(#gPred)" strokeWidth={2} activeDot={{ r: 4 }} />
-                <Area type="monotone" dataKey="actual" name="Last week" stroke="var(--muted-foreground)" fill="none" strokeWidth={1.5} strokeDasharray="5 4" />
-                <Area type="monotone" dataKey="recommended" name="Buffer" stroke="var(--warning)" fill="none" strokeWidth={1.5} strokeDasharray="2 4" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div role="img" aria-label="Seven day demand forecast (solid) versus last week actuals (dashed) and the recommended stock buffer (dotted)">
+              <ResponsiveContainer width="100%" height={CHART_H.standard}>
+                <AreaChart data={forecast} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+                  <defs>
+                    <linearGradient id="gPred" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid {...gridProps} />
+                  <XAxis dataKey="day" {...axisProps} dy={6} />
+                  <YAxis {...axisProps} />
+                  <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }} />
+                  <Legend {...legendProps} />
+                  <Area type="monotone" dataKey="predicted" name="Forecast" stroke={SERIES.primary} fill="url(#gPred)" strokeWidth={2} strokeDasharray={DASH.solid} activeDot={{ r: 4 }} />
+                  <Area type="monotone" dataKey="actual" name="Last week" stroke={SERIES.comparison} fill="none" strokeWidth={1.5} strokeDasharray={DASH.comparison} />
+                  <Area type="monotone" dataKey="recommended" name="Buffer" stroke={SERIES.threshold} fill="none" strokeWidth={1.5} strokeDasharray={DASH.threshold} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Category breakdown */}
@@ -831,17 +874,19 @@ export default function DashboardPage() {
               <h3 className="text-sm font-semibold text-foreground">Category Stock</h3>
             </div>
             <p className="text-xs text-muted-foreground mb-4">Units held per category</p>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={categories} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid strokeDasharray="4 6" stroke="var(--border)" horizontal={false} />
-                <XAxis type="number" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="category" width={82} stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={chartTooltipStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
-                <Bar dataKey="stock" name="Stock Units" radius={[0, 4, 4, 0]} barSize={14}>
-                  {categories.map((_: any, i: number) => <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div role="img" aria-label="Horizontal bar chart of stock units held in each product category">
+              <ResponsiveContainer width="100%" height={CHART_H.standard}>
+                <BarChart data={categories} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid {...gridProps} vertical horizontal={false} />
+                  <XAxis type="number" {...axisProps} />
+                  <YAxis type="category" dataKey="category" width={82} {...axisProps} />
+                  <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} cursor={{ fill: "var(--secondary)", opacity: 0.5 }} />
+                  <Bar dataKey="stock" name="Stock Units" radius={[0, 4, 4, 0]} barSize={14}>
+                    {categories.map((_: any, i: number) => <Cell key={i} fill={chartColor(i)} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
@@ -852,18 +897,13 @@ export default function DashboardPage() {
               <Layers className="w-4 h-4 text-muted-foreground" aria-hidden="true" strokeWidth={1.8} />
               <h3 className="text-sm font-semibold text-foreground">Segment Insights</h3>
             </div>
-            <div className="flex gap-0.5 bg-secondary rounded-[var(--radius-md)] p-0.5" role="tablist" aria-label="Segment filter">
+            <div className="fx-segment" role="group" aria-label="Segment filter">
               {(Object.keys(filterLabels) as Array<"recent" | "lowStock" | "highValue" | "topDemand">).map((tab) => (
                 <button
                   key={tab}
-                  role="tab"
-                  aria-selected={activeFilter === tab}
+                  type="button"
+                  aria-pressed={activeFilter === tab}
                   onClick={() => setActiveFilter(tab)}
-                  className={`px-3 py-1.5 rounded-[calc(var(--radius-md)-2px)] text-xs font-medium transition-all duration-100 cursor-pointer fx-focus ${
-                    activeFilter === tab
-                      ? "bg-card text-foreground shadow-xs font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
                 >
                   {filterLabels[tab]}
                 </button>
@@ -871,16 +911,24 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto -mx-2">
+          {/* The segment swap rewrites the header row, so announce it */}
+          <p className="fx-sr-only" aria-live="polite">
+            Segment insights now showing {filterLabels[activeFilter]}, {segmentColumns} columns.
+          </p>
+
+          <div className="fx-table-scroll -mx-2">
             <table className="fx-table min-w-[560px]">
+              <caption className="fx-sr-only">
+                Segment insights — {filterLabels[activeFilter]}. Columns change with the selected segment.
+              </caption>
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Category</th>
-                  {activeFilter === "topDemand" && <><th className="text-right">Daily</th><th className="text-right">Weekly</th><th className="text-right">Stock</th><th className="text-right">Days of Stock</th></>}
-                  {activeFilter === "lowStock" && <><th className="text-right">Stock Qty</th><th className="text-right">Price</th><th className="text-right">Status</th></>}
-                  {activeFilter === "highValue" && <><th className="text-right">Stock Qty</th><th className="text-right">Price</th><th className="text-right">Total Value</th></>}
-                  {activeFilter === "recent" && <><th className="text-right">Stock Qty</th><th className="text-right">Price</th><th className="text-right">Status</th></>}
+                  <th scope="col">Product</th>
+                  <th scope="col">Category</th>
+                  {activeFilter === "topDemand" && <><th scope="col" className="text-right">Daily</th><th scope="col" className="text-right">Weekly</th><th scope="col" className="text-right">Stock</th><th scope="col" className="text-right">Days of Stock</th></>}
+                  {activeFilter === "lowStock" && <><th scope="col" className="text-right">Stock Qty</th><th scope="col" className="text-right">Price</th><th scope="col" className="text-right">Status</th></>}
+                  {activeFilter === "highValue" && <><th scope="col" className="text-right">Stock Qty</th><th scope="col" className="text-right">Price</th><th scope="col" className="text-right">Total Value</th></>}
+                  {activeFilter === "recent" && <><th scope="col" className="text-right">Stock Qty</th><th scope="col" className="text-right">Price</th><th scope="col" className="text-right">Status</th></>}
                 </tr>
               </thead>
               <tbody>
@@ -890,7 +938,7 @@ export default function DashboardPage() {
                     <td className="text-xs text-muted-foreground">{item.category}</td>
                     {activeFilter === "topDemand" && <>
                       <td className="text-right fx-num font-semibold text-foreground">{item.dailyDemand}/day</td>
-                      <td className="text-right fx-num text-secondary-foreground">{item.weeklyDemand}/wk</td>
+                      <td className="text-right fx-num text-secondary-foreground">{item.weeklyDemand}/week</td>
                       <td className="text-right fx-num text-muted-foreground">{item.currentStock} {item.unit}</td>
                       <td className="text-right fx-num font-semibold" style={{ color: "var(--accent)" }}>{item.daysOfStock}d</td>
                     </>}
@@ -913,7 +961,7 @@ export default function DashboardPage() {
                 ))}
                 {(filterData[activeFilter] || []).length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center">
+                    <td colSpan={segmentColumns} className="py-10 text-center">
                       <p className="text-sm text-secondary-foreground font-medium">No records in this segment</p>
                       <p className="text-xs text-muted-foreground mt-1">Add products or record sales to populate this view.</p>
                     </td>
@@ -933,12 +981,12 @@ export default function DashboardPage() {
             { label: "Sales Records", value: `${s.historicDataDays || 0}`, tone: "text-foreground" },
           ].map((stat) => (
             <div key={stat.label} className="px-5 py-4">
-              <p className="fx-eyebrow text-[10px]">{stat.label}</p>
-              <p className={`fx-num text-lg font-semibold mt-1.5 ${stat.tone}`}>{stat.value}</p>
+              <p className="fx-eyebrow">{stat.label}</p>
+              <p className={`fx-num fx-metric-md mt-1.5 ${stat.tone}`}>{stat.value}</p>
             </div>
           ))}
         </div>
-      </section>
+      </Reveal>
     </div>
   );
 }

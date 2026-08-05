@@ -1,27 +1,55 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { TrendingUp, BarChart3, ShieldCheck } from "lucide-react";
 import ForecastGraphSVG from "./ForecastGraphSVG";
+import { useCursorGlow } from "@/lib/motion-primitives";
 
 function BrandMark({ dark = false, size = 38 }: { dark?: boolean; size?: number }) {
+  const ink = dark ? "var(--panel-fg)" : "var(--accent-foreground)";
+  const reduce = useReducedMotion();
+
   return (
-    <motion.div
-      whileHover={{ rotate: 8, scale: 1.05 }}
-      transition={{ type: "spring", stiffness: 300, damping: 15 }}
-      className="rounded-lg flex items-center justify-center shrink-0 cursor-pointer shadow-md"
+    <div
+      className="rounded-[var(--radius-md)] flex items-center justify-center shrink-0 shadow-md fx-glow fx-float"
       style={{
         width: size,
         height: size,
-        background: dark ? "rgba(245, 243, 237, 0.14)" : "var(--accent)",
-        border: dark ? "1px solid rgba(245, 243, 237, 0.2)" : "none",
+        background: dark ? "var(--panel-surface)" : "var(--accent)",
+        border: dark ? "1px solid var(--panel-line)" : "none",
       }}
     >
-      <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M3 20L7 10L11 13L17 6L21 10" stroke={dark ? "#F5F3ED" : "var(--accent-foreground)"} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="17" cy="6" r="2.3" fill={dark ? "#F5F3ED" : "var(--accent-foreground)"} />
+      <svg
+        width={size * 0.6}
+        height={size * 0.6}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        {/* The forecast line writes itself in — the one brand flourish. */}
+        <motion.path
+          d="M3 20L7 10L11 13L17 6L21 10"
+          stroke={ink}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          initial={reduce ? false : { pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: reduce ? 0 : 0.7, ease: [0.16, 1, 0.3, 1] }}
+        />
+        <motion.circle
+          cx="17"
+          cy="6"
+          r="2.3"
+          fill={ink}
+          initial={reduce ? false : { scale: 0.3, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: reduce ? 0 : 0.26, delay: reduce ? 0 : 0.5, ease: [0.16, 1, 0.3, 1] }}
+          style={{ transformBox: "fill-box", transformOrigin: "center" }}
+        />
       </svg>
-    </motion.div>
+    </div>
   );
 }
 
@@ -30,210 +58,218 @@ interface AuthLeftPanelProps {
   step?: number;
 }
 
-export default function AuthLeftPanel({ mode = "login", step = 1 }: AuthLeftPanelProps) {
-  // Word-by-word headline reveal animation setup
-  const headlineText = mode === "login"
-    ? "Know what sells,\nbefore it sells."
-    : "Set up your store\nin minutes.";
-  
-  const headlineWords = headlineText.split(" ");
+/**
+ * Deliberate brand surface: a deep-evergreen panel in both themes, but
+ * driven by panel-scoped custom properties (`--panel-*`) with a `.dark`
+ * variant so it adapts instead of being frozen. Every foreground value
+ * here clears 4.5:1 against the panel background.
+ */
+const PANEL_TOKENS = [
+  "[--panel-bg-a:#102B26]",
+  "[--panel-bg-b:#12332D]",
+  "[--panel-bg-c:#0B2420]",
+  "[--panel-fg:#F5F3ED]",
+  "[--panel-fg-muted:#C3D0CA]",
+  "[--panel-line:rgba(245,243,237,0.14)]",
+  "[--panel-surface:rgba(245,243,237,0.05)]",
+  "[--panel-accent:#3BB8A5]",
+  "[--panel-forecast:#7FC49A]",
+  "dark:[--panel-bg-a:#0C201C]",
+  "dark:[--panel-bg-b:#0E2621]",
+  "dark:[--panel-bg-c:#081916]",
+  "dark:[--panel-fg:#EAE8E3]",
+  "dark:[--panel-fg-muted:#AFBDB7]",
+  "dark:[--panel-line:rgba(234,232,227,0.12)]",
+  "dark:[--panel-surface:rgba(234,232,227,0.04)]",
+].join(" ");
 
-  const features = mode === "login" ? [
-    { icon: TrendingUp, title: "7-day demand predictions", desc: "Weather, market and event signals built in" },
-    { icon: BarChart3, title: "Smart inventory levels", desc: "Avoid stockouts and overstocking automatically" },
-    { icon: ShieldCheck, title: "Risk alerts & insights", desc: "Actionable alerts for at-risk products" },
-  ] : [
+export default function AuthLeftPanel({ mode = "login", step = 1 }: AuthLeftPanelProps) {
+  const reduceMotion = useReducedMotion();
+  // Writes --mx/--my on the panel so the sheen follows the cursor in CSS,
+  // with no React re-render per pointer move.
+  const glowRef = useCursorGlow<HTMLDivElement>();
+
+  /** One-shot entrance: ≤240ms, 30ms steps, nothing at all when reduced. */
+  const enter = (index: number) =>
+    reduceMotion
+      ? { initial: false as const, animate: { opacity: 1, y: 0 }, transition: { duration: 0 } }
+      : {
+          initial: { opacity: 0, y: 6 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.24, delay: index * 0.03, ease: "easeOut" as const },
+        };
+
+  const headline =
+    mode === "login" ? (
+      <>
+        Know what sells,
+        <br />
+        before it sells.
+      </>
+    ) : (
+      <>
+        Set up your store
+        <br />
+        in minutes.
+      </>
+    );
+
+  const features = [
+    {
+      icon: TrendingUp,
+      title: "7-day demand predictions",
+      desc: "Weather, market and event signals built in",
+    },
+    {
+      icon: BarChart3,
+      title: "Smart inventory levels",
+      desc: "Avoid stockouts and overstocking automatically",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Risk alerts & insights",
+      desc: "Actionable alerts for at-risk products",
+    },
+  ];
+
+  const steps = [
     { n: 1, title: "Personal information", desc: "Your account credentials" },
     { n: 2, title: "Store details", desc: "Tell us about your retail business" },
   ];
 
   return (
     <div
-      className="hidden lg:flex lg:w-[53%] relative overflow-hidden flex-col justify-between px-[4.5vw] py-[4.5vh] select-none h-full"
-      style={{ background: "linear-gradient(145deg, #102B26 0%, #12332D 60%, #0B2420 100%)", color: "#F5F3ED" }}
+      ref={glowRef}
+      className={`hidden lg:flex lg:w-[53%] relative flex-col justify-between gap-[3vh] px-[4.5vw] py-[4.5vh] lg:max-h-[100dvh] overflow-y-auto fx-panel-glow ${PANEL_TOKENS}`}
+      style={{
+        background:
+          "linear-gradient(145deg, var(--panel-bg-a) 0%, var(--panel-bg-b) 60%, var(--panel-bg-c) 100%)",
+        color: "var(--panel-fg)",
+      }}
     >
-      {/* 1. Logo Block */}
-      <motion.div
-        initial={{ opacity: 0, y: -16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="flex items-center gap-[0.7vw] relative z-10 self-start"
-      >
+      {/* 1. Logo */}
+      <motion.div {...enter(0)} className="flex items-center gap-3 relative z-10 self-start shrink-0">
         <BrandMark dark />
-        <span className="text-xl font-semibold tracking-tight" style={{ fontFamily: "var(--font-display), Georgia, serif" }}>
+        <span
+          className="text-xl font-semibold tracking-tight"
+          style={{ fontFamily: "var(--font-display), Georgia, serif" }}
+        >
           Forecastify
         </span>
       </motion.div>
 
-      {/* 2. Main content container (vertically centered via my-auto, fluid spacing) */}
-      <div className="my-auto flex flex-col space-y-[2.5vh] max-w-[480px] w-full relative z-10 flex-1 min-h-0 justify-center">
-        
-        {/* Hero Block (space-y-[1vh] for tight fluid rhythm) */}
+      {/* 2. Editorial block */}
+      <div className="flex flex-col gap-[2.5vh] max-w-[480px] w-full relative z-10">
         <div className="space-y-[1vh]">
-          {/* Eyebrow Tagline */}
           <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 0.5, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            {...enter(1)}
             className="text-[10px] font-semibold uppercase tracking-[0.18em]"
+            style={{ color: "var(--panel-fg-muted)" }}
           >
             {mode === "login" ? "Retail Intelligence Platform" : "Get Started"}
           </motion.p>
 
-          {/* Headline - Optical Wrapping (max-width 20ch) & Clamped Typography */}
-          <h2
+          <motion.h2
+            {...enter(2)}
             className="font-semibold tracking-tight leading-[1.12] max-w-[20ch]"
-            style={{ 
-              fontFamily: "var(--font-display), Georgia, serif", 
+            style={{
+              fontFamily: "var(--font-display), Georgia, serif",
               fontSize: "clamp(1.8rem, 2.8vw, 2.5rem)",
-              letterSpacing: "-0.015em" 
+              letterSpacing: "-0.015em",
             }}
           >
-            {headlineWords.map((word, i) => (
-              <motion.span
-                key={i}
-                className="inline-block mr-2"
-                initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{
-                  duration: 0.65,
-                  delay: 0.35 + i * 0.08,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-              >
-                {word === "\nbefore" ? (
-                  <>
-                    <br />
-                    before
-                  </>
-                ) : word === "\nin" ? (
-                  <>
-                    <br />
-                    in
-                  </>
-                ) : (
-                  word
-                )}
-              </motion.span>
-            ))}
-          </h2>
+            {headline}
+          </motion.h2>
 
-          {/* Description - Clamped typography & optical contrast weight */}
           <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 0.75, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="leading-relaxed opacity-70 font-normal"
-            style={{ fontSize: "clamp(0.8rem, 1vw, 0.9rem)" }}
+            {...enter(3)}
+            className="leading-relaxed"
+            style={{ fontSize: "clamp(0.8rem, 1vw, 0.9rem)", color: "var(--panel-fg-muted)" }}
           >
             {mode === "login"
-              ? "Demand forecasting, inventory intelligence, and market signals — one calm operating picture for your store."
+              ? "Demand forecasting, inventory intelligence, and market signals. One calm operating picture for your store."
               : "Join retailers running calmer, better-stocked stores with Forecastify's demand intelligence."}
           </motion.p>
         </div>
 
-        {/* AI Metrics Row - Tiny, Vercel-style metrics */}
-        <div className="flex items-center justify-between text-[9px] xl:text-[10px] font-mono tracking-wider text-white/40 uppercase border-y border-white/5 py-[1.2vh] select-none">
-          <div className="flex items-center gap-[0.5vw]">
-            <span className="font-semibold text-emerald-400">94.2%</span>
-            <span>Accuracy</span>
-          </div>
-          <div className="w-[1px] h-3 bg-white/10" />
-          <div className="flex items-center gap-[0.5vw]">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Stable Inventory</span>
-          </div>
-          <div className="w-[1px] h-3 bg-white/10" />
-          <div className="flex items-center gap-[0.5vw]">
-            <span className="font-semibold text-white/90">21</span>
-            <span>At Risk</span>
-          </div>
-        </div>
-
-        {/* Fluid Graph Area (flex-1 min-h-[90px] max-h-[160px] to allow flex shrinking) */}
+        {/* Illustrative forecast curve — decorative, drawn once */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.9, delay: 0.85, ease: [0.16, 1, 0.3, 1] }}
-          className="flex-1 min-h-[90px] max-h-[160px] w-full relative z-10 flex items-center justify-center"
+          {...enter(4)}
+          className="min-h-[90px] h-[14vh] max-h-[160px] w-full relative z-10 flex items-center justify-center shrink-0"
         >
           <ForecastGraphSVG />
         </motion.div>
 
-        {/* Features Block (space-y-[1vh] for fluid rhythm) */}
         <div className="space-y-[1vh]">
-          {mode === "login" ? (
-            (features as Array<{ icon: React.ComponentType<{ className?: string; strokeWidth?: number; style?: React.CSSProperties }>; title: string; desc: string }>).map((feature, i) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 1.0 + i * 0.12, ease: [0.16, 1, 0.3, 1] }}
-                whileHover={{ 
-                  y: -1.5, 
-                  backgroundColor: "rgba(255, 255, 255, 0.04)", 
-                  borderColor: "rgba(255, 255, 255, 0.12)",
-                  boxShadow: "0 8px 20px -10px rgba(0, 0, 0, 0.3)" 
-                }}
-                className="flex items-center gap-[0.8vw] p-[1.2vh] rounded-xl border border-white/5 bg-white/[0.01] transition-all duration-300 group cursor-pointer"
-              >
-                <div className="p-[0.8vh] rounded-lg bg-white/5 border border-white/10 group-hover:border-emerald-400/40 group-hover:bg-emerald-500/10 text-white/90 group-hover:text-emerald-400 transition-all duration-300">
-                  <feature.icon className="w-4 h-4" strokeWidth={1.8} />
-                </div>
-                <div>
-                  <h3 
-                    className="font-medium text-white/90 transition-colors duration-300 group-hover:text-white"
-                    style={{ fontSize: "clamp(0.78rem, 1vw, 0.88rem)" }}
-                  >
-                    {feature.title}
-                  </h3>
-                  <p className="text-[11px] text-white/50 mt-0.5 leading-normal">{feature.desc}</p>
-                </div>
-              </motion.div>
-            ))
-          ) : (
-            (features as Array<{ n: number; title: string; desc: string }>).map((item, i) => (
-              <motion.div
-                key={item.n}
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: step >= item.n ? 1 : 0.45, x: 0 }}
-                transition={{ duration: 0.6, delay: 1.0 + i * 0.12 }}
-                className="flex items-center gap-[0.8vw] py-[1.2vh] border-t border-white/10 first:border-none"
-              >
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 transition-all duration-300"
-                  style={step >= item.n
-                    ? { background: "#F5F3ED", color: "#12332D", boxShadow: "0 0 16px rgba(245, 243, 237, 0.3)" }
-                    : { border: "1px solid rgba(245, 243, 237, 0.35)", color: "rgba(245, 243, 237, 0.7)" }}
+          {mode === "login"
+            ? features.map((feature, i) => (
+                <motion.div
+                  key={feature.title}
+                  {...enter(5 + i)}
+                  className="flex items-start gap-3 p-[1.2vh] rounded-[var(--radius-md)] border"
+                  style={{ borderColor: "var(--panel-line)", background: "var(--panel-surface)" }}
                 >
-                  {item.n}
-                </div>
-                <div>
-                  <p 
-                    className="font-medium"
-                    style={{ fontSize: "clamp(0.78rem, 1vw, 0.88rem)" }}
+                  <div
+                    className="p-2 rounded-[var(--radius-sm)] border shrink-0"
+                    style={{
+                      borderColor: "var(--panel-line)",
+                      background: "var(--panel-surface)",
+                      color: "var(--panel-accent)",
+                    }}
                   >
-                    {item.title}
-                  </p>
-                  <p className="text-[11px] mt-0.5 text-white/50 leading-normal">{item.desc}</p>
-                </div>
-              </motion.div>
-            ))
-          )}
+                    <feature.icon className="w-4 h-4" strokeWidth={1.8} aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h3
+                      className="font-medium"
+                      style={{ fontSize: "clamp(0.78rem, 1vw, 0.88rem)" }}
+                    >
+                      {feature.title}
+                    </h3>
+                    <p className="text-[11px] mt-0.5 leading-normal" style={{ color: "var(--panel-fg-muted)" }}>
+                      {feature.desc}
+                    </p>
+                  </div>
+                </motion.div>
+              ))
+            : steps.map((item, i) => (
+                <motion.div
+                  key={item.n}
+                  {...enter(5 + i)}
+                  className="flex items-center gap-3 py-[1.2vh] border-t first:border-t-0"
+                  style={{ borderColor: "var(--panel-line)" }}
+                >
+                  <div
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0"
+                    style={
+                      step >= item.n
+                        ? { background: "var(--panel-fg)", color: "var(--panel-bg-b)" }
+                        : { border: "1px solid var(--panel-line)", color: "var(--panel-fg-muted)" }
+                    }
+                  >
+                    {item.n}
+                  </div>
+                  <div>
+                    <p className="font-medium" style={{ fontSize: "clamp(0.78rem, 1vw, 0.88rem)" }}>
+                      {item.title}
+                    </p>
+                    <p className="text-[11px] mt-0.5 leading-normal" style={{ color: "var(--panel-fg-muted)" }}>
+                      {item.desc}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
         </div>
-
       </div>
 
-      {/* 3. Footer indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.5 }}
-        transition={{ delay: 1.4, duration: 0.8 }}
-        className="relative z-10 flex items-center gap-2 text-[10px] xl:text-xs self-start"
+      {/* 3. Footer — quiet brand line, no fabricated system status */}
+      <motion.p
+        {...enter(7)}
+        className="relative z-10 text-[10px] xl:text-xs self-start shrink-0"
+        style={{ color: "var(--panel-fg-muted)" }}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        <span>System Operational • AI Models Online</span>
-      </motion.div>
+        Forecastify · Demand intelligence for independent retail
+      </motion.p>
     </div>
   );
 }

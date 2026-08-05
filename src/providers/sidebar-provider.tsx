@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 
 interface SidebarContextType {
   isExpanded: boolean;
@@ -15,93 +15,95 @@ interface SidebarContextType {
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
+const STORAGE_KEY = "sidebar:pinned";
+
+/** Read the stored preference during the first render so the rail does not
+ *  paint expanded and then snap collapsed. */
+function initialPinned(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === null ? true : JSON.parse(stored);
+  } catch {
+    return true;
+  }
+}
+
+/** True when focus is somewhere that swallows printable characters. Covers
+ *  native fields plus ARIA widgets that behave like them. */
+function isTypingContext(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (el.isContentEditable) return true;
+  const role = el.getAttribute("role");
+  return role === "textbox" || role === "combobox" || role === "searchbox" || role === "listbox";
+}
+
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [isPinned, setIsPinned] = useState<boolean>(true); // default to expanded/pinned
+  const [isPinned, setIsPinned] = useState<boolean>(initialPinned);
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false);
 
   const enterTimerRef = useRef<NodeJS.Timeout | null>(null);
   const leaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 1. Persistence on mount
-  useEffect(() => {
+  const persist = (next: boolean) => {
     try {
-      const stored = localStorage.getItem("sidebar:pinned");
-      if (stored !== null) {
-        setIsPinned(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.warn("Storage access failed", e);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Storage unavailable — preference just won't survive the session.
     }
+  };
+
+  const togglePin = useCallback(() => {
+    setIsPinned((prev) => {
+      const next = !prev;
+      persist(next);
+      return next;
+    });
   }, []);
 
-  // 2. Keyboard Shortcuts: [ to collapse, ] to expand, Ctrl+\ / Cmd+\ to pin
+  /*
+    Sidebar shortcut. Modifier-based only: bare printable keys as global
+    shortcuts fail WCAG 2.1.4, since they fire in any context that is not a
+    recognised text field and cannot be turned off.
+      Ctrl/Cmd + \  toggles the rail
+  */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isInputFocused = () => {
-        const el = document.activeElement;
-        return el && (
-          el.tagName === "INPUT" || 
-          el.tagName === "TEXTAREA" || 
-          el.getAttribute("contenteditable") === "true"
-        );
-      };
-
-      if (isInputFocused()) return;
-
+      if (isTypingContext()) return;
       if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
         e.preventDefault();
         togglePin();
-      } else if (e.key === "[") {
-        e.preventDefault();
-        setIsHovered(false);
-        setIsPinned(false);
-        try {
-          localStorage.setItem("sidebar:pinned", JSON.stringify(false));
-        } catch {}
-      } else if (e.key === "]") {
-        e.preventDefault();
-        setIsPinned(true);
-        try {
-          localStorage.setItem("sidebar:pinned", JSON.stringify(true));
-        } catch {}
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPinned]);
+  }, [togglePin]);
 
-  const togglePin = () => {
-    setIsPinned((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("sidebar:pinned", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  // 3. Debounced hover handlers to prevent accidental triggers
-  const handleSetHovered = (hovered: boolean) => {
+  // Debounced hover so a cursor crossing the rail does not expand it.
+  const handleSetHovered = useCallback((hovered: boolean) => {
     if (hovered) {
       if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
-      // Wait 120ms before expanding to ensure intent
-      enterTimerRef.current = setTimeout(() => {
-        setIsHovered(true);
-      }, 120);
+      enterTimerRef.current = setTimeout(() => setIsHovered(true), 120);
     } else {
       if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
-      // Wait 200ms before collapsing in case cursor briefly slips off
-      leaveTimerRef.current = setTimeout(() => {
-        setIsHovered(false);
-      }, 200);
+      leaveTimerRef.current = setTimeout(() => setIsHovered(false), 200);
     }
-  };
+  }, []);
 
-  const toggleMobile = () => setIsMobileOpen((prev) => !prev);
+  // Both timers can outlive the component otherwise.
+  useEffect(() => {
+    return () => {
+      if (enterTimerRef.current) clearTimeout(enterTimerRef.current);
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    };
+  }, []);
 
-  // Compute final display state
+  const toggleMobile = useCallback(() => setIsMobileOpen((prev) => !prev), []);
+
   const isExpanded = isPinned || isHovered || isMobileOpen;
 
   return (

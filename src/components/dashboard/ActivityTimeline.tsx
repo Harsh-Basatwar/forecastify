@@ -3,6 +3,22 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Clock } from "lucide-react";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/* Each activity type gets its own signal AND a short written kind, so the
+   row still reads correctly when hue is unavailable (WCAG 1.4.1). */
+const ACTIVITY_KINDS: Record<string, { signal: string; kind: string }> = {
+  LOGIN: { signal: "fx-signal fx-signal-info", kind: "Session" },
+  PRODUCT_ADDED: { signal: "fx-signal fx-signal-success", kind: "Inventory" },
+  PRODUCT_EDITED: { signal: "fx-signal fx-signal-success", kind: "Inventory" },
+  REPORT_DOWNLOADED: { signal: "fx-signal fx-signal-accent", kind: "Report" },
+  VOICE_COMMAND: { signal: "fx-signal", kind: "Voice" },
+  FORECAST_RUN: { signal: "fx-signal fx-signal-warning", kind: "Forecast" },
+  ANALYSIS_GENERATED: { signal: "fx-signal fx-signal-warning", kind: "Analysis" },
+};
+
+const FALLBACK_KIND = { signal: "fx-signal", kind: "Activity" };
+
 export function ActivityTimeline({ userId }: { userId: string }) {
   const [activities, setActivities] = useState<any[]>([]);
 
@@ -29,21 +45,7 @@ export function ActivityTimeline({ userId }: { userId: string }) {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
-  // Signal dot per activity type — quiet status language, no colored icon squares
-  const getSignal = (type: string) => {
-    switch (type) {
-      case "LOGIN": return "fx-signal fx-signal-accent";
-      case "PRODUCT_ADDED":
-      case "PRODUCT_EDITED": return "fx-signal fx-signal-success";
-      case "REPORT_DOWNLOADED": return "fx-signal fx-signal-accent";
-      case "VOICE_COMMAND": return "fx-signal";
-      case "FORECAST_RUN":
-      case "ANALYSIS_GENERATED": return "fx-signal fx-signal-accent";
-      default: return "fx-signal";
-    }
-  };
-
-  if (activities.length === 0) return null;
+  const describe = (type: string) => ACTIVITY_KINDS[type] ?? FALLBACK_KIND;
 
   return (
     <section aria-label="Today's activity" className="fx-card p-6">
@@ -52,23 +54,37 @@ export function ActivityTimeline({ userId }: { userId: string }) {
         <h3 className="fx-display text-[17px] text-foreground">Today&apos;s Activity</h3>
       </div>
 
-      {/* Hairline spine with signal dots */}
-      <div className="relative border-l border-border ml-[3px] space-y-5">
-        {activities.map((act) => (
-          <div key={act.id} className="relative pl-5 fx-fade-in">
-            <span
-              className={`${getSignal(act.activity_type)} absolute -left-[4px] top-[5px]`}
-              style={{ boxShadow: "0 0 0 3px var(--card)" }}
-              aria-hidden="true"
-            />
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-[13px] font-medium text-foreground leading-snug">{act.activity_title}</span>
-              <span className="fx-num text-[11px] text-muted-foreground shrink-0">
-                {new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
+      {/* Realtime-fed list — new rows arrive without a reload, so they are
+          announced politely rather than landing silently. */}
+      <div aria-live="polite">
+        {activities.length === 0 ? (
+          <p className="text-[13px] text-muted-foreground">
+            Nothing logged yet today. Activity appears here as you work.
+          </p>
+        ) : (
+          /* Hairline spine with signal dots */
+          <div className="relative border-l border-border ml-[3px] space-y-5">
+            {activities.map((act) => {
+              const { signal, kind } = describe(act.activity_type);
+              return (
+                <div key={act.id} className="relative pl-5 fx-fade-in">
+                  <span
+                    className={`${signal} absolute -left-[4px] top-[5px]`}
+                    style={{ boxShadow: "0 0 0 3px var(--card)" }}
+                    aria-hidden="true"
+                  />
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-[13px] font-medium text-foreground leading-snug">{act.activity_title}</span>
+                    <span className="fx-num text-[11px] text-muted-foreground shrink-0">
+                      {new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <span className="fx-eyebrow block text-[10px] mt-0.5">{kind}</span>
+                </div>
+              );
+            })}
           </div>
-        ))}
+        )}
       </div>
     </section>
   );

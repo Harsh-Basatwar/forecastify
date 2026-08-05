@@ -18,31 +18,76 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+/**
+ * A refresh token the server has rejected can never be recovered. Detect it so
+ * the stale copy can be dropped instead of being retried on every page load.
+ */
+function isStaleRefreshToken(error: unknown): boolean {
+  const message = (error as { message?: string } | null)?.message?.toLowerCase() ?? "";
+  return message.includes("refresh token") || message.includes("session from session id");
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    let active = true;
+
+    const applySession = (next: Session | null) => {
+      if (!active) return;
+      setSession(next);
+      setUser(next?.user ?? null);
       setLoading(false);
-    });
+    };
+
+    const resolveSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+          // Discard the unusable token locally so the client stops replaying it.
+          // scope: "local" avoids a network call that would fail for the same reason.
+          if (isStaleRefreshToken(error)) {
+            await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          }
+          applySession(null);
+          return;
+        }
+
+        applySession(data.session);
+      } catch (err) {
+        if (isStaleRefreshToken(err)) {
+          await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+        }
+        // Never leave the app stuck on its loading state.
+        applySession(null);
+      }
+    };
+
+    resolveSession();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+      applySession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // The server rejected the token (already expired or revoked). The local
+      // session still has to go, so clear it and let the listener update state.
+      await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    }
   };
 
   return (
