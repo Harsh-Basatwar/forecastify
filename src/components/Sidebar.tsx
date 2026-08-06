@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign, Lightbulb, Workflow, PlayCircle, Cpu, Network, GitCommit, Activity, ShieldAlert, Gauge, Sliders, Lock, Database, Layers, FileText } from "lucide-react";
+import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign, Lightbulb, Workflow, PlayCircle, Cpu, Network, GitCommit, Activity, ShieldAlert, Gauge, Sliders, Lock, Database, Layers, FileText, Sunrise } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { supabase } from "@/lib/supabase";
@@ -59,6 +59,12 @@ const navSections = [
       { href: "/dashboard/alerts", labelKey: "nav.alerts", icon: AlertTriangle },
       { href: "/dashboard/federated-intelligence", labelKey: "nav.federated", icon: Users },
       { href: "/dashboard/extension", labelKey: "nav.extension", icon: Puzzle },
+    ],
+  },
+  {
+    titleKey: "Store Assistant",
+    items: [
+      { href: "/dashboard/store-assistant", labelKey: "Autopilot Hub", icon: Sunrise },
     ],
   },
   {
