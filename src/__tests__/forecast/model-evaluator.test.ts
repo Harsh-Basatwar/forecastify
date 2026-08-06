@@ -17,7 +17,7 @@ describe('Model Evaluator & Metrics Package Unit Tests', () => {
     assert.ok(metrics.mape > 0);
     assert.ok(metrics.smape > 0);
     assert.ok(metrics.r2 > 0.9); // Strong linear fit
-    assert.ok(metrics.wape > 0);
+    assert.ok((metrics.wape ?? 0) > 0);
     assert.ok(metrics.pinballLoss !== undefined);
   });
 
