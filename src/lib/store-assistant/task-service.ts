@@ -11,8 +11,8 @@ import type { EmployeeTaskRow, TaskPriority, TaskStatus, TaskType } from './type
 import { TASK_TYPES } from './constants';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-supabase-url.supabase.co',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 );
 
 export class TaskService {
@@ -238,6 +238,47 @@ export class TaskService {
     };
   }
 
+  /** Get daily and weekly productivity metrics for employees */
+  async getProductivityStats(storeId: string): Promise<{
+    todayCompleted: number;
+    weeklyCompleted: number;
+    completionPctToday: number;
+    topEmployees: { name: string; completedCount: number }[];
+  }> {
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: weekTasks } = await supabase
+      .from('employee_tasks')
+      .select('assignee, status, created_at, completed_at')
+      .eq('store_id', storeId)
+      .gte('created_at', weekAgo);
+
+    const tasks = weekTasks || [];
+    const todayTasks = tasks.filter(t => new Date(t.created_at).toISOString().startsWith(today));
+    const todayCompleted = todayTasks.filter(t => t.status === 'completed').length;
+    const weeklyCompleted = tasks.filter(t => t.status === 'completed').length;
+
+    // Tally by assignee
+    const employeeMap = new Map<string, number>();
+    for (const t of tasks.filter(t => t.status === 'completed' && t.assignee)) {
+      const name = t.assignee || 'Unassigned';
+      employeeMap.set(name, (employeeMap.get(name) || 0) + 1);
+    }
+
+    const topEmployees = Array.from(employeeMap.entries())
+      .map(([name, completedCount]) => ({ name, completedCount }))
+      .sort((a, b) => b.completedCount - a.completedCount)
+      .slice(0, 5);
+
+    return {
+      todayCompleted,
+      weeklyCompleted,
+      completionPctToday: todayTasks.length > 0 ? Math.round((todayCompleted / todayTasks.length) * 100) : 100,
+      topEmployees,
+    };
+  }
+
   /** Get task type metadata */
   getTaskTypeMeta(type: string) {
     return TASK_TYPES.find(t => t.type === type) || TASK_TYPES[TASK_TYPES.length - 1];
@@ -245,3 +286,4 @@ export class TaskService {
 }
 
 export const taskService = new TaskService();
+

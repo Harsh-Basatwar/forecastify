@@ -8,8 +8,8 @@ import type { LoyaltySegmentRow, LoyaltySegment, LoyaltyAction } from './types';
 import { LOYALTY_THRESHOLDS } from './constants';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-supabase-url.supabase.co',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 );
 
 export class LoyaltyService {
@@ -129,6 +129,57 @@ export class LoyaltyService {
     return { segment, score, ltv, freqDays, lastVisit, actions };
   }
 
+  /** Get top VIP & frequent customers */
+  async getBestCustomers(storeId: string): Promise<LoyaltySegmentRow[]> {
+    const { data } = await supabase
+      .from('loyalty_segments')
+      .select('*, customers(name, phone)')
+      .eq('store_id', storeId)
+      .in('segment', ['vip', 'frequent'])
+      .order('total_lifetime_value', { ascending: false })
+      .limit(10);
+
+    return (data || []).map((s: any) => ({
+      ...s,
+      customer_name: s.customers?.name,
+      customer_phone: s.customers?.phone,
+    })) as LoyaltySegmentRow[];
+  }
+
+  /** Get inactive and lost customers who stopped visiting */
+  async getStoppedVisitingCustomers(storeId: string): Promise<LoyaltySegmentRow[]> {
+    const { data } = await supabase
+      .from('loyalty_segments')
+      .select('*, customers(name, phone)')
+      .eq('store_id', storeId)
+      .in('segment', ['inactive', 'lost'])
+      .order('last_visit_date', { ascending: true })
+      .limit(10);
+
+    return (data || []).map((s: any) => ({
+      ...s,
+      customer_name: s.customers?.name,
+      customer_phone: s.customers?.phone,
+    })) as LoyaltySegmentRow[];
+  }
+
+  /** Get customers eligible for targeted promotional offers today */
+  async getCustomersForOffersToday(storeId: string): Promise<LoyaltySegmentRow[]> {
+    const { data } = await supabase
+      .from('loyalty_segments')
+      .select('*, customers(name, phone)')
+      .eq('store_id', storeId)
+      .in('segment', ['inactive', 'regular', 'vip'])
+      .order('loyalty_score', { ascending: false })
+      .limit(5);
+
+    return (data || []).map((s: any) => ({
+      ...s,
+      customer_name: s.customers?.name,
+      customer_phone: s.customers?.phone,
+    })) as LoyaltySegmentRow[];
+  }
+
   /** Get recommended actions for a segment */
   getSegmentActions(segment: LoyaltySegment): LoyaltyAction[] {
     const actionMap: Record<LoyaltySegment, LoyaltyAction[]> = {
@@ -144,3 +195,4 @@ export class LoyaltyService {
 }
 
 export const loyaltyService = new LoyaltyService();
+

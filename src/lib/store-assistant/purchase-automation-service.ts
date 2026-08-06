@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * PurchaseAutomationService — Smart PO Generation with ROI Estimation
+ * PurchaseAutomationService — Smart PO Generation with ROI Estimation, Multi-Channel Dispatch & Full Audit Control
  */
 
 import { createClient } from '@supabase/supabase-js';
 import { supplierRankingService } from './supplier-ranking-service';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-supabase-url.supabase.co',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 );
 
 export interface SmartPO {
@@ -44,7 +44,6 @@ export class PurchaseAutomationService {
 
   /** Detect products needing orders and generate smart POs */
   async generateSmartPOs(storeId: string): Promise<SmartPO[]> {
-    // Get all inventory items that need ordering
     const { data: inventory } = await supabase
       .from('inventory')
       .select('id, product_name, category, current_stock, reorder_point, price, cost_price, gst_rate, supplier_id')
@@ -52,21 +51,18 @@ export class PurchaseAutomationService {
 
     if (!inventory || inventory.length === 0) return [];
 
-    // Get average daily sales for demand estimation
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: recentSales } = await supabase
       .from('sale_items')
       .select('product_id, quantity')
       .gte('created_at', weekAgo);
 
-    // Build demand map
     const demandMap = new Map<string, number>();
     for (const sale of (recentSales || [])) {
       const current = demandMap.get(sale.product_id) || 0;
       demandMap.set(sale.product_id, current + Number(sale.quantity));
     }
 
-    // Filter items needing reorder
     const needsOrder: SmartPOItem[] = [];
     for (const item of inventory) {
       const stock = Number(item.current_stock);
@@ -75,9 +71,8 @@ export class PurchaseAutomationService {
       const dailyDemand = weeklyDemand / 7;
 
       if (stock <= reorderPt || stock <= 0) {
-        const leadTimeDays = 3; // Default lead time
         const safetyStock = Math.ceil(dailyDemand * 2);
-        const orderQty = Math.max(1, Math.ceil(dailyDemand * 14) + safetyStock - stock); // 2 weeks cover
+        const orderQty = Math.max(1, Math.ceil(dailyDemand * 14) + safetyStock - stock);
         const unitPrice = Number(item.cost_price || item.price * 0.7);
         const gstRate = Number(item.gst_rate || 18);
         const lineTotal = orderQty * unitPrice;
@@ -106,7 +101,6 @@ export class PurchaseAutomationService {
 
     if (needsOrder.length === 0) return [];
 
-    // Group by supplier or create single PO
     const ranked = await supplierRankingService.rankSuppliers(storeId);
     const bestSupplier = ranked[0];
 
@@ -116,9 +110,8 @@ export class PurchaseAutomationService {
 
     const deliveryDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Estimate ROI
     const expectedRevenue = needsOrder.reduce((s, i) => {
-      const sellingPrice = i.unitPrice * 1.35; // ~35% markup
+      const sellingPrice = i.unitPrice * 1.35;
       return s + i.orderQuantity * sellingPrice;
     }, 0);
 
@@ -163,7 +156,6 @@ export class PurchaseAutomationService {
 
     if (error || !data) return null;
 
-    // Insert PO items
     const poItems = smartPO.items.map(item => ({
       purchase_order_id: data.id,
       product_id: item.productId,
@@ -183,7 +175,7 @@ export class PurchaseAutomationService {
   async getPendingPOs(storeId: string): Promise<any[]> {
     const { data } = await supabase
       .from('purchase_orders')
-      .select('*, suppliers(name, company_name)')
+      .select('*, suppliers(name, company_name, phone, email)')
       .eq('store_id', storeId)
       .in('status', ['draft', 'pending_approval'])
       .order('created_at', { ascending: false });
@@ -191,9 +183,205 @@ export class PurchaseAutomationService {
     return data || [];
   }
 
-  /** Detect products that need emergency reordering */
-  async detectNeededOrders(storeId: string): Promise<SmartPO[]> {
-    return this.generateSmartPOs(storeId);
+  /** Approve a pending Purchase Order */
+  async approvePO(storeId: string, poId: string, userId?: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('purchase_orders')
+      .update({
+        status: 'approved',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', poId)
+      .eq('store_id', storeId);
+
+    if (!error) {
+      await supabase.from('activity_logs').insert({
+        user_id: userId || storeId,
+        activity_title: 'Purchase Order Approved',
+        activity_type: 'purchase_order',
+        metadata: { poId, action: 'approve' },
+      });
+    }
+
+    return !error;
+  }
+
+  /** Reject a pending Purchase Order */
+  async rejectPO(storeId: string, poId: string, userId?: string, reason?: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('purchase_orders')
+      .update({
+        status: 'rejected',
+        notes: reason ? `Rejected: ${reason}` : 'Rejected by store owner',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', poId)
+      .eq('store_id', storeId);
+
+    if (!error) {
+      await supabase.from('activity_logs').insert({
+        user_id: userId || storeId,
+        activity_title: 'Purchase Order Rejected',
+        activity_type: 'purchase_order',
+        metadata: { poId, action: 'reject', reason },
+      });
+    }
+
+    return !error;
+  }
+
+  /** Modify quantity / items of a draft or pending PO */
+  async modifyPO(storeId: string, poId: string, items: { productId: string; orderQuantity: number; unitPrice: number }[]): Promise<boolean> {
+    const subtotal = items.reduce((sum, item) => sum + item.orderQuantity * item.unitPrice, 0);
+    const gstAmount = Math.round(subtotal * 0.18);
+    const totalAmount = subtotal + gstAmount;
+
+    const { error } = await supabase
+      .from('purchase_orders')
+      .update({
+        subtotal,
+        gst_amount: gstAmount,
+        total_amount: totalAmount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', poId)
+      .eq('store_id', storeId);
+
+    return !error;
+  }
+
+  /** Undo / Cancel a sent PO */
+  async undoPOExecution(storeId: string, poId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('purchase_orders')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', poId)
+      .eq('store_id', storeId);
+
+    if (!error) {
+      await supabase.from('activity_logs').insert({
+        user_id: storeId,
+        activity_title: 'Purchase Order Execution Undone',
+        activity_type: 'purchase_order',
+        metadata: { poId, action: 'undo' },
+      });
+    }
+
+    return !error;
+  }
+
+  /** Emergency stop: disables autonomous purchasing and cancels pending auto POs */
+  async emergencyStopAutonomousPurchasing(storeId: string): Promise<boolean> {
+    await supabase
+      .from('autonomous_config')
+      .update({ auto_purchase_orders: false, is_enabled: false })
+      .eq('store_id', storeId);
+
+    await supabase
+      .from('purchase_orders')
+      .update({ status: 'cancelled' })
+      .eq('store_id', storeId)
+      .eq('status', 'pending_approval');
+
+    await supabase.from('activity_logs').insert({
+      user_id: storeId,
+      activity_title: 'EMERGENCY STOP TRIGGERED',
+      activity_type: 'emergency_stop',
+      metadata: { timestamp: new Date().toISOString() },
+    });
+
+    return true;
+  }
+
+  /** Dispatch PO via WhatsApp message simulation */
+  async dispatchPOViaWhatsApp(storeId: string, poId: string, phone?: string): Promise<{ success: boolean; message: string }> {
+    const { data: po } = await supabase
+      .from('purchase_orders')
+      .select('*, suppliers(name, phone), purchase_order_items(*)')
+      .eq('id', poId)
+      .single();
+
+    if (!po) return { success: false, message: 'PO not found' };
+
+    const targetPhone = phone || po.suppliers?.phone || '919876543210';
+    const body = `📦 *PURCHASE ORDER #${po.po_number}*\nStore Order Request\nTotal Items: ${po.purchase_order_items?.length || 0}\nTotal Amount: ₹${po.total_amount}\nExpected Delivery: ${po.expected_delivery_date}\n\nPlease confirm order receipt.`;
+
+    await supabase.from('vendor_communications').insert({
+      store_id: storeId,
+      supplier_id: po.supplier_id,
+      po_id: poId,
+      channel: 'whatsapp',
+      direction: 'outgoing',
+      message_type: 'purchase_order',
+      body,
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+
+    await supabase.from('purchase_orders').update({ status: 'sent' }).eq('id', poId);
+
+    return { success: true, message: `PO #${po.po_number} dispatched to WhatsApp (${targetPhone})` };
+  }
+
+  /** Dispatch PO via Email simulation */
+  async dispatchPOViaEmail(storeId: string, poId: string, email?: string): Promise<{ success: boolean; message: string }> {
+    const { data: po } = await supabase
+      .from('purchase_orders')
+      .select('*, suppliers(name, email), purchase_order_items(*)')
+      .eq('id', poId)
+      .single();
+
+    if (!po) return { success: false, message: 'PO not found' };
+
+    const targetEmail = email || po.suppliers?.email || 'vendor@supplier.com';
+
+    await supabase.from('vendor_communications').insert({
+      store_id: storeId,
+      supplier_id: po.supplier_id,
+      po_id: poId,
+      channel: 'email',
+      direction: 'outgoing',
+      message_type: 'purchase_order',
+      subject: `Official Purchase Order #${po.po_number}`,
+      body: `Please process Purchase Order #${po.po_number} for ₹${po.total_amount}. Delivery requested by ${po.expected_delivery_date}.`,
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+
+    await supabase.from('purchase_orders').update({ status: 'sent' }).eq('id', poId);
+
+    return { success: true, message: `PO #${po.po_number} emailed to ${targetEmail}` };
+  }
+
+  /** Generate printable PO summary string / PDF mock structure */
+  async generatePOPDF(storeId: string, poId: string): Promise<string> {
+    const { data: po } = await supabase
+      .from('purchase_orders')
+      .select('*, suppliers(name, company_name), purchase_order_items(*)')
+      .eq('id', poId)
+      .single();
+
+    if (!po) return 'PO NOT FOUND';
+
+    return `
+==================================================
+              FORECASTIFY PURCHASE ORDER          
+==================================================
+PO Number: ${po.po_number}
+Date: ${new Date(po.created_at).toLocaleDateString()}
+Supplier: ${po.suppliers?.name || 'General Supplier'}
+Expected Delivery: ${po.expected_delivery_date}
+
+ITEMS:
+${(po.purchase_order_items || []).map((i: any) => `- ${i.product_name}: ${i.quantity} units @ ₹${i.unit_price} = ₹${i.total_price}`).join('\n')}
+
+Subtotal: ₹${po.subtotal}
+GST Amount (18%): ₹${po.gst_amount}
+TOTAL AMOUNT: ₹${po.total_amount}
+==================================================
+Status: ${po.status.toUpperCase()}
+Auto-generated by Forecastify Autonomous Operating System
+`;
   }
 
   /** Execute (send) a PO */

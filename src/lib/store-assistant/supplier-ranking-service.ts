@@ -8,8 +8,8 @@ import type { SupplierScore } from './types';
 import { SUPPLIER_RANKING_WEIGHTS } from './constants';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-supabase-url.supabase.co',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 );
 
 export class SupplierRankingService {

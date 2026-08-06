@@ -3,10 +3,13 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { UserRole, hasPermission, canViewFinancials, maskFinancials, Permission } from "./rbac";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  role: UserRole;
+  setRole: (role: UserRole) => void;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -14,6 +17,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
+  role: 'owner',
+  setRole: () => {},
   loading: true,
   signOut: async () => {},
 });
@@ -55,15 +60,45 @@ function isStaleRefreshToken(error: unknown): boolean {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [role, setRoleState] = useState<UserRole>('owner');
   const [loading, setLoading] = useState(true);
+
+  const setRole = (newRole: UserRole) => {
+    setRoleState(newRole);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("forecastify_user_role", newRole);
+    }
+  };
 
   useEffect(() => {
     let active = true;
 
-    const applySession = (next: Session | null) => {
+    // Load saved role preference if present
+    if (typeof window !== "undefined") {
+      const savedRole = localStorage.getItem("forecastify_user_role") as UserRole;
+      if (savedRole) setRoleState(savedRole);
+    }
+
+    const applySession = async (next: Session | null) => {
       if (!active) return;
       setSession(next);
       setUser(next?.user ?? null);
+
+      if (next?.user) {
+        // Try fetching user role from profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", next.user.id)
+          .maybeSingle();
+
+        if (profile?.role && active) {
+          setRoleState(profile.role as UserRole);
+        } else if (next.user.user_metadata?.role && active) {
+          setRoleState(next.user.user_metadata.role as UserRole);
+        }
+      }
+
       setLoading(false);
     };
 
@@ -119,10 +154,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, setRole, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export const useAuth = () => useContext(AuthContext);
+
+export function useRBAC() {
+  const { role, setRole } = useAuth();
+  return {
+    role,
+    setRole,
+    can: (permission: Permission) => hasPermission(role, permission),
+    canViewFinancials: canViewFinancials(role),
+    maskFinancials: <T extends Record<string, any>>(data: T) => maskFinancials(data, role),
+  };
+}
+

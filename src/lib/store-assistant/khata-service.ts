@@ -10,8 +10,8 @@ import { createClient } from '@supabase/supabase-js';
 import type { KhataAccountRow, KhataTransactionRow, KhataReminderRow } from './types';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-supabase-url.supabase.co',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 );
 
 export class KhataService {
@@ -250,6 +250,50 @@ export class KhataService {
       .eq('id', accountId);
   }
 
+  /** Predict next payment date for a khata account based on historical payment velocity */
+  async predictPaymentDate(accountId: string): Promise<string> {
+    const txns = await this.getTransactions(accountId, 10);
+    const payments = txns.filter(t => t.type === 'payment_received');
+
+    if (payments.length === 0) {
+      const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      return nextWeek.toISOString().split('T')[0];
+    }
+
+    // Average interval between payments
+    const timestamps = payments.map(p => new Date(p.created_at).getTime()).sort();
+    let totalIntervalMs = 0;
+    for (let i = 1; i < timestamps.length; i++) {
+      totalIntervalMs += (timestamps[i] - timestamps[i - 1]);
+    }
+    const avgDays = timestamps.length > 1 ? Math.max(3, Math.round((totalIntervalMs / (timestamps.length - 1)) / (24 * 60 * 60 * 1000))) : 7;
+    const predicted = new Date(Date.now() + avgDays * 24 * 60 * 60 * 1000);
+    return predicted.toISOString().split('T')[0];
+  }
+
+  /** Get risky customers exceeding 80% credit limit or >30 days overdue */
+  async getRiskyCustomers(storeId: string): Promise<KhataAccountRow[]> {
+    const { data: accounts } = await supabase
+      .from('khata_accounts')
+      .select('*, customers(name, phone)')
+      .eq('store_id', storeId)
+      .eq('is_deleted', false);
+
+    if (!accounts) return [];
+
+    return accounts
+      .filter((a: any) => {
+        const bal = Number(a.outstanding_balance || 0);
+        const limit = Number(a.credit_limit || 5000);
+        return bal >= limit * 0.8 || a.status === 'overdue';
+      })
+      .map((a: any) => ({
+        ...a,
+        customer_name: a.customers?.name,
+        customer_phone: a.customers?.phone,
+      })) as KhataAccountRow[];
+  }
+
   /** Get account summary stats for a store */
   async getStoreSummary(storeId: string): Promise<{
     totalAccounts: number;
@@ -289,3 +333,4 @@ export class KhataService {
 }
 
 export const khataService = new KhataService();
+

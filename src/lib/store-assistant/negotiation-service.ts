@@ -2,7 +2,10 @@
 /** NegotiationService — AI Supplier Negotiation Insights */
 import { createClient } from '@supabase/supabase-js';
 import type { NegotiationInsightRow } from './types';
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || '', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '');
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-supabase-url.supabase.co',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
+);
 
 export class NegotiationService {
   async getInsights(storeId: string, supplierId?: string): Promise<NegotiationInsightRow[]> {
@@ -51,6 +54,45 @@ export class NegotiationService {
     return count;
   }
 
+  /** Generate AI Negotiation Draft & Savings Estimate */
+  async generateNegotiationDraft(storeId: string, supplierId: string): Promise<{ draft: string; estimatedSavingsPct: number; estimatedSavingsAmount: number }> {
+    const { data: supplier } = await supabase
+      .from('suppliers')
+      .select('name, company_name, payment_terms, reliability_score')
+      .eq('id', supplierId)
+      .single();
+
+    const { data: pos } = await supabase
+      .from('purchase_orders')
+      .select('total_amount')
+      .eq('store_id', storeId)
+      .eq('supplier_id', supplierId)
+      .eq('status', 'delivered');
+
+    const totalSpent = (pos || []).reduce((s: number, p: any) => s + Number(p.total_amount || 0), 0);
+    const supName = supplier?.name || supplier?.company_name || 'Vendor';
+
+    const draft = `Subject: Proposal for Annual Volume Tier & Terms Adjustment — ${supName}
+
+Dear ${supName} Team,
+
+We appreciate our ongoing partnership with ${supName}. Over the past evaluation period, our store has placed orders totaling ₹${totalSpent.toLocaleString('en-IN')}.
+
+Based on our projected demand growth, we are looking to consolidate more of our weekly category orders with ${supName}. To support this expansion, we request:
+1. A 5% volume rebate on monthly orders exceeding ₹50,000.
+2. Extension of payment terms to Net-30 days.
+
+We value your reliability and look forward to confirming our next order cycle.
+
+Best regards,
+Store Management`;
+
+    const estimatedSavingsPct = 5;
+    const estimatedSavingsAmount = Math.round(totalSpent * 0.05);
+
+    return { draft, estimatedSavingsPct, estimatedSavingsAmount };
+  }
+
   private async saveInsight(storeId: string, supplierId: string, type: string, text: string, confidence: number) {
     await supabase.from('negotiation_insights').upsert({
       store_id: storeId, supplier_id: supplierId, insight_type: type, insight_text: text, confidence, last_validated_at: new Date().toISOString(),
@@ -58,3 +100,4 @@ export class NegotiationService {
   }
 }
 export const negotiationService = new NegotiationService();
+

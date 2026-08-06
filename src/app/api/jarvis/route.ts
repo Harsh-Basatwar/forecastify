@@ -6,6 +6,15 @@ import { driftEngine } from "@/lib/background/drift";
 import { alertEngine } from "@/lib/background/alerts";
 import { cacheManager } from "@/lib/background/cache";
 import { retrainingOrchestrator } from "@/lib/background/retraining";
+import { purchaseAutomationService } from "@/lib/store-assistant/purchase-automation-service";
+import { khataService } from "@/lib/store-assistant/khata-service";
+import { dailyBriefService } from "@/lib/store-assistant/daily-brief-service";
+import { taskService } from "@/lib/store-assistant/task-service";
+import { cashService } from "@/lib/store-assistant/cash-service";
+import { healthService } from "@/lib/store-assistant/health-service";
+import { loyaltyService } from "@/lib/store-assistant/loyalty-service";
+import { supplierRankingService } from "@/lib/store-assistant/supplier-ranking-service";
+import { negotiationService } from "@/lib/store-assistant/negotiation-service";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -299,6 +308,137 @@ export async function POST(request: Request) {
       return Response.json({
         response: `Platform status is ${status}, Sir. All 14 subsystems (Forecast Engine, Feature Store, Database, Redis, Queue, Workers) are fully operational.`,
         actions: [{ type: "navigate", result: { path: "/dashboard/system/health" } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // ── Milestone 9 Autonomous Retail Execution Intents ──────────
+
+    // 1. "Place tomorrow's order" / "place order"
+    if (normalizedMessage.includes("place tomorrow's order") || normalizedMessage.includes("place order") || normalizedMessage.includes("order tomorrow")) {
+      const smartPOs = await purchaseAutomationService.generateSmartPOs(userId);
+      if (smartPOs.length === 0) {
+        return Response.json({
+          response: "No items require reordering right now, Sir. Inventory levels are optimal.",
+          actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/purchase-automation" } }],
+          timestamp: new Date().toISOString(),
+        });
+      }
+      const firstPo = smartPOs[0];
+      const draftId = await purchaseAutomationService.createDraftPO(userId, firstPo);
+      return Response.json({
+        response: `Generated purchase order for ${firstPo.items.length} items totaling ₹${firstPo.totalAmount.toLocaleString('en-IN')}, Sir. Preferred supplier: ${firstPo.supplierName}. Estimated ROI: ${firstPo.estimatedROI.roiPct}%.`,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/purchase-automation", poId: draftId } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 2. "Generate morning report" / "morning report"
+    if (normalizedMessage.includes("morning report") || normalizedMessage.includes("morning brief") || normalizedMessage.includes("generate morning")) {
+      const brief = await dailyBriefService.getMorningBrief(userId);
+      const summary = brief?.ai_summary || "Morning brief generated, Sir. Check your dashboard for details.";
+      return Response.json({
+        response: `${summary}`,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/daily-brief" } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 3. "Generate closing report" / "closing report"
+    if (normalizedMessage.includes("closing report") || normalizedMessage.includes("closing brief") || normalizedMessage.includes("generate closing")) {
+      const brief = await dailyBriefService.getClosingBrief(userId);
+      const data = brief?.data as any;
+      const responseText = data
+        ? `Closing report generated, Sir. Today's revenue: ₹${data.todaysProfit?.toLocaleString('en-IN') || 0}. ${data.checklist?.filter((c: any) => c.completed).length}/${data.checklist?.length || 8} closeout items completed.`
+        : "Closing report generated, Sir.";
+      return Response.json({
+        response: responseText,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/daily-brief" } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 4. "Who owes me money" / "show overdue customers" / "collect today's payments" / "predict next payment" / "show risky customers"
+    if (normalizedMessage.includes("who owes me money") || normalizedMessage.includes("overdue customers") || normalizedMessage.includes("collect today") || normalizedMessage.includes("predict next payment") || normalizedMessage.includes("risky customers") || normalizedMessage.includes("khata")) {
+      const summary = await khataService.getStoreSummary(userId);
+      const overdue = await khataService.getOverdueAccounts(userId);
+      const risky = await khataService.getRiskyCustomers(userId);
+      let reply = `Sir, you have ${summary.totalAccounts} khata account(s) with a total outstanding balance of ₹${summary.totalOutstanding.toLocaleString('en-IN')}.`;
+      if (overdue.length > 0) reply += ` ${overdue.length} account(s) are overdue. Top overdue: ${overdue[0].customer_name || 'Customer'} (₹${overdue[0].outstanding_balance}).`;
+      if (risky.length > 0) reply += ` ${risky.length} high-risk account(s) near credit limit.`;
+      return Response.json({
+        response: reply,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/khata" } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 5. "Today's employee tasks" / "employee tasks" / "tasks for today"
+    if (normalizedMessage.includes("employee tasks") || normalizedMessage.includes("today's tasks") || normalizedMessage.includes("assigned tasks")) {
+      const tasks = await taskService.getTasks(userId, { dateRange: 'today' });
+      const pending = tasks.filter(t => t.status === 'pending').length;
+      return Response.json({
+        response: `There are ${tasks.length} task(s) scheduled for today, Sir: ${pending} pending, ${tasks.length - pending} in-progress or completed. Top task: "${tasks[0]?.title || 'Refill shelves'}".`,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/employee-tasks" } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 6. "Cash mismatch" / "reconcile cash" / "drawer mismatch"
+    if (normalizedMessage.includes("cash mismatch") || normalizedMessage.includes("reconcile cash") || normalizedMessage.includes("cash drawer")) {
+      const intel = await cashService.getIntelligence(userId);
+      return Response.json({
+        response: `Today's cash total: ₹${intel.todayCash.toLocaleString('en-IN')}, UPI: ₹${intel.todayUPI.toLocaleString('en-IN')}. Recommended bank deposit: ₹${intel.recommendedBankDeposit.toLocaleString('en-IN')}. Cash runway: ${intel.cashRunwayDays} days.`,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/cash" } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 7. "Today's priorities" / "what should I do today"
+    if (normalizedMessage.includes("today's priorities") || normalizedMessage.includes("what should i do today") || normalizedMessage.includes("my priorities")) {
+      const brief = await dailyBriefService.getMorningBrief(userId);
+      const priorities = (brief?.data as any)?.todaysPriorities || ["Review inventory stockouts", "Collect overdue khata balances"];
+      return Response.json({
+        response: `Here are your top priorities today, Sir:\n1. ${priorities[0] || 'Focus on sales'}\n2. ${priorities[1] || 'Check shelf refills'}`,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/daily-brief" } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 8. "Store health" / "health score"
+    if (normalizedMessage.includes("store health") || normalizedMessage.includes("health score") || normalizedMessage.includes("store health score")) {
+      const health = await healthService.compute(userId);
+      return Response.json({
+        response: `Store Health Score is ${health.overall_score}/100 (${health.trend.toUpperCase()}), Sir. Lowest dimension: ${health.recommendations?.[0] || 'Inventory'}.`,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/store-health" } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 9. "Generate supplier comparison" / "which supplier should I call" / "why did profit drop"
+    if (normalizedMessage.includes("supplier comparison") || normalizedMessage.includes("which supplier should i call") || normalizedMessage.includes("why did profit drop") || normalizedMessage.includes("best supplier")) {
+      const ranked = await supplierRankingService.rankSuppliers(userId);
+      const top = ranked[0];
+      const reply = top
+        ? `Primary recommended supplier: ${top.supplierName} with a performance score of ${top.overallScore}/100 (Lead time: ${top.leadTimeScore}/100, Reliability: ${top.reliabilityScore}/100).`
+        : "Supplier evaluation complete, Sir. All registered suppliers are performing within expected limits.";
+      return Response.json({
+        response: reply,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/supplier-assistant" } }],
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 10. "Who are my best customers" / "which customers stopped visiting" / "who should receive an offer today"
+    if (normalizedMessage.includes("best customers") || normalizedMessage.includes("stopped visiting") || normalizedMessage.includes("receive an offer today") || normalizedMessage.includes("loyalty")) {
+      const best = await loyaltyService.getBestCustomers(userId);
+      const stopped = await loyaltyService.getStoppedVisitingCustomers(userId);
+      const reply = best.length > 0
+        ? `Your best customer is ${best[0].customer_name || 'VIP Customer'} with LTV ₹${Number(best[0].total_lifetime_value || 0).toLocaleString('en-IN')}. ${stopped.length} inactive customer(s) are eligible for win-back offers today.`
+        : "Customer loyalty segmentation is up to date, Sir.";
+      return Response.json({
+        response: reply,
+        actions: [{ type: "navigate", result: { path: "/dashboard/store-assistant/customer-loyalty" } }],
         timestamp: new Date().toISOString(),
       });
     }

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign, Lightbulb, Workflow, PlayCircle, Cpu, Network, GitCommit, Activity, ShieldAlert, Gauge, Sliders, Lock, Database, Layers, FileText, Sunrise } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, useRBAC } from "@/lib/auth-context";
+import { getRoleLabel } from "@/lib/rbac";
 import { useLang } from "@/lib/lang-context";
 import { supabase } from "@/lib/supabase";
 import { motion, useReducedMotion } from "framer-motion";
@@ -129,6 +130,7 @@ export default function Sidebar() {
   const onMobileClose = () => setMobileOpen(false);
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const { role } = useRBAC();
   const { t } = useLang();
   const [profileStoreName, setProfileStoreName] = useState("");
 
@@ -322,7 +324,10 @@ export default function Sidebar() {
             <>
               <div className="min-w-0 flex-1">
                 <p className="text-[13.5px] font-semibold text-foreground truncate leading-tight">{userName}</p>
-                <p className="text-[11.5px] text-muted-foreground truncate leading-tight mt-0.5">{storeName}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <p className="text-[11.5px] text-muted-foreground truncate leading-tight">{storeName}</p>
+                  <span className="text-[9.5px] font-mono font-medium px-1.5 py-0.5 rounded bg-accent/10 text-accent uppercase tracking-wider">{getRoleLabel(role)}</span>
+                </div>
               </div>
               <Link
                 href="/dashboard/settings"
