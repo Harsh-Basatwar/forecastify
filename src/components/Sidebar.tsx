@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign, Lightbulb } from "lucide-react";
+import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign, Lightbulb, Workflow, PlayCircle, Cpu, Network, GitCommit, Activity, ShieldAlert, Gauge, Sliders, Lock, Database, Layers, FileText } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { supabase } from "@/lib/supabase";
@@ -59,6 +59,29 @@ const navSections = [
       { href: "/dashboard/alerts", labelKey: "nav.alerts", icon: AlertTriangle },
       { href: "/dashboard/federated-intelligence", labelKey: "nav.federated", icon: Users },
       { href: "/dashboard/extension", labelKey: "nav.extension", icon: Puzzle },
+    ],
+  },
+  {
+    titleKey: "Platform Operations",
+    items: [
+      { href: "/dashboard/system/workflows", labelKey: "Workflows", icon: Workflow },
+      { href: "/dashboard/system/jobs", labelKey: "Jobs", icon: PlayCircle },
+      { href: "/dashboard/system/scheduler", labelKey: "Scheduler", icon: Clock },
+      { href: "/dashboard/system/workers", labelKey: "Workers", icon: Cpu },
+      { href: "/dashboard/system/health", labelKey: "Health", icon: HeartPulse },
+      { href: "/dashboard/system/service-graph", labelKey: "Service Graph", icon: Network },
+      { href: "/dashboard/system/traces", labelKey: "Traces", icon: GitCommit },
+      { href: "/dashboard/system/drift", labelKey: "Drift", icon: Activity },
+      { href: "/dashboard/system/alerts", labelKey: "Alerts", icon: ShieldAlert },
+      { href: "/dashboard/system/sla", labelKey: "SLA Monitor", icon: Gauge },
+      { href: "/dashboard/system/configuration", labelKey: "Configuration", icon: Sliders },
+      { href: "/dashboard/system/locks", labelKey: "Locks", icon: Lock },
+      { href: "/dashboard/system/backup-recovery", labelKey: "Backup & Recovery", icon: Database },
+      { href: "/dashboard/system/capacity", labelKey: "Capacity", icon: Layers },
+      { href: "/dashboard/system/profiler", labelKey: "Profiler", icon: Zap },
+      { href: "/dashboard/system/reports", labelKey: "Reports", icon: FileText },
+      { href: "/dashboard/system/metrics", labelKey: "Metrics", icon: Target },
+      { href: "/dashboard/system/audit", labelKey: "Audit", icon: ClipboardList },
     ],
   },
 ];
