@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign } from "lucide-react";
+import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign, Lightbulb } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLang } from "@/lib/lang-context";
 import { supabase } from "@/lib/supabase";
@@ -28,6 +28,7 @@ const navSections = [
       { href: "/dashboard/product-analysis", labelKey: "nav.productAnalysis", icon: Box },
       { href: "/dashboard/category-analysis", labelKey: "nav.categoryAnalysis", icon: Tag },
       { href: "/dashboard/what-if", labelKey: "nav.whatIf", icon: FlaskConical },
+      { href: "/dashboard/explainability", labelKey: "Explainability (XAI)", icon: Lightbulb },
     ],
   },
   {

@@ -22,9 +22,34 @@ const AuthContext = createContext<AuthContextType>({
  * A refresh token the server has rejected can never be recovered. Detect it so
  * the stale copy can be dropped instead of being retried on every page load.
  */
+function clearStaleLocalStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith("sb-") || key.includes("supabase"))) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Ignore storage quota or access errors
+  }
+}
+
 function isStaleRefreshToken(error: unknown): boolean {
-  const message = (error as { message?: string } | null)?.message?.toLowerCase() ?? "";
-  return message.includes("refresh token") || message.includes("session from session id");
+  if (!error) return false;
+  const message = typeof error === "string"
+    ? error.toLowerCase()
+    : ((error as { message?: string; error_description?: string })?.message ||
+       (error as { message?: string; error_description?: string })?.error_description ||
+       "").toLowerCase();
+  return (
+    message.includes("refresh token") ||
+    message.includes("invalid_grant") ||
+    message.includes("not found") ||
+    message.includes("session from session id") ||
+    message.includes("jwt expired")
+  );
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -42,27 +67,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     };
 
+    const handleStaleToken = async (err: unknown) => {
+      if (isStaleRefreshToken(err)) {
+        clearStaleLocalStorage();
+        await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+      }
+      applySession(null);
+    };
+
     const resolveSession = async () => {
       try {
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          // Discard the unusable token locally so the client stops replaying it.
-          // scope: "local" avoids a network call that would fail for the same reason.
-          if (isStaleRefreshToken(error)) {
-            await supabase.auth.signOut({ scope: "local" }).catch(() => {});
-          }
-          applySession(null);
+          await handleStaleToken(error);
           return;
         }
 
         applySession(data.session);
       } catch (err) {
-        if (isStaleRefreshToken(err)) {
-          await supabase.auth.signOut({ scope: "local" }).catch(() => {});
-        }
-        // Never leave the app stuck on its loading state.
-        applySession(null);
+        await handleStaleToken(err);
       }
     };
 
@@ -70,8 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      applySession(session);
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        applySession(null);
+      } else {
+        applySession(session);
+      }
     });
 
     return () => {
@@ -84,9 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await supabase.auth.signOut();
     } catch {
-      // The server rejected the token (already expired or revoked). The local
-      // session still has to go, so clear it and let the listener update state.
       await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    } finally {
+      clearStaleLocalStorage();
     }
   };
 

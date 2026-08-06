@@ -14,8 +14,8 @@ function getGroqClient(keyIndex = 0) {
 }
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-supabase-url.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key"
 );
 
 interface InventoryItem {
@@ -350,8 +350,11 @@ FEATURES — use when user asks for analysis/features:
 "promotions"/"offers" → {"type":"promotions"}
 "dashboard"/"overview" → {"type":"dashboard"}
 "forecasts"/"predictions" → {"type":"forecasts"}
+"explainability"/"explain prediction"/"explain recommendation"/"why"/"evidence"/"what if" → {"type":"explainability"}
 "purchase list"/"shopping list" → {"type":"purchase_list"}
 Weather/news data → {"type":"popup","title":"T","content":"<html>"}
+
+GROUNDING RULE: When explaining predictions or recommendations, you MUST strictly ground your answers on prediction IDs, recommendation IDs, feature vectors, evidence chains, and explanation objects. Never hallucinate reasoning.
 
 For features: say "Running analysis, Sir." + action tag. Don't generate analysis yourself.${langInstruction}`;
 
@@ -535,6 +538,10 @@ For features: say "Running analysis, Sir." + action tag. Don't generate analysis
             }
             case "forecasts": {
               actions.push({ type: "navigate", result: { path: "/dashboard/forecasts" } });
+              break;
+            }
+            case "explainability": {
+              actions.push({ type: "navigate", result: { path: "/dashboard/explainability" } });
               break;
             }
             case "purchase_list": {
