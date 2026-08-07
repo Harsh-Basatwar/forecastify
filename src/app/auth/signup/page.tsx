@@ -155,9 +155,20 @@ export default function SignupPage() {
         } else if (
           error.message.toLowerCase().includes("already registered") ||
           error.message.toLowerCase().includes("already exists") ||
-          error.message.toLowerCase().includes("already in use")
+          error.message.toLowerCase().includes("already in use") ||
+          error.message.toLowerCase().includes("database error finding user")
         ) {
-          setError("This email address is already registered. Please try logging in instead.");
+          // Attempt login for pre-seeded or existing account
+          const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          });
+          if (!loginErr && loginData.session) {
+            setLoading(false);
+            setShowSuccess(true);
+            return;
+          }
+          setError("This account already exists. Please sign in with your email and password.");
         } else {
           setError(error.message);
         }

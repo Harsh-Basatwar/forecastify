@@ -1,8 +1,22 @@
+const fs = require("fs");
+const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
-const supabase = createClient(
-"https://cxycvotdygkxegoftrzt.supabase.co",
-"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4eWN2b3RkeWdreGVnb2Z0cnp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0MzAxOTQsImV4cCI6MjA5MzAwNjE5NH0.rHvDyQP50jOhV1VOf5Pvh5ZaGFxdYqACBBM_1TiQWug"
-);
+
+// Load .env.local
+const envPath = path.resolve(__dirname, "../.env.local");
+if (fs.existsSync(envPath)) {
+  const envConfig = fs.readFileSync(envPath, "utf8");
+  envConfig.split("\n").forEach((line) => {
+    const [key, ...val] = line.split("=");
+    if (key && val.length) {
+      process.env[key.trim()] = val.join("=").trim();
+    }
+  });
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 function rand(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
 function randF(a, b) { return Math.round((Math.random() * (b - a) + a) * 100) / 100; }
