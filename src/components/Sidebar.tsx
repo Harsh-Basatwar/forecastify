@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign, Lightbulb, Workflow, PlayCircle, Cpu, Network, GitCommit, Activity, ShieldAlert, Gauge, Sliders, Lock, Database, Layers, FileText, Sunrise } from "lucide-react";
 import { useAuth, useRBAC } from "@/lib/auth-context";
-import { getRoleLabel } from "@/lib/rbac";
+import { getRoleLabel, Permission } from "@/lib/rbac";
 import { useLang } from "@/lib/lang-context";
 import { supabase } from "@/lib/supabase";
 import { motion, useReducedMotion } from "framer-motion";
@@ -124,15 +124,47 @@ function BrandMark({ size = 30 }: { size?: number }) {
   );
 }
 
+const NAV_ITEM_PERMISSIONS: Record<string, Permission> = {
+  "/dashboard/billing": "view_financials",
+  "/dashboard/sales": "execute_pos",
+  "/dashboard/procurement": "manage_purchases",
+  "/dashboard/purchase-list": "manage_purchases",
+  "/dashboard/reorder-planner": "manage_purchases",
+  "/dashboard/inventory": "manage_inventory",
+  "/dashboard/expiry-risk": "manage_inventory",
+  "/dashboard/product-analysis": "manage_inventory",
+  "/dashboard/category-analysis": "manage_inventory",
+  "/dashboard/what-if": "view_financials",
+  "/dashboard/inventory-health": "view_health_score",
+  "/dashboard/model-accuracy": "view_health_score",
+  "/dashboard/federated-intelligence": "view_health_score",
+  "/dashboard/alerts": "view_audit_logs",
+  "/dashboard/store-assistant": "manage_tasks",
+};
+
 export default function Sidebar() {
   const { isExpanded, isPinned, isMobileOpen, togglePin, setMobileOpen, setHovered } = useSidebar();
   const mobileOpen = isMobileOpen;
   const onMobileClose = () => setMobileOpen(false);
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  const { role } = useRBAC();
+  const { role, can } = useRBAC();
   const { t } = useLang();
   const [profileStoreName, setProfileStoreName] = useState("");
+
+  const visibleSections = navSections
+    .map((section) => {
+      const visibleItems = section.items.filter((item) => {
+        if (item.href.startsWith("/dashboard/system")) {
+          return can("manage_store_config");
+        }
+        const requiredPermission = NAV_ITEM_PERMISSIONS[item.href];
+        if (!requiredPermission) return true;
+        return can(requiredPermission);
+      });
+      return { ...section, items: visibleItems };
+    })
+    .filter((section) => section.items.length > 0);
 
   const storeName = profileStoreName || user?.user_metadata?.store_name || "Store";
   const userName = user?.user_metadata?.full_name || user?.email || "User";
@@ -250,7 +282,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 pt-2 pb-4 overflow-y-auto overflow-x-hidden" aria-label="Primary">
-        {navSections.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.titleKey} className="mt-7 first:mt-2">
             {isExpanded ? (
               <p className="fx-eyebrow px-2.5 mb-2.5">{t(section.titleKey)}</p>

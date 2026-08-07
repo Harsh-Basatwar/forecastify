@@ -3,13 +3,15 @@
  * PurchaseAutomationService — Smart PO Generation with ROI Estimation, Multi-Channel Dispatch & Full Audit Control
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { supplierRankingService } from './supplier-ranking-service';
+import { whatsAppProvider, emailProvider, pdfProvider } from './providers';
 
-const supabase = createClient(
+const defaultSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-supabase-url.supabase.co',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 );
+const supabase = defaultSupabase;
 
 export interface SmartPO {
   supplierId: string;
@@ -41,10 +43,15 @@ export interface SmartPOItem {
 }
 
 export class PurchaseAutomationService {
+  private client: SupabaseClient;
+
+  constructor(client?: SupabaseClient) {
+    this.client = client || defaultSupabase;
+  }
 
   /** Detect products needing orders and generate smart POs */
   async generateSmartPOs(storeId: string): Promise<SmartPO[]> {
-    const { data: inventory } = await supabase
+    const { data: inventory } = await this.client
       .from('inventory')
       .select('id, product_name, category, current_stock, reorder_point, price, cost_price, gst_rate, supplier_id')
       .eq('store_id', storeId);
@@ -293,9 +300,9 @@ export class PurchaseAutomationService {
     return true;
   }
 
-  /** Dispatch PO via WhatsApp message simulation */
+  /** Dispatch PO via WhatsApp message provider */
   async dispatchPOViaWhatsApp(storeId: string, poId: string, phone?: string): Promise<{ success: boolean; message: string }> {
-    const { data: po } = await supabase
+    const { data: po } = await this.client
       .from('purchase_orders')
       .select('*, suppliers(name, phone), purchase_order_items(*)')
       .eq('id', poId)
@@ -306,7 +313,9 @@ export class PurchaseAutomationService {
     const targetPhone = phone || po.suppliers?.phone || '919876543210';
     const body = `📦 *PURCHASE ORDER #${po.po_number}*\nStore Order Request\nTotal Items: ${po.purchase_order_items?.length || 0}\nTotal Amount: ₹${po.total_amount}\nExpected Delivery: ${po.expected_delivery_date}\n\nPlease confirm order receipt.`;
 
-    await supabase.from('vendor_communications').insert({
+    await whatsAppProvider.sendPOMessage(targetPhone, po);
+
+    await this.client.from('vendor_communications').insert({
       store_id: storeId,
       supplier_id: po.supplier_id,
       po_id: poId,
@@ -318,14 +327,14 @@ export class PurchaseAutomationService {
       sent_at: new Date().toISOString(),
     });
 
-    await supabase.from('purchase_orders').update({ status: 'sent' }).eq('id', poId);
+    await this.client.from('purchase_orders').update({ status: 'sent' }).eq('id', poId);
 
     return { success: true, message: `PO #${po.po_number} dispatched to WhatsApp (${targetPhone})` };
   }
 
-  /** Dispatch PO via Email simulation */
+  /** Dispatch PO via Email provider */
   async dispatchPOViaEmail(storeId: string, poId: string, email?: string): Promise<{ success: boolean; message: string }> {
-    const { data: po } = await supabase
+    const { data: po } = await this.client
       .from('purchase_orders')
       .select('*, suppliers(name, email), purchase_order_items(*)')
       .eq('id', poId)
@@ -334,21 +343,25 @@ export class PurchaseAutomationService {
     if (!po) return { success: false, message: 'PO not found' };
 
     const targetEmail = email || po.suppliers?.email || 'vendor@supplier.com';
+    const subject = `Official Purchase Order #${po.po_number}`;
+    const body = `Please process Purchase Order #${po.po_number} for ₹${po.total_amount}. Delivery requested by ${po.expected_delivery_date}.`;
 
-    await supabase.from('vendor_communications').insert({
+    await emailProvider.sendEmail(targetEmail, subject, body);
+
+    await this.client.from('vendor_communications').insert({
       store_id: storeId,
       supplier_id: po.supplier_id,
       po_id: poId,
       channel: 'email',
       direction: 'outgoing',
       message_type: 'purchase_order',
-      subject: `Official Purchase Order #${po.po_number}`,
-      body: `Please process Purchase Order #${po.po_number} for ₹${po.total_amount}. Delivery requested by ${po.expected_delivery_date}.`,
+      subject,
+      body,
       status: 'sent',
       sent_at: new Date().toISOString(),
     });
 
-    await supabase.from('purchase_orders').update({ status: 'sent' }).eq('id', poId);
+    await this.client.from('purchase_orders').update({ status: 'sent' }).eq('id', poId);
 
     return { success: true, message: `PO #${po.po_number} emailed to ${targetEmail}` };
   }

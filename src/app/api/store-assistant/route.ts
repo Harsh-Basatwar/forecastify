@@ -39,6 +39,8 @@ import { sopService } from '@/lib/store-assistant/sop-service';
 import { benchmarkingService } from '@/lib/store-assistant/benchmarking-service';
 import { autonomousEngine } from '@/lib/store-assistant/autonomous-engine';
 
+import { validateStoreAssistantAuth } from '@/lib/store-assistant/api-auth';
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -51,6 +53,11 @@ export async function POST(request: NextRequest) {
 
     if (!action || !storeId) {
       return NextResponse.json({ error: 'Missing required: action, storeId' }, { status: 400 });
+    }
+
+    const auth = await validateStoreAssistantAuth(request, action, storeId);
+    if (!auth.authorized) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status || 403 });
     }
 
     const result = await routeAction(action, storeId, params);
@@ -69,6 +76,11 @@ export async function GET(request: NextRequest) {
 
   if (!action || !storeId) {
     return NextResponse.json({ error: 'Missing required: action, storeId' }, { status: 400 });
+  }
+
+  const auth = await validateStoreAssistantAuth(request, action, storeId);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status || 403 });
   }
 
   try {

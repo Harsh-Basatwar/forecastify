@@ -3,12 +3,13 @@
  * CashService — Cash Flow Intelligence, Predictions & Evening Reconciliation
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
+const defaultSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-supabase-url.supabase.co',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 );
+const supabase = defaultSupabase;
 
 export interface DenominationBreakdown {
   d500?: number;
@@ -49,6 +50,11 @@ export interface CashIntelligence {
 }
 
 export class CashService {
+  private client: SupabaseClient;
+
+  constructor(client?: SupabaseClient) {
+    this.client = client || defaultSupabase;
+  }
 
   async getIntelligence(storeId: string): Promise<CashIntelligence> {
     const today = new Date().toISOString().split('T')[0];

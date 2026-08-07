@@ -6,15 +6,21 @@
  * outstanding tracking, and payment prediction.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { KhataAccountRow, KhataTransactionRow, KhataReminderRow } from './types';
 
-const supabase = createClient(
+const defaultSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-supabase-url.supabase.co',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 );
+const supabase = defaultSupabase;
 
 export class KhataService {
+  private client: SupabaseClient;
+
+  constructor(client?: SupabaseClient) {
+    this.client = client || defaultSupabase;
+  }
 
   /** Create a new khata account for a customer */
   async createAccount(storeId: string, customerId: string, creditLimit = 5000, notes?: string): Promise<KhataAccountRow | null> {
