@@ -11,6 +11,8 @@ import Header from "@/components/Header";
 
 import { SidebarProvider, useSidebar } from "@/providers/sidebar-provider";
 
+import { OrgStoreProvider } from "@/providers/org-store-provider";
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -56,7 +58,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <SidebarProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      <OrgStoreProvider>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </OrgStoreProvider>
     </SidebarProvider>
   );
 }

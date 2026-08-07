@@ -30,22 +30,48 @@ export class AutonomousEngine {
 
   /** Get or create autonomous config for a store */
   async getConfig(storeId: string): Promise<AutonomousConfigRow> {
-    const { data: existing } = await supabase
-      .from('autonomous_config')
-      .select('*')
-      .eq('store_id', storeId)
-      .maybeSingle();
+    try {
+      const { data: existing } = await supabase
+        .from('autonomous_config')
+        .select('*')
+        .eq('store_id', storeId)
+        .maybeSingle();
 
-    if (existing) return existing as AutonomousConfigRow;
+      if (existing) return existing as AutonomousConfigRow;
 
-    // Create default config (everything off)
-    const { data: created } = await supabase
-      .from('autonomous_config')
-      .insert({ store_id: storeId })
-      .select()
-      .single();
+      // Create default config (everything off)
+      const { data: created } = await supabase
+        .from('autonomous_config')
+        .insert({ store_id: storeId })
+        .select()
+        .maybeSingle();
 
-    return created as AutonomousConfigRow;
+      if (created) return created as AutonomousConfigRow;
+    } catch (err) {
+      console.error('getConfig error:', err);
+    }
+
+    return {
+      id: 'default-config',
+      store_id: storeId,
+      is_enabled: false,
+      auto_purchase_orders: false,
+      auto_stockout_orders: false,
+      auto_employee_tasks: false,
+      auto_expiry_actions: false,
+      auto_khata_reminders: false,
+      auto_supplier_comms: false,
+      auto_health_alerts: false,
+      auto_compliance_prep: false,
+      auto_morning_brief: false,
+      auto_closing_report: false,
+      po_auto_approve_limit: 5000,
+      expiry_auto_discount_days: 7,
+      quiet_hours_start: '22:00',
+      quiet_hours_end: '07:00',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as AutonomousConfigRow;
   }
 
   /** Update autonomous config */
@@ -376,26 +402,38 @@ export class AutonomousEngine {
     rejectedToday: number;
     savingsEstimate: number;
   }> {
-    const config = await this.getConfig(storeId);
-    const today = new Date().toISOString().split('T')[0];
+    try {
+      const config = await this.getConfig(storeId);
+      const today = new Date().toISOString().split('T')[0];
 
-    const { data: todayActions } = await supabase
-      .from('autonomous_actions')
-      .select('approval_status')
-      .eq('store_id', storeId)
-      .gte('created_at', `${today}T00:00:00`);
+      const { data: todayActions } = await supabase
+        .from('autonomous_actions')
+        .select('approval_status')
+        .eq('store_id', storeId)
+        .gte('created_at', `${today}T00:00:00`);
 
-    const actions = todayActions || [];
-    const pending = await this.getPendingActions(storeId);
+      const actions = todayActions || [];
+      const pending = await this.getPendingActions(storeId);
 
-    return {
-      isEnabled: config.is_enabled,
-      totalActionsToday: actions.length,
-      autoApprovedToday: actions.filter((a: any) => a.approval_status === 'auto_approved').length,
-      pendingApproval: pending.length,
-      rejectedToday: actions.filter((a: any) => a.approval_status === 'rejected').length,
-      savingsEstimate: actions.length * 5, // ~5 min saved per auto-action
-    };
+      return {
+        isEnabled: Boolean(config?.is_enabled),
+        totalActionsToday: actions.length,
+        autoApprovedToday: actions.filter((a: any) => a.approval_status === 'auto_approved').length,
+        pendingApproval: pending.length,
+        rejectedToday: actions.filter((a: any) => a.approval_status === 'rejected').length,
+        savingsEstimate: actions.length * 5, // ~5 min saved per auto-action
+      };
+    } catch (err) {
+      console.error('getSummary error:', err);
+      return {
+        isEnabled: false,
+        totalActionsToday: 0,
+        autoApprovedToday: 0,
+        pendingApproval: 0,
+        rejectedToday: 0,
+        savingsEstimate: 0,
+      };
+    }
   }
 }
 

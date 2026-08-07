@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
-import { User, Store, Bell, Shield, Save, Loader2 } from "lucide-react";
+import { User, Store, Bell, Shield, Save, Loader2, Receipt, Puzzle, Sliders, ArrowRight } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { validateGstin } from "@/lib/gstin";
 import { createClient } from "@supabase/supabase-js";
@@ -146,6 +147,9 @@ export default function SettingsPage() {
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
     { id: "store", label: "Store", icon: Store },
+    { id: "billing", label: "Billing & Plan", icon: Receipt },
+    { id: "extension", label: "Extension & Integrations", icon: Puzzle },
+    { id: "systemConfig", label: "System Config", icon: Sliders },
     { id: "notifications", label: "Notifications", icon: Bell },
   ];
 
@@ -303,6 +307,109 @@ export default function SettingsPage() {
                         : "Optional — leave blank if your store is not GST registered."}
                     </p>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "billing" && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-muted-foreground" strokeWidth={1.8} aria-hidden="true" />
+                  <h2 className="fx-display text-[17px] text-foreground">Billing &amp; Subscription Summary</h2>
+                </div>
+                <Link href="/dashboard/billing" className="fx-btn text-xs gap-1.5 fx-press">
+                  <span>Open Full Billing Hub</span>
+                  <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </Link>
+              </div>
+
+              <div className="bg-secondary/40 border border-border rounded-lg p-5 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <span className="text-[11px] font-mono uppercase text-accent font-semibold tracking-wider px-2 py-0.5 rounded bg-accent/10">Active Tier</span>
+                    <h3 className="text-lg font-bold text-foreground mt-1">Enterprise Autopilot</h3>
+                  </div>
+                  <span className="text-sm font-semibold text-foreground bg-card px-3 py-1.5 rounded-md border border-border">₹4,999 / month</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Includes unlimited AI forecasts, automated reorder plans, multi-store POS sync, and 24/7 Jarvis Copilot access.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 border border-border rounded-lg bg-card">
+                  <p className="text-xs text-muted-foreground font-medium">SKUs Monitored</p>
+                  <p className="text-base font-semibold text-foreground mt-1">1,240 / 5,000</p>
+                </div>
+                <div className="p-3.5 border border-border rounded-lg bg-card">
+                  <p className="text-xs text-muted-foreground font-medium">AI Forecast Engine</p>
+                  <p className="text-base font-semibold text-accent mt-1">Active (Unlimited)</p>
+                </div>
+                <div className="p-3.5 border border-border rounded-lg bg-card">
+                  <p className="text-xs text-muted-foreground font-medium">Next Renewal</p>
+                  <p className="text-base font-semibold text-foreground mt-1">Sep 01, 2026</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "extension" && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Puzzle className="w-4 h-4 text-muted-foreground" strokeWidth={1.8} aria-hidden="true" />
+                  <h2 className="fx-display text-[17px] text-foreground">Browser Extension &amp; POS Sync</h2>
+                </div>
+                <Link href="/dashboard/extension" className="fx-btn text-xs gap-1.5 fx-press">
+                  <span>Open Extension Hub</span>
+                  <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </Link>
+              </div>
+
+              <div className="border border-border rounded-lg p-5 bg-card space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
+                      <Puzzle className="w-5 h-5" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">Forecastify Chrome Extension</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">Overlay AI reorder signals directly onto wholesale supplier portals</p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success bg-success-soft border border-success/30 px-3 py-1 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success"></span> Connected (v2.4.0)
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "systemConfig" && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-muted-foreground" strokeWidth={1.8} aria-hidden="true" />
+                  <h2 className="fx-display text-[17px] text-foreground">System Parameters</h2>
+                </div>
+                <Link href="/dashboard/system/configuration" className="fx-btn text-xs gap-1.5 fx-press">
+                  <span>Open System Configuration</span>
+                  <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </Link>
+              </div>
+
+              <div className="p-5 border border-border rounded-lg bg-card space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">Store &amp; Inventory Default Thresholds</h3>
+                <p className="text-xs text-muted-foreground">Adjust default lead time and safety stock thresholds for automated reordering.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div>
+                    <label className="fx-eyebrow block mb-1.5">Default Supplier Lead Time (Days)</label>
+                    <input type="number" defaultValue={3} className="fx-input fx-num" />
+                  </div>
+                  <div>
+                    <label className="fx-eyebrow block mb-1.5">Expiry Risk Horizon (Days)</label>
+                    <input type="number" defaultValue={30} className="fx-input fx-num" />
+                  </div>
                 </div>
               </div>
             </div>

@@ -9,6 +9,8 @@ import { useLang } from "@/lib/lang-context";
 import { LANGUAGES } from "@/lib/translations";
 import CommandPalette from "@/components/CommandPalette";
 
+import StoreSwitcher from "@/components/StoreSwitcher";
+
 interface HeaderProps {
   onMenuClick: () => void;
 }
@@ -40,8 +42,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
   return (
     <>
       <header className="h-16 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between gap-2 px-2 sm:px-6 shrink-0 sticky top-0 z-30">
-        {/* Left: mobile menu + search */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        {/* Left: mobile menu + Store Switcher + search */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <button
             onClick={onMenuClick}
             className="lg:hidden fx-icon-btn"
@@ -50,6 +52,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
           >
             <Menu className="w-5 h-5" aria-hidden="true" />
           </button>
+
+          {/* Multi-Store & HQ Organization Switcher */}
+          <StoreSwitcher />
 
           <button
             onClick={() => setPaletteOpen(true)}

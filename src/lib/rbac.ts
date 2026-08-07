@@ -2,69 +2,148 @@
 /**
  * Role-Based Access Control (RBAC) System for Forecastify Enterprise
  *
- * Roles:
- * - owner: Full platform control, financial visibility, configuration, approvals
- * - regional_manager: Multi-store oversight, strategy, reporting, approvals
- * - store_manager: Day-to-day store operations, task assignment, order approvals
- * - cashier: POS billing, cash drawer, inventory lookup (NO FINANCIAL MARGINS/PROFIT ACCESS)
- * - inventory_staff: Shelf refilling, stock counts, receiving, label printing
- * - warehouse: Stock movement, vendor receiving, delivery logistics (NO FINANCIAL ACCESS)
- * - auditor: Read-only access to audit trails, GST compliance, cash reconciliations
+ * 10 Enterprise Roles:
+ * - organization_owner: Full authority across all organizations & stores
+ * - organization_admin: Full administrative control across all org stores
+ * - regional_manager: Multi-store operational oversight across assigned regions
+ * - finance_manager: Financial oversight, credit ledgers, P&L, audits across stores
+ * - procurement_manager: Central purchasing, demand aggregation, supplier management
+ * - store_manager: Day-to-day operations for specific store outlets
+ * - supervisor: Shift lead, task dispatch, shelf refilling
+ * - cashier: POS billing, cash drawer, customer Khata
+ * - stockboy: Physical inventory checks, stock transfer picking
+ * - auditor: Read-only audit trails, GST compliance, cash balance checks
  */
 
 export type UserRole =
-  | 'owner'
+  | 'organization_owner'
+  | 'organization_admin'
   | 'regional_manager'
+  | 'finance_manager'
+  | 'procurement_manager'
   | 'store_manager'
+  | 'supervisor'
   | 'cashier'
+  | 'stockboy'
+  | 'auditor'
+  // Legacy aliases for backward compatibility
+  | 'owner'
   | 'inventory_staff'
-  | 'warehouse'
-  | 'auditor';
+  | 'warehouse';
 
 export type Permission =
-  | 'view_financials'       // Revenue, profit, cost prices, profit margins, cash balances
-  | 'manage_purchases'      // Create, approve, send purchase orders
-  | 'manage_khata'          // Customer credit ledger, record payments, send reminders
-  | 'cash_reconciliation'   // Drawer count, cash mismatch reports, closing reports
-  | 'manage_tasks'          // Assign tasks, create SOPs, monitor employee productivity
-  | 'manage_store_config'   // Autonomous settings, approval limits, quiet hours
-  | 'view_audit_logs'       // Audit trails, compliance history, loss incidents
-  | 'execute_pos'           // Sales billing, product search, POS transactions
-  | 'manage_inventory'      // Stock count, shelf refill, price updates
-  | 'view_health_score';    // Store health index and trend breakdown
+  | 'view_hq_dashboard'
+  | 'manage_organization_settings'
+  | 'manage_organization_members'
+  | 'manage_store_config'
+  | 'create_stores'
+  | 'switch_stores'
+  | 'view_financials'
+  | 'manage_purchases'
+  | 'manage_central_procurement'
+  | 'manage_stock_transfers'
+  | 'approve_stock_transfers'
+  | 'manage_khata'
+  | 'cash_reconciliation'
+  | 'manage_tasks'
+  | 'execute_pos'
+  | 'manage_inventory'
+  | 'view_audit_logs'
+  | 'view_health_score';
 
-const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
-  owner: [
+const ROLE_PERMISSIONS: Record<string, Permission[]> = {
+  organization_owner: [
+    'view_hq_dashboard',
+    'manage_organization_settings',
+    'manage_organization_members',
+    'manage_store_config',
+    'create_stores',
+    'switch_stores',
     'view_financials',
     'manage_purchases',
+    'manage_central_procurement',
+    'manage_stock_transfers',
+    'approve_stock_transfers',
     'manage_khata',
     'cash_reconciliation',
     'manage_tasks',
-    'manage_store_config',
-    'view_audit_logs',
     'execute_pos',
     'manage_inventory',
+    'view_audit_logs',
+    'view_health_score',
+  ],
+  organization_admin: [
+    'view_hq_dashboard',
+    'manage_organization_settings',
+    'manage_organization_members',
+    'manage_store_config',
+    'create_stores',
+    'switch_stores',
+    'view_financials',
+    'manage_purchases',
+    'manage_central_procurement',
+    'manage_stock_transfers',
+    'approve_stock_transfers',
+    'manage_khata',
+    'cash_reconciliation',
+    'manage_tasks',
+    'execute_pos',
+    'manage_inventory',
+    'view_audit_logs',
     'view_health_score',
   ],
   regional_manager: [
+    'view_hq_dashboard',
+    'switch_stores',
     'view_financials',
     'manage_purchases',
+    'manage_stock_transfers',
+    'approve_stock_transfers',
     'manage_khata',
     'cash_reconciliation',
     'manage_tasks',
+    'manage_inventory',
     'view_audit_logs',
+    'view_health_score',
+  ],
+  finance_manager: [
+    'view_hq_dashboard',
+    'view_financials',
+    'manage_khata',
+    'cash_reconciliation',
+    'approve_stock_transfers',
+    'view_audit_logs',
+    'view_health_score',
+  ],
+  procurement_manager: [
+    'view_hq_dashboard',
+    'manage_purchases',
+    'manage_central_procurement',
+    'manage_stock_transfers',
+    'approve_stock_transfers',
     'manage_inventory',
     'view_health_score',
   ],
   store_manager: [
+    'manage_store_config',
+    'switch_stores',
     'view_financials',
     'manage_purchases',
+    'manage_stock_transfers',
     'manage_khata',
     'cash_reconciliation',
     'manage_tasks',
     'execute_pos',
     'manage_inventory',
     'view_health_score',
+  ],
+  supervisor: [
+    'execute_pos',
+    'manage_stock_transfers',
+    'manage_khata',
+    'cash_reconciliation',
+    'manage_tasks',
+    'manage_inventory',
   ],
   cashier: [
     'execute_pos',
@@ -72,43 +151,72 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'cash_reconciliation',
     'manage_tasks',
   ],
-  inventory_staff: [
+  stockboy: [
     'manage_inventory',
     'manage_tasks',
-  ],
-  warehouse: [
-    'manage_inventory',
-    'manage_tasks',
-    'manage_purchases',
+    'manage_stock_transfers',
   ],
   auditor: [
+    'view_hq_dashboard',
     'view_financials',
     'cash_reconciliation',
     'view_audit_logs',
     'view_health_score',
   ],
+
+  // Legacy Mapping
+  owner: [
+    'view_hq_dashboard',
+    'manage_organization_settings',
+    'manage_organization_members',
+    'manage_store_config',
+    'create_stores',
+    'switch_stores',
+    'view_financials',
+    'manage_purchases',
+    'manage_central_procurement',
+    'manage_stock_transfers',
+    'approve_stock_transfers',
+    'manage_khata',
+    'cash_reconciliation',
+    'manage_tasks',
+    'execute_pos',
+    'manage_inventory',
+    'view_audit_logs',
+    'view_health_score',
+  ],
+  inventory_staff: ['manage_inventory', 'manage_tasks', 'manage_stock_transfers'],
+  warehouse: ['manage_inventory', 'manage_tasks', 'manage_purchases', 'manage_stock_transfers'],
 };
 
 /**
  * Check if a role has a specific permission
  */
-export function hasPermission(role: UserRole | undefined | null, permission: Permission): boolean {
-  if (!role) return false; // Default to restrictive
+export function hasPermission(role: UserRole | string | undefined | null, permission: Permission): boolean {
+  if (!role) return false;
   const permissions = ROLE_PERMISSIONS[role] || [];
   return permissions.includes(permission);
 }
 
 /**
- * Check if a role is allowed to view financial data (revenue, profit, cost price)
+ * Get all permissions for a given role
  */
-export function canViewFinancials(role: UserRole | undefined | null): boolean {
+export function getRolePermissions(role: UserRole | string | undefined | null): Permission[] {
+  if (!role) return [];
+  return ROLE_PERMISSIONS[role] || [];
+}
+
+/**
+ * Check if a role is allowed to view financial data
+ */
+export function canViewFinancials(role: UserRole | string | undefined | null): boolean {
   return hasPermission(role, 'view_financials');
 }
 
 /**
  * Helper to dynamically mask financial fields in an object for non-financial roles
  */
-export function maskFinancials<T extends Record<string, any>>(data: T, role: UserRole | undefined | null): T {
+export function maskFinancials<T extends Record<string, any>>(data: T, role: UserRole | string | undefined | null): T {
   if (canViewFinancials(role)) return data;
 
   const masked = { ...data };
@@ -132,15 +240,33 @@ export function maskFinancials<T extends Record<string, any>>(data: T, role: Use
 /**
  * Get readable role label
  */
-export function getRoleLabel(role: UserRole | undefined | null): string {
+export function getRoleLabel(role: UserRole | string | undefined | null): string {
   switch (role) {
-    case 'owner': return 'Store Owner';
-    case 'regional_manager': return 'Regional Manager';
-    case 'store_manager': return 'Store Manager';
-    case 'cashier': return 'Cashier';
-    case 'inventory_staff': return 'Inventory Staff';
-    case 'warehouse': return 'Warehouse Specialist';
-    case 'auditor': return 'Auditor';
-    default: return 'Store Owner';
+    case 'organization_owner':
+    case 'owner':
+      return 'Organization Owner';
+    case 'organization_admin':
+      return 'Organization Admin';
+    case 'regional_manager':
+      return 'Regional Manager';
+    case 'finance_manager':
+      return 'Finance Manager';
+    case 'procurement_manager':
+      return 'Procurement Manager';
+    case 'store_manager':
+      return 'Store Manager';
+    case 'supervisor':
+      return 'Store Supervisor';
+    case 'cashier':
+      return 'Cashier';
+    case 'stockboy':
+    case 'inventory_staff':
+      return 'Stock / Inventory Staff';
+    case 'warehouse':
+      return 'Warehouse Specialist';
+    case 'auditor':
+      return 'Auditor';
+    default:
+      return 'Store Manager';
   }
 }

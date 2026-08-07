@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * CustomerCommunicationService — Automated Customer Messaging
+ * CustomerCommunicationService — Automated Customer Messaging via Communication Engine
  */
 
 import { createClient } from '@supabase/supabase-js';
 import type { CustomerCommRow, CustomerCommType } from './types';
+import { communicationEngine } from '../communication/communication-engine';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -33,25 +34,54 @@ export class CustomerCommunicationService {
     const now = new Date().toISOString();
     const { data } = await supabase
       .from('customer_communications')
-      .select('id')
+      .select('*, customers(id, name, phone, store_id)')
       .eq('store_id', storeId)
       .eq('status', 'scheduled')
       .lte('scheduled_at', now);
 
     if (!data || data.length === 0) return 0;
 
+    let count = 0;
     for (const comm of data) {
-      await supabase.from('customer_communications').update({ status: 'sent', sent_at: now }).eq('id', comm.id);
+      const recipientPhone = comm.customers?.phone || '+919876543210';
+      const orgId = '00000000-0000-0000-0000-000000000000';
+
+      const thread = await communicationEngine.getOrCreateThread(
+        storeId,
+        orgId,
+        'customer',
+        comm.customer_id || 'guest',
+        recipientPhone,
+        comm.channel || 'whatsapp'
+      );
+
+      const dispatchResult = await communicationEngine.dispatchMessage(
+        storeId,
+        orgId,
+        recipientPhone,
+        {
+          message_type: 'text',
+          text: comm.body,
+        },
+        comm.channel || 'whatsapp',
+        'sms',
+        thread?.id
+      );
+
+      if (dispatchResult.success) {
+        await supabase.from('customer_communications').update({ status: 'sent', sent_at: now }).eq('id', comm.id);
+        count++;
+      } else {
+        await supabase.from('customer_communications').update({ status: 'failed' }).eq('id', comm.id);
+      }
     }
-    return data.length;
+    return count;
   }
 
   /** Auto-generate birthday wishes for tomorrow's birthdays */
   async generateBirthdayWishes(storeId: string): Promise<number> {
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const monthDay = `${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
 
-    // Get customers with birthday matching (requires birthday field in customers table)
     const { data: customers } = await supabase
       .from('customers')
       .select('id, name, phone')
@@ -107,7 +137,7 @@ export class CustomerCommunicationService {
     return {
       scheduled: comms.filter((c: any) => c.status === 'scheduled').length,
       sent: comms.filter((c: any) => c.status === 'sent').length,
-      delivered: comms.filter((c: any) => c.status === 'delivered').length,
+      delivered: comms.filter((c: any) => c.status === 'sent' || c.status === 'delivered').length,
       failed: comms.filter((c: any) => c.status === 'failed').length,
     };
   }

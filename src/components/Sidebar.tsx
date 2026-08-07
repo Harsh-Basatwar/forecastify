@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign, Lightbulb, Workflow, PlayCircle, Cpu, Network, GitCommit, Activity, ShieldAlert, Gauge, Sliders, Lock, Database, Layers, FileText, Sunrise } from "lucide-react";
+import { LayoutDashboard, Package, AlertTriangle, LogOut, X, Zap, Bot, Box, Plus, Tag, ShoppingCart, Megaphone, Clock, FlaskConical, Newspaper, BadgePercent, Puzzle, Pin, PinOff, TrendingUp, ClipboardList, HeartPulse, Target, Users, Settings, Receipt, DollarSign, Lightbulb, Workflow, PlayCircle, Cpu, Network, GitCommit, Activity, ShieldAlert, Gauge, Sliders, Lock, Database, Layers, FileText, Sunrise, Building2, ArrowLeftRight, ShoppingBag, MessageSquare } from "lucide-react";
 import { useAuth, useRBAC } from "@/lib/auth-context";
 import { getRoleLabel, Permission } from "@/lib/rbac";
 import { useLang } from "@/lib/lang-context";
@@ -15,80 +15,51 @@ import Modal from "@/components/ui/Modal";
 
 const navSections = [
   {
-    titleKey: "nav.section.command",
+    titleKey: "COMMAND",
     items: [
       { href: "/dashboard", labelKey: "nav.overview", icon: LayoutDashboard },
-      { href: "/dashboard/billing", labelKey: "nav.billing", icon: Receipt },
+      { href: "/dashboard/hq", labelKey: "HQ Command Center", icon: Building2 },
+      { href: "/dashboard/communications", labelKey: "Communications Hub", icon: MessageSquare },
       { href: "/dashboard/jarvis", labelKey: "nav.jarvis", icon: Bot },
+      { href: "/dashboard/store-assistant", labelKey: "Autopilot Hub", icon: Sunrise },
     ],
   },
   {
-    titleKey: "nav.section.intelligence",
+    titleKey: "OPERATIONS",
     items: [
-      { href: "/dashboard/demand-analysis", labelKey: "nav.demandSpikes", icon: Zap },
-      { href: "/dashboard/product-analysis", labelKey: "nav.productAnalysis", icon: Box },
-      { href: "/dashboard/category-analysis", labelKey: "nav.categoryAnalysis", icon: Tag },
+      { href: "/dashboard/inventory", labelKey: "nav.inventory", icon: Package },
+      { href: "/dashboard/sales", labelKey: "nav.sales", icon: DollarSign },
+      { href: "/dashboard/transfers", labelKey: "Stock Transfers", icon: ArrowLeftRight },
+      { href: "/dashboard/expiry-risk", labelKey: "nav.expiryRisk", icon: Clock },
+      { href: "/dashboard/procurement", labelKey: "Procurement Hub", icon: ShoppingCart },
+    ],
+  },
+  {
+    titleKey: "PLANNING",
+    items: [
+      { href: "/dashboard/forecasts", labelKey: "nav.forecasts", icon: TrendingUp },
+      { href: "/dashboard/central-procurement", labelKey: "Central Procurement", icon: ShoppingBag },
+      { href: "/dashboard/reorder-planner", labelKey: "nav.reorderPlanner", icon: ClipboardList },
       { href: "/dashboard/what-if", labelKey: "nav.whatIf", icon: FlaskConical },
       { href: "/dashboard/explainability", labelKey: "Explainability (XAI)", icon: Lightbulb },
     ],
   },
   {
-    titleKey: "nav.section.planning",
+    titleKey: "INSIGHTS",
     items: [
-      { href: "/dashboard/forecasts", labelKey: "nav.forecasts", icon: TrendingUp },
-      { href: "/dashboard/reorder-planner", labelKey: "nav.reorderPlanner", icon: ClipboardList },
-      { href: "/dashboard/inventory-health", labelKey: "nav.inventoryHealth", icon: HeartPulse },
-      { href: "/dashboard/model-accuracy", labelKey: "nav.modelAccuracy", icon: Target },
-    ],
-  },
-  {
-    titleKey: "nav.section.market",
-    items: [
-      { href: "/dashboard/news", labelKey: "nav.news", icon: Newspaper },
-      { href: "/dashboard/promotions", labelKey: "nav.promotions", icon: BadgePercent },
+      { href: "/dashboard/demand-analysis", labelKey: "Analytics", icon: Zap },
       { href: "/dashboard/market-insights", labelKey: "nav.marketInsights", icon: Megaphone },
+      { href: "/dashboard/promotions", labelKey: "nav.promotions", icon: BadgePercent },
+      { href: "/dashboard/news", labelKey: "nav.news", icon: Newspaper },
     ],
   },
   {
-    titleKey: "nav.section.operations",
+    titleKey: "UTILITIES",
     items: [
-      { href: "/dashboard/sales", labelKey: "nav.sales", icon: DollarSign },
-      { href: "/dashboard/procurement", labelKey: "Procurement Hub", icon: ShoppingCart },
-      { href: "/dashboard/purchase-list", labelKey: "nav.purchaseList", icon: ClipboardList },
-      { href: "/dashboard/inventory", labelKey: "nav.inventory", icon: Package },
-      { href: "/dashboard/expiry-risk", labelKey: "nav.expiryRisk", icon: Clock },
-      { href: "/dashboard/alerts", labelKey: "nav.alerts", icon: AlertTriangle },
-      { href: "/dashboard/federated-intelligence", labelKey: "nav.federated", icon: Users },
-      { href: "/dashboard/extension", labelKey: "nav.extension", icon: Puzzle },
-    ],
-  },
-  {
-    titleKey: "Store Assistant",
-    items: [
-      { href: "/dashboard/store-assistant", labelKey: "Autopilot Hub", icon: Sunrise },
-    ],
-  },
-  {
-    titleKey: "Platform Operations",
-    items: [
-      { href: "/dashboard/system/workflows", labelKey: "Workflows", icon: Workflow },
-      { href: "/dashboard/system/jobs", labelKey: "Jobs", icon: PlayCircle },
-      { href: "/dashboard/system/scheduler", labelKey: "Scheduler", icon: Clock },
-      { href: "/dashboard/system/workers", labelKey: "Workers", icon: Cpu },
-      { href: "/dashboard/system/health", labelKey: "Health", icon: HeartPulse },
-      { href: "/dashboard/system/service-graph", labelKey: "Service Graph", icon: Network },
-      { href: "/dashboard/system/traces", labelKey: "Traces", icon: GitCommit },
-      { href: "/dashboard/system/drift", labelKey: "Drift", icon: Activity },
-      { href: "/dashboard/system/alerts", labelKey: "Alerts", icon: ShieldAlert },
-      { href: "/dashboard/system/sla", labelKey: "SLA Monitor", icon: Gauge },
-      { href: "/dashboard/system/configuration", labelKey: "Configuration", icon: Sliders },
-      { href: "/dashboard/system/locks", labelKey: "Locks", icon: Lock },
-      { href: "/dashboard/system/backup-recovery", labelKey: "Backup & Recovery", icon: Database },
-      { href: "/dashboard/system/capacity", labelKey: "Capacity", icon: Layers },
-      { href: "/dashboard/system/profiler", labelKey: "Profiler", icon: Zap },
-      { href: "/dashboard/system/reports", labelKey: "Reports", icon: FileText },
-      { href: "/dashboard/system/metrics", labelKey: "Metrics", icon: Target },
-      { href: "/dashboard/system/audit", labelKey: "Audit", icon: ClipboardList },
+      { href: "/dashboard/alerts", labelKey: "Alerts & Audit", icon: AlertTriangle },
+      { href: "/dashboard/system", labelKey: "System Console", icon: Cpu },
+      { href: "/dashboard/settings", labelKey: "Settings", icon: Settings },
+      { href: "/dashboard/settings/organization", labelKey: "Org Settings", icon: Building2 },
     ],
   },
 ];
@@ -270,7 +241,7 @@ export default function Sidebar() {
           onClick={() => setShowAddProduct(true)}
           aria-label={isExpanded ? undefined : t("nav.addProduct")}
           className={cn(
-            "fx-btn fx-press fx-ripple text-[14px] text-secondary-foreground",
+            "fx-btn fx-press fx-ripple fx-lift text-[14px] text-secondary-foreground",
             isExpanded
               ? "w-full justify-start gap-3"
               : "w-11 h-11 p-0 flex items-center justify-center"
@@ -303,7 +274,7 @@ export default function Sidebar() {
                        alone is not a reliable accessible name. */
                     aria-label={isExpanded ? undefined : label}
                     className={cn(
-                      "relative flex items-center rounded-md text-[14.5px] transition-colors duration-100 fx-focus group min-h-11",
+                      "relative flex items-center rounded-md text-[14.5px] transition-all duration-[var(--t-medium)] ease-[var(--ease-out)] fx-focus fx-lift group min-h-11",
                       isExpanded
                         ? "pl-3.5 pr-2.5 gap-3.5 w-full"
                         : "w-11 p-0 justify-center mx-auto",

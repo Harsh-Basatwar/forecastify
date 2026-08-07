@@ -154,32 +154,33 @@ export default function StoreAssistantHubPage() {
   ];
 
   return (
-    <div className="space-y-8 p-6 max-w-7xl mx-auto">
+    <div className="space-y-8 max-w-[1400px] mx-auto pb-12">
       {/* Header & Autonomous Hero Control Banner */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fx-card p-6 md:p-8 bg-gradient-to-br from-card via-card to-accent/10 border border-accent/20 relative overflow-hidden"
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        className="fx-card p-6 md:p-8 bg-card border border-border relative overflow-hidden"
       >
-        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <Cpu className="w-48 h-48 text-accent" />
+        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+          <Cpu className="w-56 h-56 text-accent" />
         </div>
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-accent/15 text-accent border border-accent/30">
-                <Sunrise className="w-7 h-7" />
+              <div className="w-10 h-10 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent shrink-0">
+                <Sunrise className="w-5 h-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold tracking-tight">Autonomous Store Operating System</h1>
-                  <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-accent/20 text-accent border border-accent/30">
+                <div className="flex items-center gap-2.5">
+                  <h1 className="fx-display text-[24px] sm:text-[26px] text-foreground font-semibold tracking-tight">Autonomous Store Operating System</h1>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-accent/10 text-accent border border-accent/20">
                     SUITE 2.0
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Designed specifically to remove operational work from the shop owner.
+                <p className="text-[13px] text-muted-foreground mt-0.5">
+                  Autonomous decision engine designed to run inventory, reordering, and compliance workflows hands-free.
                 </p>
               </div>
             </div>
@@ -188,36 +189,39 @@ export default function StoreAssistantHubPage() {
           <div className="flex flex-wrap items-center gap-3">
             {/* Voice Control Button */}
             <button
+              type="button"
               onClick={toggleVoice}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all border",
+                "fx-btn fx-press text-xs gap-2",
                 isListening
-                  ? "bg-rose-500/20 text-rose-400 border-rose-500/40 animate-pulse"
-                  : "bg-card hover:bg-accent/10 border-border text-foreground"
+                  ? "bg-danger-soft text-danger border-danger/30 animate-pulse"
+                  : "bg-secondary text-secondary-foreground hover:bg-hover-surface"
               )}
             >
-              {isListening ? <MicOff className="w-4 h-4 text-rose-400" /> : <Mic className="w-4 h-4 text-accent" />}
-              {isListening ? "Listening..." : "Hands-Free Voice"}
+              {isListening ? <MicOff className="w-3.5 h-3.5 text-danger" /> : <Mic className="w-3.5 h-3.5 text-accent" />}
+              <span>{isListening ? "Listening..." : "Voice Control"}</span>
             </button>
 
             {/* Manual Cycle Trigger */}
             <button
+              type="button"
               onClick={handleRunCycle}
               disabled={runningCycle}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-card hover:bg-accent/10 border border-border text-foreground transition-all disabled:opacity-50"
+              className="fx-btn fx-press text-xs gap-2 bg-secondary text-secondary-foreground hover:bg-hover-surface disabled:opacity-50"
             >
-              <RotateCw className={cn("w-4 h-4 text-accent", runningCycle && "animate-spin")} />
-              {runningCycle ? "Running..." : "Run Auto-Cycle"}
+              <RotateCw className={cn("w-3.5 h-3.5 text-accent", runningCycle && "animate-spin")} />
+              <span>{runningCycle ? "Running..." : "Run Auto-Cycle"}</span>
             </button>
 
             {/* Autonomous Mode Toggle Button */}
             <button
+              type="button"
               onClick={toggleAutonomous}
               className={cn(
-                "flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md",
+                "fx-btn text-xs font-bold gap-2 fx-press",
                 autonomousSummary?.isEnabled
-                  ? "bg-accent text-accent-foreground hover:opacity-90 shadow-accent/20"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "fx-btn-accent"
+                  : "bg-secondary text-muted-foreground border-border hover:text-foreground"
               )}
             >
               <Cpu className="w-4 h-4" />
@@ -231,72 +235,73 @@ export default function StoreAssistantHubPage() {
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
-            className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/30 text-xs flex items-center justify-between"
+            className="mt-4 p-3 rounded-lg bg-accent/10 border border-accent/25 text-xs flex items-center justify-between"
           >
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-accent" />
-              <span>
+              <Sparkles className="w-4 h-4 text-accent shrink-0" />
+              <span className="text-foreground">
                 Voice Command Recognized: <strong>&quot;{voiceResult.transcript}&quot;</strong> (Intent: {voiceResult.intent})
               </span>
             </div>
-            <button onClick={() => setVoiceResult(null)} className="text-muted-foreground hover:text-foreground">
+            <button type="button" onClick={() => setVoiceResult(null)} className="text-muted-foreground hover:text-foreground text-xs">
               Dismiss
             </button>
           </motion.div>
         )}
 
         {/* Key KPI Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border/50">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border/80">
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Store Health Score</span>
+            <span className="text-xs font-medium text-muted-foreground">Store Health Score</span>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-extrabold">{healthScore !== null ? `${healthScore}/100` : "Loading..."}</span>
+              <span className="text-xl font-bold font-mono text-foreground">{healthScore !== null ? `${healthScore}/100` : "Loading..."}</span>
               <HeartPulse className="w-4 h-4 text-accent" />
             </div>
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Auto-Approved Today</span>
+            <span className="text-xs font-medium text-muted-foreground">Auto-Approved Today</span>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-extrabold text-emerald-400">{autonomousSummary?.autoApprovedToday || 0} actions</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span className="text-xl font-bold font-mono text-success">{autonomousSummary?.autoApprovedToday || 0}</span>
+              <CheckCircle2 className="w-4 h-4 text-success" />
             </div>
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Pending Your Approval</span>
+            <span className="text-xs font-medium text-muted-foreground">Pending Approval</span>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-extrabold text-amber-400">{pendingActions.length} pending</span>
-              <AlertCircle className="w-4 h-4 text-amber-400" />
+              <span className="text-xl font-bold font-mono text-warning">{pendingActions.length}</span>
+              <AlertCircle className="w-4 h-4 text-warning" />
             </div>
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs text-muted-foreground">Est. Time Saved Today</span>
+            <span className="text-xs font-medium text-muted-foreground">Est. Time Saved Today</span>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-extrabold text-teal-400">{autonomousSummary?.savingsEstimate || 0} mins</span>
-              <Zap className="w-4 h-4 text-teal-400" />
+              <span className="text-xl font-bold font-mono text-accent">{autonomousSummary?.savingsEstimate || 0} mins</span>
+              <Zap className="w-4 h-4 text-accent" />
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Pending Autonomous Actions Approval Queue (Flagship Feature) */}
+      {/* Pending Autonomous Actions Approval Queue */}
       {pendingActions.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-          <div className="flex items-center justify-between">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-400" />
-              <h2 className="text-lg font-bold tracking-tight">Autonomous Action Approval Queue</h2>
-              <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              <AlertCircle className="w-4.5 h-4.5 text-warning" />
+              <h2 className="fx-display text-[18px] text-foreground font-semibold">Autonomous Action Approval Queue</h2>
+              <span className="px-2 py-0.5 text-xs font-mono font-bold rounded-full bg-warning-soft text-warning border border-warning/30">
                 {pendingActions.length} Pending
               </span>
             </div>
             <Link
               href="/dashboard/store-assistant/autonomous"
-              className="text-xs font-medium text-accent hover:underline flex items-center gap-1"
+              className="text-xs font-semibold text-accent hover:underline flex items-center gap-1 fx-press"
             >
-              Open Control Panel <ArrowRight className="w-3.5 h-3.5" />
+              <span>Open Control Panel</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
@@ -304,31 +309,33 @@ export default function StoreAssistantHubPage() {
             {pendingActions.slice(0, 4).map((action) => (
               <div
                 key={action.id}
-                className="fx-card p-4 flex flex-col justify-between space-y-3 border-l-4 border-l-amber-500 hover:border-amber-400 transition-all"
+                className="fx-card p-5 flex flex-col justify-between space-y-3 border-l-4 border-l-warning hover:border-border transition-all bg-card"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                    <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-warning">
                       {action.action_type.replace("_", " ")}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-[11px] font-mono text-muted-foreground">
                       {new Date(action.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold mt-1">{action.action_title}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{action.action_description}</p>
+                  <h3 className="text-sm font-semibold text-foreground mt-1.5">{action.action_title}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{action.action_description}</p>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+                <div className="flex items-center gap-2 pt-3 border-t border-border">
                   <button
+                    type="button"
                     onClick={() => handleApproveAction(action.id)}
-                    className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-all"
+                    className="flex-1 fx-btn text-xs font-semibold bg-success-soft text-success border-success/30 hover:bg-success/20 fx-press"
                   >
                     Approve
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleRejectAction(action.id)}
-                    className="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition-all"
+                    className="flex-1 fx-btn text-xs font-semibold bg-danger-soft text-danger border-danger/30 hover:bg-danger/20 fx-press"
                   >
                     Reject
                   </button>
@@ -345,9 +352,9 @@ export default function StoreAssistantHubPage() {
           const items = STORE_ASSISTANT_NAV.filter((item) => item.group === group.key);
           return (
             <div key={group.key} className="space-y-4">
-              <div>
-                <h2 className="text-lg font-bold tracking-tight">{group.label}</h2>
-                <p className="text-xs text-muted-foreground">{group.desc}</p>
+              <div className="border-b border-border pb-3">
+                <h2 className="fx-display text-[18px] text-foreground font-semibold">{group.label}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{group.desc}</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -357,29 +364,29 @@ export default function StoreAssistantHubPage() {
                     <Link key={item.href} href={item.href}>
                       <motion.div
                         whileHover={{ y: -2 }}
-                        className="fx-card p-5 h-full flex flex-col justify-between group hover:border-accent/50 transition-all cursor-pointer relative overflow-hidden"
+                        className="fx-card p-5 h-full flex flex-col justify-between group hover:border-accent/40 transition-all cursor-pointer bg-card border border-border"
                       >
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <div className="p-2.5 rounded-xl bg-accent/10 text-accent group-hover:bg-accent group-hover:text-accent-foreground transition-all">
-                              <IconComp className="w-5 h-5" />
+                            <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground group-hover:bg-accent/10 group-hover:text-accent transition-colors">
+                              <IconComp className="w-4.5 h-4.5" />
                             </div>
                             {item.badge && (
-                              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-accent/15 text-accent border border-accent/30">
+                              <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider rounded bg-accent/10 text-accent border border-accent/20">
                                 {item.badge}
                               </span>
                             )}
                           </div>
 
                           <div>
-                            <h3 className="text-sm font-bold group-hover:text-accent transition-colors flex items-center gap-1.5">
+                            <h3 className="text-sm font-semibold text-foreground group-hover:text-accent transition-colors flex items-center gap-1.5">
                               {item.title}
                             </h3>
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{item.description}</p>
                           </div>
                         </div>
 
-                        <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between text-[11px] font-semibold text-accent">
+                        <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs font-semibold text-accent">
                           <span>Open Module</span>
                           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                         </div>

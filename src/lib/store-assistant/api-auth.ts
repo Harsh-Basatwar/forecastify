@@ -128,7 +128,8 @@ export async function validateStoreAssistantAuth(
 
     // 3. Store tenant isolation check: targetStoreId must match user's store_id or user.id
     const userStoreId = user.user_metadata?.store_id || user.id;
-    if (targetStoreId && targetStoreId !== userStoreId && user.user_metadata?.role !== 'owner') {
+    const isMultiStoreRole = ['owner', 'organization_owner', 'organization_admin', 'regional_manager'].includes(user.user_metadata?.role);
+    if (targetStoreId && targetStoreId !== userStoreId && !isMultiStoreRole) {
       return {
         authorized: false,
         error: 'Forbidden: Cross-store tenant access denied',

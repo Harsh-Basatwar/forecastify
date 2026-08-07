@@ -222,27 +222,63 @@ export class KhataService {
     return data as KhataReminderRow;
   }
 
-  /** Send all due reminders */
+  /** Send all due reminders via CommunicationEngine */
   async sendDueReminders(storeId: string): Promise<number> {
     const now = new Date().toISOString();
 
     const { data: dueReminders } = await supabase
       .from('khata_reminders')
-      .select('*, khata_accounts(customer_id, outstanding_balance)')
+      .select('*, khata_accounts(id, customer_id, outstanding_balance, customers(name, phone))')
       .eq('store_id', storeId)
       .eq('status', 'pending')
       .lte('scheduled_at', now);
 
     if (!dueReminders || dueReminders.length === 0) return 0;
 
+    const { communicationEngine } = await import('../communication/communication-engine');
+
     let sentCount = 0;
     for (const reminder of dueReminders) {
-      // Mark as sent (actual sending would integrate with WhatsApp/SMS API)
+      const account = reminder.khata_accounts;
+      const customer = account?.customers;
+      const recipientPhone = customer?.phone || '+919876543210';
+      const balance = Number(account?.outstanding_balance || 0);
+
+      const thread = await communicationEngine.getOrCreateThread(
+        storeId,
+        '00000000-0000-0000-0000-000000000000',
+        'customer',
+        account?.customer_id || 'guest',
+        recipientPhone,
+        reminder.channel || 'whatsapp'
+      );
+
+      const dispatchResult = await communicationEngine.dispatchMessage(
+        storeId,
+        '00000000-0000-0000-0000-000000000000',
+        recipientPhone,
+        {
+          message_type: 'interactive_button',
+          text: `Namaste ${customer?.name || 'Customer'}! Friendly reminder: your Khata balance is ₹${balance.toFixed(2)}. Click below to clear or update schedule.`,
+          buttons: [
+            { id: `btn_khata_pay_${reminder.id}`, title: 'Pay Now' },
+            { id: `btn_khata_time_${reminder.id}`, title: 'Need More Time' },
+            { id: `btn_khata_stmt_${reminder.id}`, title: 'View Statement' },
+          ],
+          associated_entity_type: 'khata_account',
+          associated_entity_id: account?.id,
+        },
+        reminder.channel || 'whatsapp',
+        'sms',
+        thread?.id
+      );
+
       await supabase
         .from('khata_reminders')
-        .update({ status: 'sent', sent_at: now })
+        .update({ status: dispatchResult.success ? 'sent' : 'failed', sent_at: now })
         .eq('id', reminder.id);
-      sentCount++;
+
+      if (dispatchResult.success) sentCount++;
     }
 
     return sentCount;

@@ -13,6 +13,8 @@ export async function runStoreAutomationTests() {
   // 1. RBAC Tests
   assert.strictEqual(hasPermission('owner', 'view_financials'), true, 'Owner should view financials');
   assert.strictEqual(hasPermission('owner', 'manage_purchases'), true, 'Owner should manage purchases');
+  assert.strictEqual(hasPermission('owner', 'manage_store_config'), true, 'Owner should manage store config');
+  assert.strictEqual(hasPermission('store_manager', 'manage_store_config'), true, 'Store Manager should manage store config');
   assert.strictEqual(canViewFinancials('owner'), true, 'Owner can view financials');
 
   assert.strictEqual(canViewFinancials('cashier'), false, 'Cashier cannot view financials');
