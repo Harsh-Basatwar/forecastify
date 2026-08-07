@@ -43,7 +43,7 @@ export class TaskService {
     // 1. Expiry check tasks
     const { data: expiringItems } = await supabase
       .from('inventory')
-      .select('id, product_name, category, expiry_date, current_stock')
+      .select('id, product_name, category, expiry_date, current_stock:quantity')
       .eq('store_id', storeId)
       .not('expiry_date', 'is', null)
       .lte('expiry_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
@@ -66,7 +66,7 @@ export class TaskService {
     // 2. Low stock refill tasks
     const { data: lowStockItems } = await supabase
       .from('inventory')
-      .select('id, product_name, category, current_stock')
+      .select('id, product_name, category, current_stock:quantity')
       .eq('store_id', storeId)
       .lte('current_stock', 5)
       .gt('current_stock', 0);

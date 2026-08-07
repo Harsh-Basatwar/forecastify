@@ -177,7 +177,7 @@ async function deleteProduct(id: string) {
 async function getStoreProfile(userId: string) {
   const { data } = await supabase
     .from("profiles")
-    .select("store_name, store_category, store_size, city, state, store_address")
+    .select("store_name, city, state")
     .eq("id", userId)
     .single();
   return data;

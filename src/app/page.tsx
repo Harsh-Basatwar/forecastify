@@ -1,32 +1,52 @@
-"use client";
+import type { Metadata } from "next";
+import LandingNav from "@/components/landing/LandingNav";
+import Hero from "@/components/landing/Hero";
+import CostOfGuessing from "@/components/landing/CostOfGuessing";
+import SignalBand from "@/components/landing/SignalBand";
+import StoryScroll from "@/components/landing/StoryScroll";
+import ShowsItsWork from "@/components/landing/ShowsItsWork";
+import AutopilotBento from "@/components/landing/AutopilotBento";
+import SpeaksYourLanguage from "@/components/landing/SpeaksYourLanguage";
+import ClosingCta from "@/components/landing/ClosingCta";
+import LandingFooter from "@/components/landing/LandingFooter";
 
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
+export const metadata: Metadata = {
+  title: "Forecastify · Demand forecasting for kirana stores",
+  description:
+    "Forecastify reads weather, festivals and your own sales log to say what to stock next, and shows the reasoning behind every number.",
+  openGraph: {
+    title: "Forecastify · Demand forecasting for kirana stores",
+    description:
+      "Stock what sells. Skip what does not. Forecasts that explain themselves, and never order without you.",
+    type: "website",
+  },
+};
 
+/**
+ * Public landing page.
+ *
+ * `/` no longer bounces straight to the console. Signed-in visitors still get
+ * there in one click: every primary call to action resolves to /dashboard once
+ * a session exists, and /dashboard keeps its own auth guard either way.
+ */
 export default function Home() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const navigated = useRef(false);
-
-  useEffect(() => {
-    if (!loading && !navigated.current) {
-      if (user) {
-        navigated.current = true;
-        router.replace("/dashboard");
-      } else {
-        navigated.current = true;
-        router.replace("/auth/login");
-      }
-    }
-  }, [user, loading, router]);
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-5">
-        <div className="w-8 h-8 border-2 border-border-strong border-t-accent rounded-full animate-spin" aria-hidden="true" />
-        <p className="fx-eyebrow">Loading Forecastify</p>
-      </div>
-    </div>
+    <>
+      <a href="#main" className="fx-skip-link">
+        Skip to content
+      </a>
+      <LandingNav />
+      <main id="main">
+        <Hero />
+        <CostOfGuessing />
+        <SignalBand />
+        <StoryScroll />
+        <ShowsItsWork />
+        <AutopilotBento />
+        <SpeaksYourLanguage />
+        <ClosingCta />
+      </main>
+      <LandingFooter />
+    </>
   );
 }

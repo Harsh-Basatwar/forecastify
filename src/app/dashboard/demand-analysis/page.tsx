@@ -297,9 +297,9 @@ export default function DemandAnalysisPage() {
       const inventoryStoreId = profile?.id || user.id;
       const { data: invData } = await supabase
         .from("inventory")
-        .select("product_name, category, current_stock, unit, price, sku, brand, reorder_level, expiry_date")
+        .select("product_name, category, current_stock:quantity, unit, price, sku:barcode, reorder_level, expiry_date")
         .eq("store_id", inventoryStoreId)
-        .order("sku", { ascending: true });
+        .order("product_name", { ascending: true });
       inventoryItems = invData || [];
       setInventoryScope({
         count: inventoryItems.length,

@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     if (storeId && commandResponse.product_query) {
       const { data: dbItem } = await supabase
         .from("inventory")
-        .select("id, product_name, category, price, current_stock")
+        .select("id, product_name, category, price, current_stock:quantity")
         .eq("store_id", storeId)
         .ilike("product_name", `%${commandResponse.product_query}%`)
         .limit(1)

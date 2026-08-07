@@ -72,7 +72,7 @@ export class FestivalService {
     // Get current inventory for high-demand categories
     const { data: inventory } = await supabase
       .from('inventory')
-      .select('id, product_name, category, current_stock, price')
+      .select('id, product_name, category, current_stock:quantity, price')
       .eq('store_id', storeId)
       .in('category', fest.highDemandCategories);
 

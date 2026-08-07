@@ -36,7 +36,7 @@ export class DeadInventoryService {
     // Get all inventory items with stock
     const { data: inventory } = await supabase
       .from('inventory')
-      .select('id, product_name, category, current_stock, price')
+      .select('id, product_name, category, current_stock:quantity, price')
       .eq('store_id', storeId)
       .gt('current_stock', 0);
 

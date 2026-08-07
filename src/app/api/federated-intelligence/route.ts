@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     // Get user profile
     const { data: profile } = await supabase
       .from("profiles")
-      .select("store_name, store_category, city, state")
+      .select("store_name, city, state")
       .eq("id", userId)
       .single();
 
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
           .from("store_groups")
           .insert({
             name: groupName,
-            category: profile?.store_category || "Retail",
+            category: "Retail",
             city: profile?.city,
             state: profile?.state,
             invite_code: inviteCode,
@@ -183,7 +183,7 @@ export async function POST(request: Request) {
           const { data: discoverable } = await supabase
             .from("store_groups")
             .select("*")
-            .eq("category", profile?.store_category || "Retail")
+            .eq("category", "Retail")
             .order("created_at", { ascending: false })
             .limit(10);
 
@@ -224,7 +224,7 @@ export async function POST(request: Request) {
         const { data: discoverable } = await supabase
           .from("store_groups")
           .select("*")
-          .eq("category", profile?.store_category || "Retail")
+          .eq("category", "Retail")
           .not("id", "in", `(${groupIds.join(",")})`)
           .order("created_at", { ascending: false })
           .limit(10);

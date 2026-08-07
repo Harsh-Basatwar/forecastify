@@ -18,7 +18,7 @@ export class AIProcurementEngine {
     // 1. Fetch inventory balances & product metadata
     const { data: invItems } = await this.client
       .from("inventory")
-      .select("id, product_name, current_stock, reserved_stock, incoming_stock, min_stock, reorder_point, safety_stock")
+      .select("id, product_name, current_stock:quantity, reserved_stock, incoming_stock, min_stock, reorder_point, safety_stock")
       .eq("store_id", storeId);
 
     // 2. Fetch active preferred suppliers

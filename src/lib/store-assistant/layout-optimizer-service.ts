@@ -6,7 +6,7 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || '', proces
 
 export class LayoutOptimizerService {
   async generateRecommendations(storeId: string): Promise<LayoutRecommendationRow[]> {
-    const { data: inventory } = await supabase.from('inventory').select('id, product_name, category, current_stock, price').eq('store_id', storeId).gt('current_stock', 0);
+    const { data: inventory } = await supabase.from('inventory').select('id, product_name, category, current_stock:quantity, price').eq('store_id', storeId).gt('current_stock', 0);
     if (!inventory || inventory.length === 0) return [];
 
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();

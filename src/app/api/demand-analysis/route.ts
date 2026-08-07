@@ -853,9 +853,9 @@ export async function POST(request: Request) {
     if ((!inventoryItems.length || inventoryItems.length < 20) && userId) {
       const { data: dbInventory } = await supabase
         .from("inventory")
-        .select("product_name, category, current_stock, unit, price, sku, brand, reorder_level, expiry_date")
+        .select("product_name, category, current_stock:quantity, unit, price, sku:barcode, reorder_level, expiry_date")
         .eq("store_id", userId)
-        .order("sku", { ascending: true });
+        .order("product_name", { ascending: true });
       inventoryItems = dbInventory || inventoryItems;
     }
 

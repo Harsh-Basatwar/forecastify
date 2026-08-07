@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     // Get inventory for this store
     const { data: inventory } = await supabase
       .from("inventory")
-      .select("id, product_name, category, current_stock, unit, price, brand")
+      .select("id, product_name, category, current_stock:quantity, unit, price")
       .eq("store_id", userId);
 
     if (!inventory?.length) {

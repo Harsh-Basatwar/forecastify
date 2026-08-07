@@ -28,6 +28,7 @@ export default function ProductAnalysisPage() {
   const [generatedAt, setGeneratedAt] = useState("");
   const [error, setError] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [inventory, setInventory] = useState<any[]>([]);
   const [weather, setWeather] = useState<any>(null);
   const [weatherForecast, setWeatherForecast] = useState<any[]>([]);
   const [location, setLocation] = useState("");
@@ -38,7 +39,14 @@ export default function ProductAnalysisPage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase.from("profiles").select("store_name, store_category, store_size, city, state").eq("id", user.id).single();
+      // `profiles` has no store_category / store_size columns; asking for
+      // them fails the whole select, which is why the city fell back to a
+      // default and the store name never rendered.
+      const { data } = await supabase
+        .from("profiles")
+        .select("store_name, city, state")
+        .eq("id", user.id)
+        .maybeSingle();
       if (data) setStoreProfile(data);
     })();
   }, [user]);
@@ -58,21 +66,36 @@ export default function ProductAnalysisPage() {
     })();
   }, []);
 
-  // Search inventory + products catalog for suggestions
+  /*
+    Suggestions come from /api/analysis/inventory rather than a direct table
+    read: it resolves which store's rows this account can see and maps the
+    real stock column, neither of which the client can assume.
+  */
   const searchInventory = useCallback(async (q: string) => {
     if (!q.trim() || !user) { setSuggestions([]); return; }
-    // Search user's inventory
-    const { data: invData } = await supabase.from("inventory").select("product_name, category, current_stock, price, unit")
-      .eq("store_id", user.id).ilike("product_name", `%${q}%`).limit(5);
-    // Also search products catalog
-    const { data: catData } = await supabase.from("products").select("product_name, category, mrp")
-      .ilike("product_name", `%${q}%`).limit(5);
+    try {
+      const res = await fetch(
+        `/api/analysis/inventory?userId=${encodeURIComponent(user.id)}&q=${encodeURIComponent(q)}&limit=8`
+      );
+      if (!res.ok) { setSuggestions([]); return; }
+      const data = await res.json();
+      setSuggestions((data.items || []).slice(0, 8));
+    } catch {
+      setSuggestions([]);
+    }
+  }, [user]);
 
-    const invItems = (invData || []).map(i => ({ ...i, source: "inventory" }));
-    const catItems = (catData || []).filter(c => !invItems.some(i => i.product_name === c.product_name))
-      .map(c => ({ product_name: c.product_name, category: c.category, current_stock: 0, price: c.mrp, unit: "pcs", source: "catalog" }));
-
-    setSuggestions([...invItems, ...catItems].slice(0, 8));
+  // The full shelf, so the empty state can offer something to click.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/analysis/inventory?userId=${encodeURIComponent(user.id)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setInventory(data.items || []);
+      } catch {}
+    })();
   }, [user]);
 
   useEffect(() => {
@@ -126,6 +149,15 @@ export default function ProductAnalysisPage() {
           .catch(() => setExternalSignals({}));
       } else {
         setError(data.error || "Analysis failed");
+        // A miss should still point at the shelf rather than dead-end.
+        if (Array.isArray(data.suggestions) && data.suggestions.length) {
+          setSuggestions(
+            data.suggestions.map((name: string) => ({
+              product_name: name,
+              source: "inventory",
+            }))
+          );
+        }
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -774,15 +806,27 @@ ${!forPrint ? "</div>" : ""}
             <Box className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-60" aria-hidden="true" strokeWidth={1.8} />
             <p className="text-sm text-secondary-foreground font-medium">Analyze any product</p>
             <p className="text-xs text-muted-foreground mt-1.5 max-w-lg mx-auto">
-              Enter any product to get a detailed 7-day sales forecast, stock recommendations, pricing strategy, and risk assessment — all based on your real inventory data.
+              Enter any product to get a detailed 7-day sales forecast, stock recommendations, pricing strategy, and risk assessment, all based on your real inventory data.
             </p>
+            {/* Seeded from the shop's own shelves. A fixed demo list used to
+                sit here, offering products this store does not carry. */}
             <div className="flex flex-wrap justify-center gap-1.5 mt-5 mb-3">
-              {["Maggi Noodles", "Amul Butter", "Coca Cola", "Tata Salt", "Parle G"].map(p => (
-                <button key={p} onClick={() => { setQuery(p); analyze(p); }}
-                  className="fx-btn !py-1.5 !px-3 text-xs">{p}</button>
+              {inventory.slice(0, 6).map(p => (
+                <button
+                  key={p.product_name}
+                  onClick={() => { setQuery(p.product_name); analyze(p.product_name); }}
+                  className="fx-btn !py-1.5 !px-3 text-xs"
+                  title={`${p.current_stock} ${p.unit} in stock`}
+                >
+                  {p.product_name}
+                </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Click any product above or type your own in the search bar</p>
+            <p className="text-xs text-muted-foreground">
+              {inventory.length
+                ? `${inventory.length} products in your inventory. Click one above or type your own.`
+                : "Loading your inventory. You can also type a product name directly."}
+            </p>
           </div>
 
           {/* Features */}

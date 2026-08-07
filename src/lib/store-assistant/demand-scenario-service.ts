@@ -16,7 +16,7 @@ export class DemandScenarioService {
     if (!scenarioDef) return null;
     const duration = durationDays || scenarioDef.defaultDuration;
 
-    const { data: inventory } = await supabase.from('inventory').select('id, product_name, category, current_stock, price').eq('store_id', storeId).gt('current_stock', 0);
+    const { data: inventory } = await supabase.from('inventory').select('id, product_name, category, current_stock:quantity, price').eq('store_id', storeId).gt('current_stock', 0);
     if (!inventory || inventory.length === 0) return null;
 
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();

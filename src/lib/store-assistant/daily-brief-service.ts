@@ -127,7 +127,7 @@ export class DailyBriefService {
       // Current inventory
       supabase
         .from('inventory')
-        .select('id, product_name, category, current_stock, price, unit, expiry_date')
+        .select('id, product_name, category, current_stock:quantity, price, unit, expiry_date')
         .eq('store_id', storeId),
 
       // Pending POs
@@ -233,7 +233,7 @@ export class DailyBriefService {
 
       supabase
         .from('inventory')
-        .select('id, current_stock, expiry_date')
+        .select('id, current_stock:quantity, expiry_date')
         .eq('store_id', storeId),
     ]);
 

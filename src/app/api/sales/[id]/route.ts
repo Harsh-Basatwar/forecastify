@@ -101,7 +101,7 @@ export async function POST(
           // Fetch current stock
           const { data: invItem } = await supabase
             .from("inventory")
-            .select("current_stock, product_name")
+            .select("current_stock:quantity, product_name")
             .eq("id", item.product_id)
             .maybeSingle();
 

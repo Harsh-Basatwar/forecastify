@@ -306,7 +306,7 @@ export class InventoryDomainService {
     if (!productName) {
       const { data: invLegacy } = await this.client
         .from("inventory")
-        .select("id, product_name, current_stock")
+        .select("id, product_name, current_stock:quantity")
         .eq("id", input.productId)
         .eq("store_id", input.storeId)
         .single();
@@ -413,7 +413,7 @@ export class InventoryDomainService {
   public async reserveStock(input: StockReservationInput) {
     const { data: inv } = await this.client
       .from("inventory")
-      .select("id, product_name, current_stock, available_stock, reserved_stock")
+      .select("id, product_name, current_stock:quantity, available_stock, reserved_stock")
       .eq("id", input.productId)
       .eq("store_id", input.storeId)
       .single();
@@ -472,7 +472,7 @@ export class InventoryDomainService {
   public async deductReservedStock(input: StockReservationInput) {
     const { data: inv } = await this.client
       .from("inventory")
-      .select("id, product_name, current_stock, reserved_stock")
+      .select("id, product_name, current_stock:quantity, reserved_stock")
       .eq("id", input.productId)
       .eq("store_id", input.storeId)
       .single();

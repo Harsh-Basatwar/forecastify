@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     // 1. Fetch store profile
     const { data: store } = await supabase
       .from("profiles")
-      .select("store_name, store_category, city, state")
+      .select("store_name, city, state")
       .eq("id", userId)
       .single();
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     // 2. Fetch inventory
     const { data: inventory } = await supabase
       .from("inventory")
-      .select("product_name, category, quantity, unit, price, min_stock, max_stock, brand")
+      .select("product_name, category, quantity, unit, price, min_stock, max_stock")
       .eq("store_id", userId);
 
     // 3. Fetch historic sales (last 30 days for richer context)
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
     const prompt = `You are a retail demand simulation engine for an Indian retail store. You have REAL historic sales data below. Use it to provide REALISTIC, DATA-BACKED predictions. Do NOT guess — base every number on the patterns in the data.
 
 STORE: ${store?.store_name || "Store"} in ${city}, ${store?.state || ""}
-Category: ${store?.store_category || "Retail"}
+Category: ${"Retail"}
 
 SCENARIO TO SIMULATE:
 "${scenario}"

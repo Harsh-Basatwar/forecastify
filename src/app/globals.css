@@ -887,6 +887,47 @@
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   LANDING PAGE (.lp-*)
+   Marketing surface only. The console's motion doctrine caps duration
+   at --t-slow because state changes should not be watched; the landing
+   page is watched on purpose, so it runs longer motion. Scoped under
+   .lp-* so none of it can leak into the product UI.
+   ══════════════════════════════════════════════════════════════ */
+@layer components {
+  /* Edge-faded rail for the signal marquee. */
+  .lp-marquee {
+    overflow: hidden;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 6rem,
+      black calc(100% - 6rem),
+      transparent
+    );
+  }
+  .lp-marquee-inner {
+    display: flex;
+    width: max-content;
+    animation: lp-marquee 46s linear infinite;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .lp-marquee:hover .lp-marquee-inner { animation-play-state: paused; }
+  }
+}
+
+/* Translates by exactly half the doubled track, so the loop has no seam. */
+@keyframes lp-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-marquee-inner { animation: none !important; }
+  /* Without the scroll, the track has to be readable where it sits. */
+  .lp-marquee { overflow-x: auto; mask-image: none; }
+}
+
 @keyframes fx-ripple {
   0%   { opacity: 0.16; transform: scale(0.2); }
   100% { opacity: 0;    transform: scale(1); }

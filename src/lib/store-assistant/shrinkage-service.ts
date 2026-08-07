@@ -27,7 +27,7 @@ export class ShrinkageService {
     // Get inventory with sales data to compute expected stock
     const { data: inventory } = await supabase
       .from('inventory')
-      .select('id, product_name, category, current_stock, price')
+      .select('id, product_name, category, current_stock:quantity, price')
       .eq('store_id', storeId)
       .gt('current_stock', 0);
 

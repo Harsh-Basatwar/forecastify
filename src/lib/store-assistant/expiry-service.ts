@@ -24,7 +24,7 @@ export class ExpiryService {
   async scan(storeId: string): Promise<ExpiryTier[]> {
     const { data: inventory } = await supabase
       .from('inventory')
-      .select('id, product_name, category, current_stock, price, expiry_date')
+      .select('id, product_name, category, current_stock:quantity, price, expiry_date')
       .eq('store_id', storeId)
       .not('expiry_date', 'is', null)
       .gt('current_stock', 0)

@@ -47,7 +47,7 @@ export class ShelfService {
 
     const { data: inventory } = await supabase
       .from('inventory')
-      .select('id, product_name, category, current_stock, reorder_point')
+      .select('id, product_name, category, current_stock:quantity, reorder_point')
       .eq('store_id', storeId)
       .lte('current_stock', 10)
       .gt('current_stock', 0);

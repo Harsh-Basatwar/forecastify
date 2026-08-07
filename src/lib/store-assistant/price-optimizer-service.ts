@@ -17,7 +17,7 @@ export class PriceOptimizerService {
   async getOptimizations(storeId: string): Promise<PriceOptimization[]> {
     const { data: inventory } = await supabase
       .from('inventory')
-      .select('id, product_name, category, current_stock, price, cost_price, expiry_date')
+      .select('id, product_name, category, current_stock:quantity, price, cost_price, expiry_date')
       .eq('store_id', storeId)
       .gt('current_stock', 0);
 

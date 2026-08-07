@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     if (!userId) return Response.json({ error: "userId required" }, { status: 400 });
 
     const { data: store } = await supabase.from("profiles")
-      .select("full_name, store_name, store_category, store_size, city, state, store_address")
+      .select("full_name, store_name, city, state")
       .eq("id", userId)
       .maybeSingle();
 
@@ -643,7 +643,7 @@ export async function POST(request: Request) {
 
     // Generate AI Narrative
     const resolvedStoreName = store?.store_name || matchedStore?.store_name || "Store";
-    const resolvedLocation = [city, storeState].filter(Boolean).join(", ") || store?.store_address || "store location not configured";
+    const resolvedLocation = [city, storeState].filter(Boolean).join(", ") || store?.city || "store location not configured";
     const externalSummary = extEvents.map(e => `${e.event_name} (${e.event_type || "event"}, impact ${e.impact_score ?? "n/a"})`).join("; ") ||
       events.map(e => `${e.event_name} (${e.event_type || "event"}, +${e.demand_impact_percent || 0}%)`).join("; ") ||
       "No upcoming external event recorded for this store area";

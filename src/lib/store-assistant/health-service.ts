@@ -114,7 +114,7 @@ export class HealthService {
   private async computeInventoryScore(storeId: string): Promise<number> {
     const { data } = await supabase
       .from('inventory')
-      .select('current_stock, reorder_point')
+      .select('current_stock:quantity, reorder_point')
       .eq('store_id', storeId);
 
     if (!data || data.length === 0) return 50;
@@ -153,7 +153,7 @@ export class HealthService {
   private async computeExpiryScore(storeId: string): Promise<number> {
     const { data } = await supabase
       .from('inventory')
-      .select('id, expiry_date, current_stock')
+      .select('id, expiry_date, current_stock:quantity')
       .eq('store_id', storeId)
       .not('expiry_date', 'is', null)
       .gt('current_stock', 0);

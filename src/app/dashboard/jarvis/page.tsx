@@ -310,7 +310,7 @@ export default function JarvisPage() {
       try {
         refreshLocalActivities();
         const [{ data: profile }, dashboardRes] = await Promise.all([
-          supabase.from("profiles").select("store_name, store_category, store_size, city, state, store_address").eq("id", user.id).maybeSingle(),
+          supabase.from("profiles").select("store_name, city, state").eq("id", user.id).maybeSingle(),
           fetch("/api/dashboard", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -362,7 +362,7 @@ export default function JarvisPage() {
           }
         } catch {
           const storeAddress = [
-            profile?.store_address || dashboardData?.store?.store_address,
+            dashboardData?.store?.city,
             profile?.city || dashboardData?.store?.city,
             profile?.state || dashboardData?.store?.state,
           ].filter(Boolean).join(", ");
@@ -396,7 +396,7 @@ export default function JarvisPage() {
           const nRes = await fetch("/api/news", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ storeCategory: profile?.store_category || dashboardData?.store?.store_category || "Grocery & Supermarket", city, state: st }),
+            body: JSON.stringify({ storeCategory: "Grocery & Supermarket", city, state: st }),
           });
           if (nRes.ok && !cancelled) {
             const nd = await nRes.json();
@@ -495,13 +495,13 @@ export default function JarvisPage() {
   // Fetch inventory once for reuse
   const fetchInventory = useCallback(async () => {
     if (!user?.id) return [];
-    const { data } = await supabase.from("inventory").select("product_name, category, current_stock, unit, price, brand, sku").eq("store_id", user.id);
+    const { data } = await supabase.from("inventory").select("product_name, category, current_stock:quantity, unit, price, sku:barcode").eq("store_id", user.id);
     return data || [];
   }, [user?.id]);
 
   const fetchStoreProfile = useCallback(async () => {
     if (!user?.id) return null;
-    const { data } = await supabase.from("profiles").select("store_name, store_category, store_size, city, state, store_address").eq("id", user.id).single();
+    const { data } = await supabase.from("profiles").select("store_name, city, state").eq("id", user.id).single();
     return data;
   }, [user?.id]);
 
@@ -684,15 +684,15 @@ export default function JarvisPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              storeCategory: store?.store_category || "Retail",
-              storeSize: store?.store_size || "Small",
+              storeCategory: "Retail",
+              storeSize: "Small",
               city: store?.city || "Pune",
               state: store?.state || "Maharashtra",
               weather: weatherFull?.current || weatherRef.current,
               forecast: weatherFull?.forecast,
               news: newsRef.current,
               events: newsRef.current?.events,
-              location: locationRef.current || store?.store_address || `${store?.city}, ${store?.state}`,
+              location: locationRef.current || store?.city || `${store?.city}, ${store?.state}`,
               inventory: inv,
             }),
           });

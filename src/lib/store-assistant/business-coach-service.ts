@@ -83,7 +83,7 @@ export class BusinessCoachService {
   private async getDeadInventoryInsight(storeId: string): Promise<CoachingAdvice | null> {
     const { data } = await supabase
       .from('inventory')
-      .select('id, product_name, current_stock, price')
+      .select('id, product_name, current_stock:quantity, price')
       .eq('store_id', storeId)
       .gt('current_stock', 0);
 
@@ -110,7 +110,7 @@ export class BusinessCoachService {
   private async getExpiryInsight(storeId: string): Promise<CoachingAdvice | null> {
     const { data } = await supabase
       .from('inventory')
-      .select('id, product_name, current_stock, price, expiry_date')
+      .select('id, product_name, current_stock:quantity, price, expiry_date')
       .eq('store_id', storeId)
       .not('expiry_date', 'is', null)
       .lte('expiry_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])

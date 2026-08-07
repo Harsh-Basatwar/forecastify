@@ -43,20 +43,25 @@ export default function CategoryAnalysisPage() {
   const [error, setError] = useState("");
   const [generatedAt, setGeneratedAt] = useState("");
   const [realCategories, setRealCategories] = useState<string[]>([]);
+  const [inventoryCount, setInventoryCount] = useState(0);
   const [externalSignals, setExternalSignals] = useState<Record<string, any[]>>({});
 
-  // Fetch real categories from inventory + products table
+  /*
+    Categories come from the shop's own shelves via /api/analysis/inventory,
+    which resolves store scope server side. Querying inventory directly with
+    `.eq("store_id", user.id)` matched nothing for real accounts, so this list
+    was always empty and the page fell back to generic defaults.
+  */
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: inv } = await (await import("@/lib/supabase")).supabase
-        .from("inventory").select("category").eq("store_id", user.id);
-      const { data: prods } = await (await import("@/lib/supabase")).supabase
-        .from("products").select("category");
-      const cats = new Set<string>();
-      inv?.forEach(i => { if (i.category) cats.add(i.category); });
-      prods?.forEach(p => { if (p.category) cats.add(p.category); });
-      setRealCategories([...cats].sort());
+      try {
+        const res = await fetch(`/api/analysis/inventory?userId=${encodeURIComponent(user.id)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setRealCategories(data.categories || []);
+        setInventoryCount(data.count || 0);
+      } catch {}
     })();
   }, [user]);
 
@@ -497,6 +502,25 @@ ${a.missingProducts?.length ? `<div class="section"><div class="section-title">P
             <Tag className="w-5 h-5 text-muted-foreground mx-auto mb-3 opacity-60" aria-hidden="true" strokeWidth={1.8} />
             <p className="text-sm text-secondary-foreground font-medium">Select a category to analyze</p>
             <p className="text-xs text-muted-foreground mt-1.5 max-w-md mx-auto">Discover top brands in your region, compare product demand, find gaps in your inventory, and get restocking recommendations.</p>
+            {/* Categories come from the shelf, so say what is actually there. */}
+            {realCategories.length > 0 && (
+              <>
+                <div className="flex flex-wrap justify-center gap-1.5 mt-5 mb-3">
+                  {realCategories.slice(0, 8).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => { setQuery(c); analyze(c); }}
+                      className="fx-btn !py-1.5 !px-3 text-xs"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {realCategories.length} categories across {inventoryCount} products in your inventory.
+                </p>
+              </>
+            )}
           </div>
           <div className="fx-card p-6">
             <h3 className="fx-eyebrow mb-2">What you&apos;ll get</h3>

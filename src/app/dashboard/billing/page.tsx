@@ -73,14 +73,15 @@ export default function BillingPage() {
     // Fetch store info
     const { data: profile } = await supabase
       .from("profiles")
-      .select("store_name, store_address")
+      .select("store_name, city, state, pincode")
       .eq("id", user.id)
       .maybeSingle();
 
     if (profile) {
       setStoreInfo({
         store_name: profile.store_name,
-        store_address: profile.store_address,
+        // profiles has no store_address; compose the invoice line from city/state.
+        store_address: [profile.city, profile.state, profile.pincode].filter(Boolean).join(", "),
       });
     }
   }, [user?.id]);

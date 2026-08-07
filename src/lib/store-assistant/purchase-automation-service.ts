@@ -53,7 +53,7 @@ export class PurchaseAutomationService {
   async generateSmartPOs(storeId: string): Promise<SmartPO[]> {
     const { data: inventory } = await this.client
       .from('inventory')
-      .select('id, product_name, category, current_stock, reorder_point, price, cost_price, gst_rate, supplier_id')
+      .select('id, product_name, category, current_stock:quantity, reorder_point, price, cost_price, gst_rate')
       .eq('store_id', storeId);
 
     if (!inventory || inventory.length === 0) return [];

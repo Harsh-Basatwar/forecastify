@@ -61,7 +61,7 @@ export default function PromotionsPage() {
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("store_name, store_category, city, state, store_address")
+        .select("store_name, city, state")
         .eq("id", user.id)
         .maybeSingle();
       setStore(profile);
@@ -86,13 +86,13 @@ export default function PromotionsPage() {
           setWeather(w.current);
         }
       } catch {
-        resolvedLocation = profile?.store_address || resolvedLocation;
+        resolvedLocation = resolvedLocation;
       }
       setLocation(resolvedLocation);
 
       const query = [
         searchTerm.trim(),
-        profile?.store_category || "Grocery supermarket",
+        "Grocery supermarket",
         profile?.city,
         profile?.state,
         currentWeather?.description ? `${currentWeather.description} weather` : "",
@@ -233,7 +233,7 @@ export default function PromotionsPage() {
           <div className="min-w-0">
             <p className="fx-eyebrow">Store</p>
             <p className="text-sm font-medium text-foreground mt-1 truncate">{store?.store_name || "Store"}</p>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">{store?.store_category || "Grocery & Supermarket"}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{"Grocery & Supermarket"}</p>
           </div>
         </div>
         <div className="p-5 flex items-start gap-3">

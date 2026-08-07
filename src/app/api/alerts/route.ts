@@ -104,7 +104,7 @@ export async function POST(request: Request) {
 
     const { data: inventory, error: inventoryError } = await supabase
       .from("inventory")
-      .select("product_name, category, current_stock, unit, price")
+      .select("product_name, category, current_stock:quantity, unit, price")
       .eq("store_id", userId);
     if (inventoryError) throw inventoryError;
 

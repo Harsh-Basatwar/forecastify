@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     if (type === "products") {
       const { data: inv } = await supabase
         .from("inventory")
-        .select("id, product_name, sku, barcode, category, brand, supplier, price, mrp, current_stock, unit, expiry_date, status")
+        .select("id, product_name, sku:barcode, barcode, category, supplier, price, mrp, current_stock:quantity, unit, expiry_date, status")
         .eq("store_id", storeId)
         .eq("is_archived", false);
       data = inv || [];

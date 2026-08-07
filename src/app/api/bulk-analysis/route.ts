@@ -40,17 +40,30 @@ export async function POST(request: Request) {
 
     // Store profile
     const { data: store } = await supabase.from("profiles")
-      .select("store_name, store_category, store_size, city, state, store_address").eq("id", userId).single();
-    const city = store?.city || "Pune";
+      .select("store_name, city, state").eq("id", userId).maybeSingle();
+    const city = store?.city || "Mumbai";
     const state = store?.state || "Maharashtra";
 
     // Full inventory
     const { data: inventory } = await supabase.from("inventory")
-      .select("product_name, category, current_stock, unit, price").eq("store_id", userId);
+      .select("product_name, category, current_stock:quantity, unit, price").eq("store_id", userId);
+
+    /* Accept either ["name"] or [{ name }]. A malformed item used to reach
+       `p.name.toLowerCase()` and throw, surfacing as a 500. */
+    const normalised: ProductInput[] = (products as any[])
+      .map((p) => (typeof p === "string" ? { name: p } : p))
+      .filter((p) => p && typeof p.name === "string" && p.name.trim());
+
+    if (!normalised.length) {
+      return Response.json(
+        { error: "products must be a non-empty array of names or { name } objects" },
+        { status: 400 }
+      );
+    }
 
     // Match each product to inventory (fuzzy)
     const invMatch: Record<string, any> = {};
-    for (const p of products as ProductInput[]) {
+    for (const p of normalised) {
       const nameLC = p.name.toLowerCase();
       const match = inventory?.find(i =>
         i.product_name.toLowerCase().includes(nameLC) ||
@@ -62,7 +75,7 @@ export async function POST(request: Request) {
 
     // Historic sales
     const historicStats: Record<string, { avg: number; wkndAvg: number; hotAvg: number }> = {};
-    for (const pName of products.slice(0, 15).map((p: ProductInput) => p.name)) {
+    for (const pName of normalised.slice(0, 15).map((p: ProductInput) => p.name)) {
       const { data: sales } = await supabase.from("historic_sales")
         .select("quantity_sold, is_weekend, temperature")
         .ilike("product_name", `%${pName}%`).eq("city", city)
@@ -74,7 +87,7 @@ export async function POST(request: Request) {
         for (const word of words) {
           const { data: s2 } = await supabase.from("historic_sales")
             .select("quantity_sold, is_weekend, temperature")
-            .ilike("product_name", `%${word}%`).ilike("category", `%${(products.find((p: ProductInput) => p.name === pName))?.category || ""}%`)
+            .ilike("product_name", `%${word}%`).ilike("category", `%${(normalised.find((p: ProductInput) => p.name === pName))?.category || ""}%`)
             .eq("city", city).order("date", { ascending: false }).limit(30);
           if (s2?.length) {
             const avg = s2.reduce((s, r) => s + r.quantity_sold, 0) / s2.length;
@@ -123,7 +136,7 @@ export async function POST(request: Request) {
       `${name}:avg${s.avg}/day,wknd${s.wkndAvg},hot${s.hotAvg}`
     ).join(", ") || "No data";
 
-    const productList = products.map((p: ProductInput, i: number) => {
+    const productList = normalised.map((p: ProductInput, i: number) => {
       const inv = invMatch[p.name];
       return `${i + 1}. ${p.name}|${p.category}|want:${p.current_stock || "?"}${p.unit || "pcs"}|₹${p.price || "?"}|inStock:${inv ? inv.current_stock + inv.unit : "0"}`;
     }).join("\n");
@@ -133,7 +146,7 @@ PRICING: "price" = price of ONE unit (1 packet, 1 bottle, 1 kg). NOT total cost.
 Examples: Maggi 1 packet = ₹14. Oil 1L bottle = ₹180. Salt 1kg = ₹28. Milk 500ml = ₹30. Biscuit 1 pack = ₹10.
 estimatedCost = recommendedQty × price_per_unit. If Oil recommended 34 bottles at ₹180 each = ₹6120, NOT ₹30600.`;
 
-    const userMsg = `Store: "${store?.store_name}" (${store?.store_category}) at ${location || store?.store_address || city}, ${state}
+    const userMsg = `Store: "${store?.store_name}" at ${location || city}, ${state}
 Weather NOW: ${weather ? `${weather.temp}°C ${weather.description} Humidity:${weather.humidity}%` : "N/A"}
 7-Day Forecast: ${forecastStr}
 Events: ${eventsStr}

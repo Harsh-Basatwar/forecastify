@@ -1,6 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Groq from "groq-sdk";
 import { createClient } from "@supabase/supabase-js";
+import {
+  resolveStoreScope,
+  getStoreProfile,
+  getHistoricSales,
+  getUpcomingEvents,
+  findInInventory,
+  inventoryDigest,
+  categoriesOf,
+  stockOf,
+  nextSevenDays,
+  safeSelect,
+} from "@/lib/analysis/store-data";
 
 const GROQ_KEYS = [
   process.env.GROQ_API_KEY!,
@@ -13,153 +25,201 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-function getNext7Days(): { day: string; date: string }[] {
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const result = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(); d.setDate(d.getDate() + i);
-    result.push({ day: days[d.getDay()], date: d.toISOString().split("T")[0] });
-  }
-  return result;
-}
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { productName, userId, weather, weatherForecast, location, storeCategory, lang } = body;
-    const langMap: Record<string, string> = { hi: "Hindi", mr: "Marathi", ta: "Tamil", te: "Telugu", kn: "Kannada", bn: "Bengali", gu: "Gujarati" };
-    const langInstruction = lang && langMap[lang] ? `\nIMPORTANT: Write summary, reason, recommendations, competitorInsight, seasonalFactors, pricingAdvice.reason in ${langMap[lang]}. Keep product names, numbers, JSON keys in English.` : "";
+    const {
+      productName,
+      userId,
+      weather,
+      weatherForecast,
+      location,
+      lang,
+    } = body;
+
+    const langMap: Record<string, string> = {
+      hi: "Hindi", mr: "Marathi", ta: "Tamil", te: "Telugu",
+      kn: "Kannada", bn: "Bengali", gu: "Gujarati",
+    };
+    const langInstruction =
+      lang && langMap[lang]
+        ? `\nIMPORTANT: Write summary, reason, recommendations, competitorInsight, seasonalFactors, pricingAdvice.reason in ${langMap[lang]}. Keep product names, numbers, JSON keys in English.`
+        : "";
 
     if (!productName || !userId) {
-      return Response.json({ error: "productName and userId required" }, { status: 400 });
+      return Response.json(
+        { error: "productName and userId required" },
+        { status: 400 }
+      );
+    }
+    if (!GROQ_KEYS.length) {
+      return Response.json(
+        { error: "No GROQ_API_KEY configured on the server." },
+        { status: 503 }
+      );
     }
 
-    // 1. Check if product exists in inventory OR products table
-    const { data: invProducts } = await supabase
-      .from("inventory").select("*").eq("store_id", userId).ilike("product_name", `%${productName}%`);
-    const product = invProducts?.[0] || null;
+    /* 1. The shop itself. Everything downstream is grounded in this. */
+    const scope = await resolveStoreScope(supabase, userId);
+    const product = findInInventory(scope.items, productName);
 
-    // Also check the products catalog table
-    const { data: catalogProducts } = await supabase
-      .from("products").select("product_name").ilike("product_name", `%${productName}%`).limit(1);
+    /* 2. Catalog and sales history are optional signals, not gates. */
+    const catalog = await safeSelect<any>(
+      supabase
+        .from("products")
+        .select("product_name, category, brand, mrp")
+        .ilike("product_name", `%${productName}%`)
+        .limit(1)
+    );
 
-    // Also check historic_sales for this product
-    const { data: salesCheck } = await supabase
-      .from("historic_sales").select("product_name").ilike("product_name", `%${productName}%`).limit(1);
+    const profile = await getStoreProfile(supabase, userId, scope.items);
+    const city = profile.city;
 
-    // If product not found in any table, reject
-    if (!product && !catalogProducts?.length && !salesCheck?.length) {
-      return Response.json({ error: `"${productName}" is not a valid product. Please search for a product that exists in your inventory or catalog.` }, { status: 400 });
+    const history = await getHistoricSales(supabase, productName);
+    const salesData = history.rows;
+
+    /*
+      Reject only when there is genuinely nothing to reason about: the shop
+      stocks it nowhere, no catalog entry, no sales history. Previously this
+      also fired whenever the optional tables were simply absent, which made
+      every lookup fail. The reply carries real suggestions so the dead end
+      is actionable.
+    */
+    if (!product && !catalog.rows.length && !salesData.length) {
+      const suggestions = scope.items
+        .slice(0, 8)
+        .map((i) => i.product_name);
+      return Response.json(
+        {
+          error: scope.items.length
+            ? `"${productName}" is not in your inventory or catalog.`
+            : "No inventory found for this account yet. Add products first, or seed the demo inventory.",
+          suggestions,
+          inventoryCount: scope.items.length,
+        },
+        { status: 404 }
+      );
     }
 
-    // 2. Store profile
-    const { data: store } = await supabase
-      .from("profiles").select("store_name, store_category, store_size, city, state, store_address")
-      .eq("id", userId).single();
-
-    const city = store?.city || "Pune";
-
-    // 3. HISTORIC SALES — query by product + city
-    const { data: historicSales } = await supabase
-      .from("historic_sales")
-      .select("date, day_of_week, quantity_sold, temperature, weather_condition, humidity, is_weekend, is_festival, festival_name")
-      .ilike("product_name", `%${productName}%`).eq("city", city)
-      .order("date", { ascending: false }).limit(90);
-
-    let salesData = historicSales;
-    if (!salesData?.length) {
-      // Fallback: any city
-      const { data: fb } = await supabase.from("historic_sales")
-        .select("date, day_of_week, quantity_sold, temperature, weather_condition, humidity, is_weekend, is_festival, festival_name")
-        .ilike("product_name", `%${productName}%`).order("date", { ascending: false }).limit(90);
-      salesData = fb;
-    }
-
-    // Compute stats from historic data
-    let historicContext = "No historic sales data available for this product.";
-    if (salesData?.length) {
-      const total = salesData.reduce((s, r) => s + r.quantity_sold, 0);
-      const avg = (total / salesData.length).toFixed(1);
-      const wkday = salesData.filter(r => !r.is_weekend);
-      const wkend = salesData.filter(r => r.is_weekend);
-      const avgWD = wkday.length ? (wkday.reduce((s, r) => s + r.quantity_sold, 0) / wkday.length).toFixed(1) : "0";
-      const avgWE = wkend.length ? (wkend.reduce((s, r) => s + r.quantity_sold, 0) / wkend.length).toFixed(1) : "0";
-      const hot = salesData.filter(r => r.temperature && r.temperature > 35);
-      const cold = salesData.filter(r => r.temperature && r.temperature < 20);
-      const rainy = salesData.filter(r => r.weather_condition?.includes("Rain"));
-      const fest = salesData.filter(r => r.is_festival);
-      const avgHot = hot.length ? (hot.reduce((s, r) => s + r.quantity_sold, 0) / hot.length).toFixed(1) : "N/A";
-      const avgCold = cold.length ? (cold.reduce((s, r) => s + r.quantity_sold, 0) / cold.length).toFixed(1) : "N/A";
-      const avgRainy = rainy.length ? (rainy.reduce((s, r) => s + r.quantity_sold, 0) / rainy.length).toFixed(1) : "N/A";
-      const avgFest = fest.length ? (fest.reduce((s, r) => s + r.quantity_sold, 0) / fest.length).toFixed(1) : "N/A";
-      const last7 = salesData.slice(0, 7).map(r =>
-        `${r.day_of_week}: ${r.quantity_sold} units (${r.temperature}°C ${r.weather_condition}${r.is_festival ? " FEST:" + r.festival_name : ""})`
-      ).join("\n");
-
-      historicContext = `HISTORIC SALES (${salesData.length} days, ${city}):
-Avg daily: ${avg} | Weekday avg: ${avgWD} | Weekend avg: ${avgWE}
-Hot(>35°C): ${avgHot}/day | Cold(<20°C): ${avgCold}/day | Rainy: ${avgRainy}/day | Festival: ${avgFest}/day
-Max: ${Math.max(...salesData.map(r => r.quantity_sold))} | Min: ${Math.min(...salesData.map(r => r.quantity_sold))}
-Last 7 days:\n${last7}`;
-    }
-
-    // 4. Upcoming events
-    const today = new Date().toISOString().split("T")[0];
-    const next10 = new Date(); next10.setDate(next10.getDate() + 10);
-    const { data: events } = await supabase.from("regional_events")
-      .select("event_name, start_date, end_date, demand_impact_percent, affected_categories")
-      .gte("start_date", today).lte("start_date", next10.toISOString().split("T")[0]);
-    const { data: ongoing } = await supabase.from("regional_events")
-      .select("event_name, start_date, end_date, demand_impact_percent, affected_categories")
-      .lte("start_date", today).gte("end_date", today);
-    const allEvents = [...(events || []), ...(ongoing || [])];
+    /* 3. Signals */
+    const events = await getUpcomingEvents(supabase, 10);
+    const allEvents = events.rows;
     const eventsStr = allEvents.length
-      ? allEvents.map(e => `${e.event_name} (${e.start_date}→${e.end_date}) ${e.demand_impact_percent}% on ${e.affected_categories?.join(",")}`).join("\n")
-      : "No events next 10 days.";
+      ? allEvents
+          .map(
+            (e) =>
+              `${e.event_name} (${e.event_type}, ${e.start_date} to ${e.end_date}) expected demand impact +${e.impact_score}%`
+          )
+          .join("\n")
+      : events.available
+        ? "No events in the next 10 days."
+        : "Event calendar unavailable.";
 
-    // 5. Weather history same week last year
-    const lastYr = new Date(); lastYr.setFullYear(lastYr.getFullYear() - 1);
-    const { data: lastYrW } = await supabase.from("weather_history")
-      .select("date, avg_temp, weather_condition").eq("city", city)
-      .gte("date", lastYr.toISOString().split("T")[0]).order("date", { ascending: false }).limit(7);
+    /* 4. Historic statistics, when history exists at all. */
+    let historicContext: string;
+    if (salesData.length) {
+      const total = salesData.reduce((s, r) => s + (r.quantity_sold || 0), 0);
+      const avg = (total / salesData.length).toFixed(1);
+      const wkday = salesData.filter((r) => !r.is_weekend);
+      const wkend = salesData.filter((r) => r.is_weekend);
+      const mean = (rows: any[]) =>
+        rows.length
+          ? (rows.reduce((s, r) => s + (r.quantity_sold || 0), 0) / rows.length).toFixed(1)
+          : "N/A";
+      const fest = salesData.filter((r) => r.is_festival);
+      const recent14 = salesData.slice(0, 14);
+      const prior14 = salesData.slice(14, 28);
+      const trend =
+        prior14.length && recent14.length
+          ? (
+              ((recent14.reduce((s, r) => s + r.quantity_sold, 0) / recent14.length) /
+                (prior14.reduce((s, r) => s + r.quantity_sold, 0) / prior14.length) -
+                1) *
+              100
+            ).toFixed(1)
+          : "N/A";
 
-    const next7 = getNext7Days();
+      const last14 = salesData
+        .slice(0, 14)
+        .map(
+          (r) =>
+            `${r.date} ${r.day_of_week}: ${r.quantity_sold} units${r.is_festival ? " FESTIVAL:" + r.festival_name : ""}`
+        )
+        .join("\n");
 
+      historicContext = `HISTORIC SALES from this store's own till (${salesData.length} days with sales, ${history.lineCount} line items, ${city}):
+Avg daily: ${avg} | Weekday avg: ${mean(wkday)} | Weekend avg: ${mean(wkend)} | Festival-day avg: ${mean(fest)}
+Last 14 days vs the 14 before: ${trend}% change
+Daily series, most recent first:\n${last14}`;
+    } else {
+      /*
+        No sales log. The forecast still has to be reasoned, so hand the model
+        the shop's own shelf position and tell it what to infer from.
+      */
+      historicContext = `HISTORIC SALES: none recorded yet for this product.
+Estimate a baseline from: the product category, its price point, the stock level the shopkeeper chose to hold, and the reorder level they set. A reorder level is a rough signal of expected weekly turnover.`;
+    }
+
+    const next7 = nextSevenDays();
     const weatherPerDay = weatherForecast?.length
-      ? weatherForecast.slice(0, 7).map((w: any, i: number) =>
-          `${next7[i]?.day} ${next7[i]?.date}: ${w.avgTemp || w.maxTemp || "?"}°C ${w.weather || "?"} Hum:${w.avgHumidity || "?"}%`
-        ).join("\n") : "No forecast.";
+      ? weatherForecast
+          .slice(0, 7)
+          .map(
+            (w: any, i: number) =>
+              `${next7[i]?.day} ${next7[i]?.date}: ${w.avgTemp || w.maxTemp || "?"}C ${w.weather || "?"} Hum:${w.avgHumidity || "?"}%`
+          )
+          .join("\n")
+      : "No forecast available.";
 
-    const prompt = `Predict demand for "${productName}" for next 7 days. USE THE HISTORIC DATA — it is REAL past sales.
+    const currentStock = stockOf(product);
+    const catalogHit = catalog.rows[0];
 
-DATE: ${today}
+    const prompt = `Predict demand for "${productName}" for the next 7 days at a real Indian retail store.
+
+DATE: ${new Date().toISOString().split("T")[0]}
 PRODUCT: "${productName}"
-${product ? `STOCK: ${product.current_stock} ${product.unit} at ₹${product.price} | ${product.category}` : "NOT in inventory."}
-STORE: "${store?.store_name || "Store"}" (${store?.store_category || storeCategory || "General"}) ${city}, ${store?.state || ""}
-Size: ${store?.store_size || "Small"}
+${
+  product
+    ? `IN INVENTORY: yes. Stock ${currentStock} ${product.unit} at Rs.${product.price}. Category ${product.category}. Reorder level ${product.reorder_level ?? "not set"}. Supplier ${product.supplier || "unknown"}.${product.expiry_date ? ` Expires ${product.expiry_date}.` : ""}`
+    : catalogHit
+      ? `IN INVENTORY: no. Present in the product catalog as ${catalogHit.brand || ""} ${catalogHit.product_name} (${catalogHit.category || "uncategorised"}), MRP Rs.${catalogHit.mrp ?? "?"}.`
+      : "IN INVENTORY: no, and not in the catalog. Treat as a candidate the shop is considering."
+}
+STORE: "${profile.store_name}" in ${location || city}, ${profile.state}. Shelf profile: ${profile.store_category}.
 
-WEATHER NOW: ${weather ? `${weather.temp}°C ${weather.description} Humidity:${weather.humidity}%` : "N/A"}
-7-DAY FORECAST:\n${weatherPerDay}
+THIS SHOP CURRENTLY STOCKS (${scope.items.length} lines):
+${inventoryDigest(scope.items, 40)}
+
+WEATHER NOW: ${weather ? `${weather.temp}C ${weather.description} Humidity:${weather.humidity}%` : "N/A"}
+7-DAY FORECAST:
+${weatherPerDay}
 
 ${historicContext}
 
-EVENTS:\n${eventsStr}
-
-${lastYrW?.length ? `LAST YEAR SAME WEEK: ${lastYrW.map(w => `${w.date}:${w.avg_temp}°C ${w.weather_condition}`).join(", ")}` : ""}
+EVENTS:
+${eventsStr}
 
 RULES:
-- USE historic averages as baseline. Weekday→use weekday avg, weekend→weekend avg
-- Adjust for weather: if forecast >35°C and historic hot-day avg is X, use X (not weekday avg)
-- If festival upcoming and category matches, apply the impact %
-- Confidence: 70-90 INTEGER (not decimal)
-- stockRequired = totalSales + 15% buffer
-- additionalNeeded = max(0, stockRequired - currentStock)
-- Margins: FMCG 8-15%, beverages 15-25%, snacks 20-30%, ice cream 30-50%
+- Ground the baseline in the historic averages when present. Weekday uses weekday average, weekend uses weekend average.
+- Adjust for weather: if a day is forecast above 35C and a hot-day average exists, prefer it over the weekday average.
+- If a festival falls in the window and the category matches, apply its impact percentage.
+- confidence is an INTEGER between 60 and 90. Use the lower half when there is no sales history.
+- stockRequired = totalPredictedSales + 15% buffer.
+- additionalStockNeeded = max(0, stockRequired - ${currentStock}).
+- Typical margins: FMCG 8-15%, beverages 15-25%, snacks 20-30%, dairy 5-12%, ice cream 30-50%, electronics 6-12%.
+- Every daily reason must cite a concrete driver, never a generic phrase.
 
-JSON ONLY:
-{"productName":"${productName}","currentStock":${product?.current_stock || 0},"unit":"${product?.unit || "pcs"}","currentPrice":${product?.price || 0},"inInventory":${!!product},"weatherSummary":"1-line","locationContext":"1-line","summary":"2 sentences based on historic data","dailyForecast":[{"day":"${next7[0].day}","date":"${next7[0].date}","predictedSales":0,"confidence":75,"reason":"why"},{"day":"${next7[1].day}","date":"${next7[1].date}","predictedSales":0,"confidence":75,"reason":"why"},{"day":"${next7[2].day}","date":"${next7[2].date}","predictedSales":0,"confidence":75,"reason":"why"},{"day":"${next7[3].day}","date":"${next7[3].date}","predictedSales":0,"confidence":75,"reason":"why"},{"day":"${next7[4].day}","date":"${next7[4].date}","predictedSales":0,"confidence":75,"reason":"why"},{"day":"${next7[5].day}","date":"${next7[5].date}","predictedSales":0,"confidence":75,"reason":"why"},{"day":"${next7[6].day}","date":"${next7[6].date}","predictedSales":0,"confidence":75,"reason":"why"}],"totalPredictedSales":0,"stockRequired":0,"currentStockStatus":"Sufficient/Insufficient/Critical/Overstocked","additionalStockNeeded":0,"restockUrgency":"High/Medium/Low/None","recommendations":["r1","r2","r3"],"pricingAdvice":{"currentPrice":${product?.price || 0},"suggestedPrice":0,"reason":"why"},"seasonalFactors":["f1"],"competitorInsight":"insight","riskFactors":[{"risk":"what","severity":"level","mitigation":"how"}],"demandDrivers":["d1","d2"],"profitAnalysis":{"estimatedRevenue":0,"estimatedProfit":0,"margin":"X%"}}${langInstruction}`;
+Reply with JSON only:
+{"productName":"${productName}","currentStock":${currentStock},"unit":"${product?.unit || catalogHit?.unit || "pcs"}","currentPrice":${product?.price ?? catalogHit?.mrp ?? 0},"inInventory":${!!product},"weatherSummary":"one line","locationContext":"one line","summary":"2 sentences grounded in the data above","dailyForecast":[${next7
+      .map(
+        (d) =>
+          `{"day":"${d.day}","date":"${d.date}","predictedSales":0,"confidence":75,"reason":"why"}`
+      )
+      .join(",")}],"totalPredictedSales":0,"stockRequired":0,"currentStockStatus":"Sufficient/Insufficient/Critical/Overstocked","additionalStockNeeded":0,"restockUrgency":"High/Medium/Low/None","recommendations":["r1","r2","r3"],"pricingAdvice":{"currentPrice":${product?.price ?? 0},"suggestedPrice":0,"reason":"why"},"seasonalFactors":["f1"],"competitorInsight":"insight","riskFactors":[{"risk":"what","severity":"level","mitigation":"how"}],"demandDrivers":["d1","d2"],"profitAnalysis":{"estimatedRevenue":0,"estimatedProfit":0,"margin":"X%"}}${langInstruction}`;
 
+    /* 5. Inference, with key rotation. */
     let completion: any = null;
+    let lastError: any = null;
     for (let i = 0; i < GROQ_KEYS.length; i++) {
       try {
         const groq = new Groq({ apiKey: GROQ_KEYS[i] });
@@ -167,44 +227,85 @@ JSON ONLY:
           messages: [{ role: "user", content: prompt }],
           model: "llama-3.3-70b-versatile",
           temperature: 0.2,
-          max_tokens: 1500,
+          max_tokens: 1800,
           response_format: { type: "json_object" },
         });
         break;
       } catch (e: any) {
-        console.log(`Groq key ${i + 1} failed:`, e.message);
-        if (i === GROQ_KEYS.length - 1) throw e;
+        lastError = e;
+        console.error(`Groq key ${i + 1} failed:`, e?.message);
       }
     }
 
+    if (!completion) {
+      return Response.json(
+        {
+          error: `Forecast model unavailable: ${lastError?.message || "all API keys failed"}`,
+        },
+        { status: 502 }
+      );
+    }
+
     const content = completion.choices[0]?.message?.content || "";
-    let analysis;
+    let analysis: any;
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       analysis = JSON.parse(jsonMatch ? jsonMatch[0] : content);
     } catch {
-      return Response.json({ error: "Failed to parse analysis", raw: content }, { status: 500 });
+      return Response.json(
+        { error: "Failed to parse the model response", raw: content.slice(0, 500) },
+        { status: 502 }
+      );
     }
 
-    // Fix confidence decimals
-    if (analysis.dailyForecast) {
+    /* 6. Normalise the numbers the UI binds to. */
+    if (Array.isArray(analysis.dailyForecast)) {
       for (const day of analysis.dailyForecast) {
-        if (day.confidence < 1) day.confidence = Math.round(day.confidence * 100);
-        if (day.confidence < 10) day.confidence = day.confidence * 10;
-        day.predictedSales = Math.max(0, Math.round(day.predictedSales));
+        let c = Number(day.confidence) || 70;
+        if (c > 0 && c <= 1) c = c * 100;
+        if (c < 10) c = c * 10;
+        day.confidence = Math.min(99, Math.max(1, Math.round(c)));
+        day.predictedSales = Math.max(0, Math.round(Number(day.predictedSales) || 0));
       }
+      const total = analysis.dailyForecast.reduce(
+        (s: number, d: any) => s + d.predictedSales,
+        0
+      );
+      if (!analysis.totalPredictedSales) analysis.totalPredictedSales = total;
+    }
+
+    // Keep these authoritative: they come from the database, not the model.
+    analysis.currentStock = currentStock;
+    analysis.inInventory = !!product;
+    if (product) {
+      analysis.unit = product.unit;
+      analysis.currentPrice = product.price;
+    }
+    if (typeof analysis.stockRequired === "number") {
+      analysis.additionalStockNeeded = Math.max(
+        0,
+        Math.round(analysis.stockRequired - currentStock)
+      );
     }
 
     return Response.json({
-      analysis, product,
+      analysis,
+      product,
       weather: weather || null,
       location: location || city,
-      historicDataPoints: salesData?.length || 0,
+      historicDataPoints: salesData.length,
+      historyAvailable: history.available,
       eventsCount: allEvents.length,
+      inventoryCount: scope.items.length,
+      inventoryScope: scope.source,
+      categories: categoriesOf(scope.items),
       generatedAt: new Date().toISOString(),
     });
   } catch (err: any) {
-    console.error("Product analysis error:", err.message);
-    return Response.json({ error: err.message || "Analysis failed" }, { status: 500 });
+    console.error("Product analysis error:", err?.message, err?.stack);
+    return Response.json(
+      { error: err?.message || "Analysis failed" },
+      { status: 500 }
+    );
   }
 }
