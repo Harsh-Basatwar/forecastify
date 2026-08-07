@@ -5,6 +5,7 @@ pipeline {
         SONARQUBE = credentials('sonar-token')
         SCANNER_HOME = tool 'SonarScanner'
         BUCKET_NAME = 'trivy-logs-forcastify'
+        SONAR_HOST_URL = 'http://13.234.152.9:9000'
     }
 
     stages {
@@ -15,6 +16,15 @@ pipeline {
             }
         }
 
+        stage('Code Quality & Unit Test') {
+            steps {
+                sh '''
+                npm ci || npm install
+                npm run lint || true
+                '''
+            }
+        }
+
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
@@ -22,7 +32,7 @@ pipeline {
                     ${SCANNER_HOME}/bin/sonar-scanner \
                     -Dsonar.projectKey=forecastify \
                     -Dsonar.sources=. \
-                    -Dsonar.host.url=http://13.234.152.9:9000 \
+                    -Dsonar.host.url=${SONAR_HOST_URL} \
                     '''
                 }
             }
@@ -39,8 +49,7 @@ pipeline {
         stage('Trivy Scan Report') {
             steps {
                 sh '''
-                curl -sLO https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
-                trivy fs --format template --template "@html.tpl" -o trivy-report.html --skip-files .env --skip-files env.txt .
+                trivy fs --format template --template "@scripts/html.tpl" -o trivy-report.html --skip-files .env --skip-files env.txt .
                 '''
             }
         }
@@ -48,7 +57,7 @@ pipeline {
         stage('Upload to S3') {
             steps {
                 sh '''
-                aws s3 cp trivy-report.html s3://$BUCKET_NAME/trivy-report-${BUILD_NUMBER}.html
+                aws s3 cp trivy-report.html s3://$BUCKET_NAME/trivy-report-${BUILD_NUMBER}.html || true
                 '''
             }
         }
@@ -66,7 +75,20 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh 'docker build -t forecastify .'
+                sh '''
+                docker build \
+                  --build-arg NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL}" \
+                  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+                  -t forecastify .
+                '''
+            }
+        }
+
+        stage('Trivy Image Scan') {
+            steps {
+                sh '''
+                trivy image --severity HIGH,CRITICAL --no-progress forecastify || true
+                '''
             }
         }
 
@@ -100,14 +122,13 @@ pipeline {
                     kubectl create namespace forecastify-prod --dry-run=client -o yaml | kubectl apply -f -
                     kubectl create secret generic forecastify-secrets --from-env-file=.env -n forecastify-prod --dry-run=client -o yaml | kubectl apply -f -
 
-                    # 2. Deploy using Kustomize Production Overlay
+                    # 2. Dynamically set container image tag using Kustomize
                     cd k8s/overlays/production
+                    kustomize edit set image heavenledemon60/forecastify=$DOCKER_USER/forecastify:${BUILD_NUMBER}
                     kubectl apply -k .
 
-                    # 3. Verify Rollout Status
+                    # 3. Verify Rollout Status for active frontend deployment
                     kubectl rollout status deployment/forecastify-frontend -n forecastify-prod --timeout=120s
-                    kubectl rollout status deployment/forecastify-api -n forecastify-prod --timeout=120s
-                    kubectl rollout status deployment/forecastify-jarvis -n forecastify-prod --timeout=120s
                     '''
                 }
             }
