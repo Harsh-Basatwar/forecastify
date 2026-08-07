@@ -38,8 +38,8 @@ export async function GET(request: Request) {
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     items.forEach((item) => {
-      const price = parseFloat(item.price || item.mrp || "0");
-      const stock = parseFloat(item.current_stock || "0");
+      const price = parseFloat(item.price ?? item.mrp ?? item.cost_price ?? "0");
+      const stock = parseFloat(item.quantity ?? item.current_stock ?? item.available_stock ?? "0");
       const itemVal = price * stock;
 
       totalValue += itemVal;

@@ -19,8 +19,16 @@ function reorderLevel(item: any) {
   return 10;
 }
 
+function getItemStock(item: any): number {
+  return Number(item?.quantity ?? item?.current_stock ?? item?.available_stock ?? 0);
+}
+
+function getItemPrice(item: any): number {
+  return Number(item?.price ?? item?.mrp ?? item?.cost_price ?? 0);
+}
+
 function inventoryStatus(item: any) {
-  const stock = Number(item?.current_stock || 0);
+  const stock = getItemStock(item);
   const reorder = reorderLevel(item);
   if (stock <= 0) return "critical";
   if (stock < reorder) return "low";
@@ -70,15 +78,18 @@ export async function POST(request: Request) {
     const criticalItems = inventory?.filter(i => inventoryStatus(i) === "critical").length || 0;
     const lowItems = inventory?.filter(i => inventoryStatus(i) === "low").length || 0;
     const overstockItems = inventory?.filter(i => inventoryStatus(i) === "overstock").length || 0;
-    const totalValue = inventory?.reduce((s, i) => s + (i.current_stock * i.price), 0) || 0;
+    const totalValue = inventory?.reduce((s, i) => s + (getItemStock(i) * getItemPrice(i)), 0) || 0;
 
     // Category demand
     const catMap: Record<string, { stock: number; value: number; count: number }> = {};
     inventory?.forEach(i => {
-      if (!catMap[i.category]) catMap[i.category] = { stock: 0, value: 0, count: 0 };
-      catMap[i.category].stock += i.current_stock;
-      catMap[i.category].value += i.current_stock * i.price;
-      catMap[i.category].count++;
+      const categoryName = i.category || "General";
+      if (!catMap[categoryName]) catMap[categoryName] = { stock: 0, value: 0, count: 0 };
+      const st = getItemStock(i);
+      const pr = getItemPrice(i);
+      catMap[categoryName].stock += st;
+      catMap[categoryName].value += st * pr;
+      catMap[categoryName].count++;
     });
     const categoryDemand = Object.entries(catMap)
       .map(([cat, d]) => ({ category: cat, stock: d.stock, value: Math.round(d.value), products: d.count }))
@@ -86,19 +97,19 @@ export async function POST(request: Request) {
 
     // 2. Recent products
     const recentProducts = (inventory || []).slice(0, 10).map(i => ({
-      name: i.product_name, category: i.category, quantity: i.current_stock, unit: i.unit,
-      price: i.price, brand: i.brand,
+      name: i.product_name || i.name, category: i.category, quantity: getItemStock(i), unit: i.unit,
+      price: getItemPrice(i), brand: i.brand,
       status: inventoryStatus(i),
     }));
 
     // 3. Inventory sorted views
-    const byLowQty = [...(inventory || [])].sort((a, b) => a.current_stock - b.current_stock).slice(0, 10).map(i => ({
-      name: i.product_name, category: i.category, quantity: i.current_stock, unit: i.unit, price: i.price,
+    const byLowQty = [...(inventory || [])].sort((a, b) => getItemStock(a) - getItemStock(b)).slice(0, 10).map(i => ({
+      name: i.product_name || i.name, category: i.category, quantity: getItemStock(i), unit: i.unit, price: getItemPrice(i),
       status: inventoryStatus(i),
     }));
-    const byHighPrice = [...(inventory || [])].sort((a, b) => (b.current_stock * b.price) - (a.current_stock * a.price)).slice(0, 10).map(i => ({
-      name: i.product_name, category: i.category, quantity: i.current_stock, unit: i.unit, price: i.price,
-      totalValue: Math.round(i.current_stock * i.price),
+    const byHighPrice = [...(inventory || [])].sort((a, b) => (getItemStock(b) * getItemPrice(b)) - (getItemStock(a) * getItemPrice(a))).slice(0, 10).map(i => ({
+      name: i.product_name || i.name, category: i.category, quantity: getItemStock(i), unit: i.unit, price: getItemPrice(i),
+      totalValue: Math.round(getItemStock(i) * getItemPrice(i)),
     }));
 
     // 4. Demand forecast (next 7 days)
