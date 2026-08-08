@@ -11,8 +11,8 @@ import { Reveal, AnimatedCounter } from "@/lib/motion-primitives";
 const FAILURES = [
   {
     icon: PackageX,
-    photo: "https://picsum.photos/seed/forecastify-empty-shelf/900/1100",
-    alt: "A retail shelf with gaps where stock has run out.",
+    photo: "/outofstock.jpeg",
+    alt: "A shopkeeper turning a customer away from an empty fridge while the customer walks to the shop next door.",
     title: "You ran out",
     body: "The customer wanted it, you did not have it. They walk to the next shop, and often they keep going there.",
     stat: 82,
@@ -21,8 +21,8 @@ const FAILURES = [
   },
   {
     icon: Trash2,
-    photo: "https://picsum.photos/seed/forecastify-expired-stock/900/1100",
-    alt: "Packaged goods stacked in a store back room.",
+    photo: "/boughttoomuch.jpeg",
+    alt: "A shopkeeper checking a clipboard against shelves of expiry-tagged stock, with expired goods already in the bin.",
     title: "You bought too much",
     body: "Capital sits on the shelf until the date passes. Then it is not stock any more, it is loss you already paid for.",
     stat: 76,
@@ -49,25 +49,18 @@ export default function CostOfGuessing() {
           {FAILURES.map((f, i) => (
             <Reveal key={f.title} delay={i * 0.08} direction={i === 0 ? "left" : "right"}>
               <article className="fx-card fx-lift group relative h-full overflow-hidden p-0">
-                <div className="fx-zoom relative aspect-[16/10] w-full bg-[var(--muted)]">
-                  {/* Placeholder photography. `unoptimized` keeps the loader
-                      off a remote host the project has not allow-listed; when
-                      these are swapped for real store photos in /public the
-                      prop comes off and optimisation applies as normal. */}
+                <div className="fx-zoom relative aspect-[16/10] w-full bg-white">
                   <Image
                     src={f.photo}
                     alt={f.alt}
                     fill
-                    unoptimized
+                    priority={i === 0}
                     sizes="(max-width: 768px) 100vw, 50vw"
                     className="object-cover"
                   />
-                  {/* Duotone wash pulls stock photography onto the brand palette
-                      so two unrelated images still read as one system. */}
-                  <div
-                    aria-hidden="true"
-                    className="absolute inset-0 bg-[var(--accent)] opacity-[0.16] mix-blend-color"
-                  />
+                  {/* These illustrations are already drawn on the brand palette,
+                      so they need no duotone wash to read as one system. The
+                      white plate stays fixed in both themes for the same reason. */}
                   <div
                     aria-hidden="true"
                     className="absolute inset-0 bg-gradient-to-t from-[var(--card)] via-transparent to-transparent"
